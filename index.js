@@ -65,6 +65,24 @@ const CSM_RANK     = '◆◆◆◆◆◆◆◆◆◆ Command Sergeant Major';
 const SGM_RANK     = '◆◆◆◆◆◆◆◆◆ Sergeant Major';
 const COLONEL_RANK = '●●●●●● Colonel';
 
+// ============================================================
+//  GOLD COINS & XP — CONSTANTS
+// ============================================================
+
+const GOLD_SYMBOL = '💰';
+const XP_SYMBOL = '⭐';
+const PRESTIGE_SYMBOL = '👑';
+
+const MAX_LEVEL = 100;
+const MAX_PRESTIGE = 10;
+const XP_PER_LEVEL = 500;
+const XP_COOLDOWN = 10000; // 10 seconds between XP gains
+
+// Coin rewards per level achieved
+function getCoinRewardForLevel(level) {
+    return 50 * level; // 50 coins per level
+}
+
 
 // ============================================================
 //  UTILITY FUNCTIONS
@@ -104,6 +122,246 @@ async function resolveMember(guild, arg) {
     const id = arg.replace(/[<@!>]/g, '');
     return guild.members.fetch(id).catch(() => null);
 }
+// ============================================================
+//  GOLD COINS & XP HELPER FUNCTIONS
+// ============================================================
+
+// ── Currency Getters & Setters ──
+function getUserBalance(userId) {
+    if (!botData.currency) botData.currency = {};
+    if (!botData.currency[userId]) {
+        botData.currency[userId] = { balance: 0, lastUpdated: Date.now() };
+    }
+    return botData.currency[userId].balance || 0;
+}
+
+function setUserBalance(userId, amount) {
+    if (!botData.currency) botData.currency = {};
+    botData.currency[userId] = { balance: Math.max(0, amount), lastUpdated: Date.now() };
+    markDirty(); scheduleSave();
+}
+
+function addCoins(userId, amount) {
+    const current = getUserBalance(userId);
+    setUserBalance(userId, current + amount);
+}
+
+function removeCoins(userId, amount) {
+    const current = getUserBalance(userId);
+    if (current < amount) return false;
+    setUserBalance(userId, current - amount);
+    return true;
+}
+
+// ── XP Getters & Data Functions ──
+function getUserXPData(guildId, userId) {
+    if (!botData.xp) botData.xp = {};
+    if (!botData.xp[guildId]) botData.xp[guildId] = {};
+    if (!botData.xp[guildId][userId]) {
+        botData.xp[guildId][userId] = { xp: 0, level: 1, prestige: 0 };
+    }
+    return botData.xp[guildId][userId];
+}
+
+function calculateLevelFromXP(totalXP, prestige) {
+    // Calculate level based on prestige count and total XP
+    if (prestige < 0 || prestige > MAX_PRESTIGE) prestige = Math.min(Math.max(prestige, 0), MAX_PRESTIGE);
+    
+    const xpFromPrestige = prestige * (MAX_LEVEL * XP_PER_LEVEL);
+    if (totalXP < xpFromPrestige) return 1;
+    
+    const remainingXP = totalXP - xpFromPrestige;
+    const levelGain = Math.floor(remainingXP / XP_PER_LEVEL);
+    return Math.min(1 + levelGain, MAX_LEVEL);
+}
+
+function canGainXP(guildId, userId) {
+    // Check cooldown for XP gains (10 seconds)
+    if (!botData.xpCooldowns) botData.xpCooldowns = {};
+    if (!botData.xpCooldowns[guildId]) botData.xpCooldowns[guildId] = {};
+    
+    const lastGain = botData.xpCooldowns[guildId][userId] || 0;
+    const now = Date.now();
+    
+    if (now - lastGain < XP_COOLDOWN) {
+        return false;
+    }
+    
+    botData.xpCooldowns[guildId][userId] = now;
+    return true;
+}
+
+function addXP(guildId, userId, amount) {
+    if (!botData.xp) botData.xp = {};
+    if (!botData.xp[guildId]) botData.xp[guildId] = {};
+    
+    const data = getUserXPData(guildId, userId);
+    const oldLevel = data.level;
+    
+    data.xp += amount;
+    const newLevel = calculateLevelFromXP(data.xp, data.prestige);
+    data.level = newLevel;
+    
+    // Award coins for leveling up
+    const levelUpAmount = newLevel - oldLevel;
+    if (levelUpAmount > 0) {
+        for (let i = oldLevel + 1; i <= newLevel; i++) {
+            addCoins(userId, getCoinRewardForLevel(i));
+        }
+    }
+    
+    markDirty(); scheduleSave();
+    return { levelUp: levelUpAmount > 0, newLevel, oldLevel };
+}
+
+function removeXP(guildId, userId, amount) {
+    const data = getUserXPData(guildId, userId);
+    data.xp = Math.max(0, data.xp - amount);
+    data.level = calculateLevelFromXP(data.xp, data.prestige);
+    markDirty(); scheduleSave();
+}
+
+function resetXP(guildId, userId) {
+    if (!botData.xp) botData.xp = {};
+    if (botData.xp[guildId]) {
+        delete botData.xp[guildId][userId];
+    }
+    markDirty(); scheduleSave();
+}
+
+function prestigeUser(guildId, userId) {
+    const data = getUserXPData(guildId, userId);
+    
+    if (data.prestige >= MAX_PRESTIGE) {
+        return { success: false, reason: `Already at max prestige (${MAX_PRESTIGE})` };
+    }
+    
+    if (data.level !== MAX_LEVEL) {
+        return { success: false, reason: `Must be level ${MAX_LEVEL}` };
+    }
+    
+    const oldPrestige = data.prestige;
+    data.prestige++;
+    data.level = 1;
+    data.xp = 0;
+    
+    // Award coins for prestige milestone
+    addCoins(userId, 500 * data.prestige);
+    
+    markDirty(); scheduleSave();
+    return { success: true, prestige: data.prestige, oldPrestige };
+}
+
+// ── Leaderboard Functions ──
+function getServerLeaderboard(guildId, type = 'coins', limit = 10) {
+    const entries = [];
+    
+    if (type === 'coins') {
+        if (!botData.xp?.[guildId]) return [];
+        
+        for (const [userId, xpData] of Object.entries(botData.xp[guildId])) {
+            const balance = getUserBalance(userId);
+            if (balance > 0) {
+                entries.push({ userId, balance, level: xpData.level, prestige: xpData.prestige });
+            }
+        }
+        entries.sort((a, b) => b.balance - a.balance);
+    } else if (type === 'level') {
+        if (!botData.xp?.[guildId]) return [];
+        
+        for (const [userId, xpData] of Object.entries(botData.xp[guildId])) {
+            entries.push({
+                userId,
+                level: xpData.level,
+                prestige: xpData.prestige,
+                balance: getUserBalance(userId)
+            });
+        }
+        entries.sort((a, b) => {
+            if (b.prestige !== a.prestige) return b.prestige - a.prestige;
+            return b.level - a.level;
+        });
+    }
+    
+    return entries.slice(0, limit);
+}
+
+function getGlobalLeaderboard(type = 'coins', limit = 10) {
+    const entries = [];
+    
+    if (type === 'coins') {
+        for (const [userId, data] of Object.entries(botData.currency || {})) {
+            if (data.balance > 0) {
+                entries.push({ userId, balance: data.balance });
+            }
+        }
+        entries.sort((a, b) => b.balance - a.balance);
+    } else if (type === 'level') {
+        for (const [guildId, guildData] of Object.entries(botData.xp || {})) {
+            for (const [userId, xpData] of Object.entries(guildData)) {
+                const existing = entries.find(e => e.userId === userId);
+                if (existing) {
+                    existing.totalPrestige = Math.max(existing.totalPrestige, xpData.prestige);
+                    existing.maxLevel = Math.max(existing.maxLevel, xpData.level);
+                } else {
+                    entries.push({
+                        userId,
+                        totalPrestige: xpData.prestige,
+                        maxLevel: xpData.level,
+                        balance: getUserBalance(userId)
+                    });
+                }
+            }
+        }
+        
+        if (type === 'level') {
+            entries.sort((a, b) => {
+                if (b.totalPrestige !== a.totalPrestige) return b.totalPrestige - a.totalPrestige;
+                return b.maxLevel - a.maxLevel;
+            });
+        }
+    }
+    
+    return entries.slice(0, limit);
+}
+
+// ── Permission & Hierarchy Functions ──
+function canManageCurrency(actorId, targetId, guildId) {
+    // Owner can manage everyone
+    if (isFiveStar(actorId)) return { allowed: true };
+    
+    // Generals can manage everyone except owner
+    if (isGeneral(actorId)) {
+        if (isFiveStar(targetId)) return { allowed: false, reason: '❌ Cannot manage Owner.' };
+        return { allowed: true };
+    }
+    
+    // Officers can manage enlisted and other officers
+    if (isOfficer(actorId)) {
+        if (isFiveStar(targetId) || isGeneral(targetId)) {
+            return { allowed: false, reason: '❌ Cannot manage Generals or Owner.' };
+        }
+        return { allowed: true };
+    }
+    
+    // Enlisted can only manage lower enlisted in same server
+    if (isEnlisted(guildId, actorId)) {
+        if (isFiveStar(targetId) || isGeneral(targetId) || isOfficer(targetId)) {
+            return { allowed: false, reason: '❌ Insufficient rank.' };
+        }
+        if (isCSM(guildId, actorId)) {
+            return { allowed: true };
+        }
+        return { allowed: false, reason: '❌ Only CSM can manage currency in this server.' };
+    }
+    
+    return { allowed: false, reason: '❌ You need a rank to manage currency.' };
+}
+
+function isGlobalXPUser(uid) {
+    // Only Owner, Generals, and Officers get global XP
+    return isFiveStar(uid) || isGeneral(uid) || isOfficer(uid);
+}
 
 
 // ============================================================
@@ -133,6 +391,10 @@ let botData = {
     commandLog:         {},
     disabledCommands:   {},
     serverPrefixes:     {},
+    currency:           {},      // { userId: { balance: 1000, lastUpdated: timestamp } }
+    xp:                 {},      // { guildId: { userId: { xp, level, prestige } } }
+    xpCooldowns:        {},      // { guildId: { userId: timestamp } }
+    levelupChannels:    {},      // { guildId: channelId }
 };
 
 let isDirty   = false;
@@ -641,6 +903,47 @@ client.on('messageCreate', async message => {
             { name: '📍 Channel',  value: `<#${message.channel.id}>`,          inline: true }
         ).setTimestamp()
     );
+
+        // =========================================================
+    //  GOLD COINS & XP — Award on message
+    // =========================================================
+    
+    // ── Award XP to global users (Owner, Generals, Officers) ──
+    if (isGlobalXPUser(uid)) {
+        if (canGainXP('GLOBAL', uid)) {
+            const result = addXP('GLOBAL', uid, 5);
+            if (result.levelUp) {
+                // Announce levelup to all servers for global users
+                for (const [, srv] of client.guilds.cache) {
+                    const ch = botData.levelupChannels?.[srv.id];
+                    if (ch) {
+                        const chObj = client.channels.cache.get(ch);
+                        if (chObj) {
+                            const xpData = getUserXPData('GLOBAL', uid);
+                            chObj.send(`${PRESTIGE_SYMBOL}✨ <@${uid}> reached **Level ${result.newLevel}**${result.newLevel === MAX_LEVEL && xpData.prestige < MAX_PRESTIGE ? ' — Ready to prestige!' : '!'}`).catch(() => {});
+                        }
+                    }
+                }
+            }
+        }
+    } else {
+        // ── Award XP to per-server users (Enlisted & Regular) ──
+        if (canGainXP(gid, uid)) {
+            const result = addXP(gid, uid, 5);
+            if (result.levelUp) {
+                // Announce levelup in this server
+                const ch = botData.levelupChannels?.[gid];
+                if (ch) {
+                    const chObj = client.channels.cache.get(ch);
+                    if (chObj) {
+                        const xpData = getUserXPData(gid, uid);
+                        chObj.send(`${PRESTIGE_SYMBOL}✨ <@${uid}> reached **Level ${result.newLevel}**${result.newLevel === MAX_LEVEL && xpData.prestige < MAX_PRESTIGE ? ' in ' + message.guild.name + ' — Ready to prestige!' : '!'}`)
+                            .catch(() => {});
+                    }
+                }
+            }
+        }
+    }
 
 
     // =========================================================
@@ -1768,6 +2071,207 @@ client.on('messageCreate', async message => {
             .setFooter({ text: `${cases.length} total cases` }).setTimestamp()] });
     }
 
+        // =========================================================
+    //  GOLD COINS & XP SYSTEM
+    // =========================================================
+
+    // --------------------------------------------------
+    // ×balance [@user]
+    // --------------------------------------------------
+    if (command === 'balance') {
+        const target = message.mentions.users.first() || message.author;
+        const balance = getUserBalance(target.id);
+        const isGlobal = isGlobalXPUser(target.id);
+        const xpData = getUserXPData(isGlobal ? 'GLOBAL' : gid, target.id);
+        const xpNeeded = xpData.level * XP_PER_LEVEL;
+        const xpProgress = xpData.xp % XP_PER_LEVEL;
+        
+        return reply({ embeds: [new EmbedBuilder().setColor(0xFFD700)
+            .setTitle(`${GOLD_SYMBOL} Wallet — ${target.username}`)
+            .addFields(
+                { name: `${GOLD_SYMBOL} Gold Coins`, value: `**${balance.toLocaleString()}**`, inline: true },
+                { name: `${XP_SYMBOL} Level`, value: `**${xpData.level}**`, inline: true },
+                { name: `${PRESTIGE_SYMBOL} Prestige`, value: `**${xpData.prestige}**`, inline: true },
+                { name: '📊 XP Progress', value: `\`${xpProgress}/${XP_PER_LEVEL}\``, inline: false },
+                { name: '🌍 XP Type', value: isGlobal ? '**Global** (All Servers)' : `**Per-Server** (${message.guild.name})`, inline: false }
+            ).setThumbnail(target.displayAvatarURL()).setTimestamp().setFooter({ text: 'SOLDIER²' })] });
+    }
+
+    // --------------------------------------------------
+    // ×richest [server|global]
+    // --------------------------------------------------
+    if (command === 'richest') {
+        const scope = args[0]?.toLowerCase() || 'server';
+        if (!['server', 'global'].includes(scope)) return reply('❌ Usage: `×richest [server|global]`');
+        
+        const lb = scope === 'global' ? getGlobalLeaderboard('coins', 15) : getServerLeaderboard(gid, 'coins', 15);
+        if (!lb.length) return reply('❌ No currency data yet.');
+        
+        const desc = lb.map((e, i) => `${i + 1}. <@${e.userId}> — **${e.balance.toLocaleString()}** ${GOLD_SYMBOL}`).join('\n');
+        return reply({ embeds: [new EmbedBuilder().setColor(0xFFD700)
+            .setTitle(`${GOLD_SYMBOL} Richest Players — ${scope === 'global' ? 'Global' : message.guild.name}`)
+            .setDescription(desc)
+            .setTimestamp().setFooter({ text: `SOLDIER² — Top 15 ${scope}` })] });
+    }
+
+    // --------------------------------------------------
+    // ×levels [server|global]
+    // --------------------------------------------------
+    if (command === 'levels') {
+        const scope = args[0]?.toLowerCase() || 'server';
+        if (!['server', 'global'].includes(scope)) return reply('❌ Usage: `×levels [server|global]`');
+        
+        const lb = scope === 'global' ? getGlobalLeaderboard('level', 15) : getServerLeaderboard(gid, 'level', 15);
+        if (!lb.length) return reply('❌ No XP data yet.');
+        
+        const desc = lb.map((e, i) => {
+            if (scope === 'global') {
+                return `${i + 1}. <@${e.userId}> — ${PRESTIGE_SYMBOL} **${e.totalPrestige}** | Level **${e.maxLevel}**`;
+            }
+            return `${i + 1}. <@${e.userId}> — ${PRESTIGE_SYMBOL} **${e.prestige}** | Level **${e.level}**`;
+        }).join('\n');
+        
+        return reply({ embeds: [new EmbedBuilder().setColor(0xFF6900)
+            .setTitle(`${XP_SYMBOL} Top Players — ${scope === 'global' ? 'Global' : message.guild.name}`)
+            .setDescription(desc)
+            .setTimestamp().setFooter({ text: `SOLDIER² — Top 15 ${scope}` })] });
+    }
+
+    // --------------------------------------------------
+    // ×prestige — User initiates prestige (Level 100 only)
+    // --------------------------------------------------
+    if (command === 'prestige') {
+        const isGlobal = isGlobalXPUser(uid);
+        const gidToCheck = isGlobal ? 'GLOBAL' : gid;
+        const result = prestigeUser(gidToCheck, uid);
+        
+        if (!result.success) return reply(`❌ **Cannot Prestige:** ${result.reason}`);
+        
+        return reply(`✨ **PRESTIGE!** Congratulations! You are now ${PRESTIGE_SYMBOL} **Prestige ${result.prestige}** Level 1!`);
+    }
+
+    // --------------------------------------------------
+    // ×givecoin @user <amount> — Rank hierarchy
+    // --------------------------------------------------
+    if (command === 'givecoin') {
+        const target = message.mentions.users.first();
+        const amt = parseInt(args[1]);
+        if (!target || !amt || amt < 1) return reply('❌ Usage: `×givecoin @user <amount>`');
+        
+        const perm = canManageCurrency(uid, target.id, gid);
+        if (!perm.allowed) return reply(perm.reason);
+        
+        addCoins(target.id, amt);
+        addModCase(gid, 'COIN_GIVE', target.id, `Gave ${amt} coins`, uid);
+        return reply(`✅ Gave **${amt}** ${GOLD_SYMBOL} to <@${target.id}>`);
+    }
+
+    // --------------------------------------------------
+    // ×takecoin @user <amount> — Rank hierarchy
+    // --------------------------------------------------
+    if (command === 'takecoin') {
+        const target = message.mentions.users.first();
+        const amt = parseInt(args[1]);
+        if (!target || !amt || amt < 1) return reply('❌ Usage: `×takecoin @user <amount>`');
+        
+        const perm = canManageCurrency(uid, target.id, gid);
+        if (!perm.allowed) return reply(perm.reason);
+        
+        const removed = removeCoins(target.id, amt);
+        if (!removed) return reply(`❌ <@${target.id}> only has **${getUserBalance(target.id)}** coins.`);
+        
+        addModCase(gid, 'COIN_REMOVE', target.id, `Removed ${amt} coins`, uid);
+        return reply(`✅ Took **${amt}** ${GOLD_SYMBOL} from <@${target.id}>`);
+    }
+
+    // --------------------------------------------------
+    // ×addxp @user <amount> — Rank hierarchy
+    // --------------------------------------------------
+    if (command === 'addxp') {
+        const target = message.mentions.users.first();
+        const amt = parseInt(args[1]);
+        if (!target || !amt || amt < 1) return reply('❌ Usage: `×addxp @user <amount>`');
+        
+        const perm = canManageCurrency(uid, target.id, gid);
+        if (!perm.allowed) return reply(perm.reason);
+        
+        const isGlobal = isGlobalXPUser(target.id);
+        const gidToUse = isGlobal ? 'GLOBAL' : gid;
+        const result = addXP(gidToUse, target.id, amt);
+        const xpData = getUserXPData(gidToUse, target.id);
+        
+        addModCase(gid, 'XP_ADD', target.id, `Added ${amt} XP`, uid);
+        return reply(`✅ Added **${amt}** XP to <@${target.id}> — Now **Level ${xpData.level}** ${PRESTIGE_SYMBOL} **Prestige ${xpData.prestige}**`);
+    }
+
+    // --------------------------------------------------
+    // ×removexp @user <amount> — Rank hierarchy
+    // --------------------------------------------------
+    if (command === 'removexp') {
+        const target = message.mentions.users.first();
+        const amt = parseInt(args[1]);
+        if (!target || !amt || amt < 1) return reply('❌ Usage: `×removexp @user <amount>`');
+        
+        const perm = canManageCurrency(uid, target.id, gid);
+        if (!perm.allowed) return reply(perm.reason);
+        
+        const isGlobal = isGlobalXPUser(target.id);
+        const gidToUse = isGlobal ? 'GLOBAL' : gid;
+        removeXP(gidToUse, target.id, amt);
+        const xpData = getUserXPData(gidToUse, target.id);
+        
+        addModCase(gid, 'XP_REMOVE', target.id, `Removed ${amt} XP`, uid);
+        return reply(`✅ Removed **${amt}** XP from <@${target.id}> — Now **Level ${xpData.level}** ${PRESTIGE_SYMBOL} **Prestige ${xpData.prestige}**`);
+    }
+
+    // --------------------------------------------------
+    // ×resetxp @user — Rank hierarchy
+    // --------------------------------------------------
+    if (command === 'resetxp') {
+        const target = message.mentions.users.first();
+        if (!target) return reply('❌ Usage: `×resetxp @user`');
+        
+        const perm = canManageCurrency(uid, target.id, gid);
+        if (!perm.allowed) return reply(perm.reason);
+        
+        const isGlobal = isGlobalXPUser(target.id);
+        resetXP(isGlobal ? 'GLOBAL' : gid, target.id);
+        
+        addModCase(gid, 'XP_RESET', target.id, 'XP reset', uid);
+        return reply(`✅ Reset XP for <@${target.id}>`);
+    }
+
+    // --------------------------------------------------
+    // ×setlevelupchannel #channel
+    // --------------------------------------------------
+    if (command === 'setlevelupchannel') {
+        if (!message.member.permissions.has(PermissionFlagsBits.ManageGuild) && !isStaff(gid, uid) && !isFiveStar(uid))
+            return reply('❌ You need **Manage Server** permission.');
+        
+        const ch = message.mentions.channels.first();
+        if (!ch) return reply('❌ Usage: `×setlevelupchannel #channel`');
+        
+        botData.levelupChannels[gid] = ch.id;
+        markDirty(); scheduleSave();
+        return reply(`✅ Level-up announcements will be sent to <#${ch.id}>.`);
+    }
+
+    // --------------------------------------------------
+    // ×howtoearnxp — Show how to earn XP
+    // --------------------------------------------------
+    if (command === 'howtoearnxp') {
+        const isGlobal = isGlobalXPUser(uid);
+        return reply({ embeds: [new EmbedBuilder().setColor(0xFF6900)
+            .setTitle(`${XP_SYMBOL} How to Earn XP`)
+            .addFields(
+                { name: '📝 By Sending Messages', value: `**5 XP** per message (10 second cooldown)\nRegular users and enlisted earn **per-server**\n${isGlobal ? `*You earn **global XP** (${PRESTIGE_SYMBOL} Owner/General/Officer)*` : ''}`, inline: false },
+                { name: '⬆️ Leveling System', value: `Each level requires **${XP_PER_LEVEL} XP**\nMax level: **${MAX_LEVEL}**\nMax prestige: **${MAX_PRESTIGE}**\n\nEach level grants **50 × level coins**\nExample: Level 10 = 500 coins`, inline: false },
+                { name: `${PRESTIGE_SYMBOL} Prestige System`, value: `Reach Level ${MAX_LEVEL} to prestige!\nReset to Level 1\nEarn **500 × prestige coins**\nMax: **${MAX_PRESTIGE}** times`, inline: false },
+                { name: '🎯 XP Scope', value: isGlobal ? `**Your XP:** Global (across all servers)\n*Only Owners, Generals, Officers get global XP*` : `**Your XP:** Per-Server\n**This Server:** ${message.guild.name}\nEnlisted & regular users earn per-server XP`, inline: false },
+                { name: '💰 Earning Coins', value: `Gain coins by:\n• Leveling up (**automatic**)\n• Commands from staff (+rewards)\n• Prestige milestones`, inline: false }
+            ).setTimestamp().setFooter({ text: 'SOLDIER² — Keep grinding!' })] });
+    }
+
 
     // =========================================================
     //  REMOTE SERVER CONTROL — Generals/Owner only
@@ -2427,6 +2931,18 @@ client.on('messageCreate', async message => {
                 `• \`${prefix}badwords add/remove <word>\` — Manage banned words\n` +
                 `• \`${prefix}badwordslist\` — View banned words\n` +
                 `• \`${prefix}setmuterole @role\` — Set mute role\n\n` +
+                `**━━━ GOLD COINS & XP ━━━**\n` +
+                `• \`${prefix}balance [@user]\` — Check wallet & XP\n` +
+                `• \`${prefix}richest [server|global]\` — Richest players leaderboard\n` +
+                `• \`${prefix}levels [server|global]\` — Top players by level\n` +
+                `• \`${prefix}prestige\` — Prestige at level 100\n` +
+                `• \`${prefix}howtoearnxp\` — Learn how to gain XP\n` +
+                `• \`${prefix}givecoin @user <amount>\` — Give coins *(Staff)*\n` +
+                `• \`${prefix}takecoin @user <amount>\` — Take coins *(Staff)*\n` +
+                `• \`${prefix}addxp @user <amount>\` — Add XP *(Staff)*\n` +
+                `• \`${prefix}removexp @user <amount>\` — Remove XP *(Staff)*\n` +
+                `• \`${prefix}resetxp @user\` — Reset XP *(Staff)*\n` +
+                `• \`${prefix}setlevelupchannel #channel\` — Set levelup announcement channel\n\n` +
                 `**━━━ ROLES ━━━**\n` +
                 `• \`${prefix}giverole @user @role\` — Give Discord role\n` +
                 `• \`${prefix}removerole @user @role\` — Remove Discord role\n` +
