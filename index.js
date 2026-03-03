@@ -3112,6 +3112,7 @@ client.on('messageCreate', async message => {
                 `• \`${prefix}removerole @user @role\` — Remove Discord role\n` +
                 `• \`${prefix}createrole <name> [color]\` — Create a role\n` +
                 `• \`${prefix}deleterole @role\` — Delete a role\n` +
+                `• \`${prefix}reactionrole\` — create reaction role message\n` +
                 `• \`${prefix}rolecolor @role <hex>\` — Change role color`
             );
 
@@ -3243,7 +3244,6 @@ client.on('messageCreate', async message => {
         return;
     }
 });
-
 
 // ============================================================
 //  SLASH COMMAND HANDLER — /hello only
