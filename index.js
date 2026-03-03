@@ -689,6 +689,68 @@ client.once('ready', async () => {
 });
 
 client.on('guildCreate', async guild => await autoAssignCSM(guild));
+// ============================================================
+//  MESSAGE REACTION ADD — Reaction Roles
+// ============================================================
+client.on('messageReactionAdd', async (reaction, user) => {
+    if (user.bot) return;
+    if (!reaction.message.guild) return;
+    
+    const gid = reaction.message.guild.id;
+    const roles = getReactionRoles(gid, reaction.message.id);
+    
+    if (!roles) return; // Not a reaction role message
+    
+    const roleId = roles[reaction.emoji.toString()];
+    if (!roleId) return; // Emoji not mapped to a role
+    
+    const member = await reaction.message.guild.members.fetch(user.id).catch(() => null);
+    if (!member) return;
+    
+    const role = reaction.message.guild.roles.cache.get(roleId);
+    if (!role) return;
+    
+    await member.roles.add(role).catch(() => {});
+});
+
+// ============================================================
+//  MESSAGE REACTION REMOVE — Reaction Roles
+// ============================================================
+client.on('messageReactionRemove', async (reaction, user) => {
+    if (user.bot) return;
+    if (!reaction.message.guild) return;
+    
+    const gid = reaction.message.guild.id;
+    const roles = getReactionRoles(gid, reaction.message.id);
+    
+    if (!roles) return; // Not a reaction role message
+    
+    const roleId = roles[reaction.emoji.toString()];
+    if (!roleId) return; // Emoji not mapped to a role
+    
+    const member = await reaction.message.guild.members.fetch(user.id).catch(() => null);
+    if (!member) return;
+    
+    const role = reaction.message.guild.roles.cache.get(roleId);
+    if (!role) return;
+    
+    await member.roles.remove(role).catch(() => {});
+});
+
+// ============================================================
+//  MESSAGE DELETE — Delete Reaction Role Data
+// ============================================================
+client.on('messageDelete', (message) => {
+    if (!message.guild) return;
+    
+    const gid = message.guild.id;
+    const roles = getReactionRoles(gid, message.id);
+    
+    if (roles) {
+        // This is a reaction role message - delete it permanently
+        deleteReactionRoleMessage(gid, message.id);
+    }
+});
 
 // ============================================================
 //  HELPER FUNCTIONS
