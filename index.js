@@ -1,15 +1,10 @@
 'use strict';
 
-// ============================================================
-//  SOLDIER² — Ultimate Mod & Rank Authority System
-//  TX-SOLDIER | Prefix: ×
-// ============================================================
-
+// ★ SOLDIER² — Ultimate Mod & Rank Authority System ★ \\
+//  TX-SOLDIER | Prefix: × \\
 
 // ============================================================
-//  SECTION 1 -- IMPORTS & CLIENT SETUP  //
-// ============================================================
-// -- START: IMPORTS & CLIENT SETUP --
+// ☆ SECTION 1 START: IMPORTS & CLIENT SETUP ☆
 // ============================================================
 //  IMPORTS
 // ============================================================
@@ -39,11 +34,10 @@ const client = new Client({
     ],
 });
 
-// -- END: IMPORTS & CLIENT SETUP --
+// ☆ END: IMPORTS & CLIENT SETUP ☆
+
 // ============================================================
-//  SECTION 2 -- CONSTANTS & RANKS  //
-// ============================================================
-// -- START: CONSTANTS & RANKS --
+// ☆ SECTION 2 START: CONSTANTS & RANKS ☆
 // ============================================================
 //  CONSTANTS
 // ============================================================
@@ -102,7 +96,7 @@ const XP_PER_LEVEL = 500;
 const XP_COOLDOWN = 10000; // 10 seconds between XP gains
 
 // ============================================================
-//  SLASH COMMANDS — /hello only
+//  SLASH COMMANDS — /
 // ============================================================
 const slashCommands = [
     new SlashCommandBuilder().setName('hello').setDescription('Say hello to SOLDIER²'),
@@ -110,11 +104,10 @@ const slashCommands = [
 
 const rest = new REST({ version: '10' }).setToken(process.env.BOT_TOKEN);
 
-// -- END: CONSTANTS & RANKS --
+// ☆ END: CONSTANTS & RANKS ☆
+
 // ============================================================
-//  SECTION 3 -- DATA PERSISTENCE  //
-// ============================================================
-// -- START: DATA PERSISTENCE --
+// ☆ SECTION 3 START: DATA PERSISTENCE ☆
 // ============================================================
 //  PERSISTENCE — botData load / save
 // ============================================================
@@ -180,11 +173,10 @@ function scheduleSave() {
 
 loadData();
 
-// -- END: DATA PERSISTENCE --
+// ☆ END: DATA PERSISTENCE ☆
+
 // ============================================================
-//  SECTION 4 -- HELPER FUNCTIONS & LOGIC ENGINES  //
-// ============================================================
-// -- START: HELPER FUNCTIONS & LOGIC ENGINES --
+// ☆SECTION 4 START: HELPER FUNCTIONS & LOGIC ENGINES ☆
 // ============================================================
 //  UTILITY FUNCTIONS
 // ============================================================
@@ -817,11 +809,10 @@ function buildServerRankEmbed(gid, gname) {
         .setTimestamp().setFooter({ text: `SOLDIER² — ${sorted.length} enlisted` });
     }
 
-// -- END: HELPER FUNCTIONS & LOGIC ENGINES --
+// ☆ END: HELPER FUNCTIONS & LOGIC ENGINES ☆
+
 // ============================================================
-//  SECTION 5 -- CORE EVENT LISTENERS  //
-// ============================================================
-// -- START: CORE EVENT LISTENERS --
+// ☆SECTION 5 START: CORE EVENT LISTENERS ☆
 // ============================================================
 //  KEEP-ALIVE SERVER — Render / UptimeRobot
 // ============================================================
@@ -931,11 +922,10 @@ client.on('messageDelete', (message) => {
     }
 });
 
-// -- END: CORE EVENT LISTENERS --
+// ☆ END: CORE EVENT LISTENERS ☆
+
 // ============================================================
-//  SECTION 6 -- MASTER MESSAGE HANDLER  //
-// ============================================================
-// -- START: MASTER MESSAGE HANDLER --
+// ☆SECTION 6 START: MASTER MESSAGE HANDLER ☆
 // ============================================================
 // ── Track user message watcher ──
 // ============================================================
@@ -953,8 +943,7 @@ client.on('messageCreate', async message => {
 });
 
 // ============================================================
-//  MESSAGE CREATE — All Prefix Commands (Prefix: ×)
-//  BEGIN
+//  MESSAGE CREATE — All Prefix Commands Prefix: ×
 // ============================================================
 client.on('messageCreate', async message => {
     if (message.author.bot || !message.guild) return;
@@ -1063,6 +1052,8 @@ client.on('messageCreate', async message => {
     }
 
 
+    //=========================================================
+    // ★ COMMANDS ★ \\
     // =========================================================
     //  RANK COMMANDS
     // =========================================================
@@ -2464,14 +2455,9 @@ client.on('messageCreate', async message => {
 
 
     // =========================================================
-    //  REMOTE SERVER CONTROL — Generals/Owner only
+    //  REMOTE SERVER CONTROL — Generals/Owner only 
     // =========================================================
 
-    // --------------------------------------------------
-    // ×serverlist / ×remotekick / ×remoteban / ×remoteunban
-    // ×remotelockdown / ×remoteunlockdown / ×remotenuke
-    // ×remoteannounce / ×servermembers / ×serverleave
-    // --------------------------------------------------
     if (command === 'serverlist') {
         if (!isFiveStar(uid) && !isGeneral(uid)) return reply('❌ Generals and Owner only.');
         const guilds = client.guilds.cache.map(g => `• **${g.name}** | ID: \`${g.id}\` | Members: **${g.memberCount}**`);
@@ -2578,11 +2564,6 @@ client.on('messageCreate', async message => {
     //  SURVEILLANCE — Generals/Owner only
     // =========================================================
 
-    // --------------------------------------------------
-    // ×flaguser / ×unflaguser / ×flaggedlist
-    // ×trackuser / ×untrackuser / ×tracklist
-    // ×crosswarn
-    // --------------------------------------------------
     if (command === 'flaguser') {
         if (!isFiveStar(uid) && !isGeneral(uid)) return reply('❌ Generals and Owner only.');
         const tgtId = args[0], reason = args.slice(1).join(' ');
@@ -2646,10 +2627,6 @@ client.on('messageCreate', async message => {
     //  GLOBAL ACTIONS — Generals/Owner only
     // =========================================================
 
-    // --------------------------------------------------
-    // ×globalban / ×globalunban / ×globalannounce
-    // ×globaldm / ×massdm / ×broadcast
-    // --------------------------------------------------
     if (command === 'globalban') {
         if (!isFiveStar(uid) && !isGeneral(uid)) return reply('❌ Generals and Owner only.');
         const tgtId = args[0], reason = args.slice(1).join(' ') || 'Global ban';
@@ -2713,9 +2690,6 @@ client.on('messageCreate', async message => {
     //  RANK SYSTEM CONTROL — Generals/Owner only
     // =========================================================
 
-    // --------------------------------------------------
-    // ×rankaudit / ×rankwipe / ×globalrankwipe / ×rankreport
-    // --------------------------------------------------
     if (command === 'rankaudit') {
         if (!isFiveStar(uid) && !isGeneral(uid)) return reply('❌ Generals and Owner only.');
         if (args[0]) {
@@ -2759,9 +2733,6 @@ client.on('messageCreate', async message => {
     //  GLOBAL ANALYTICS — Generals/Owner only
     // =========================================================
 
-    // --------------------------------------------------
-    // ×globalstats / ×topservers / ×serverstats
-    // --------------------------------------------------
     if (command === 'globalstats') {
         if (!isFiveStar(uid) && !isGeneral(uid)) return reply('❌ Generals and Owner only.');
         let totalUsers = 0, totalWarns = 0, totalCases = 0;
@@ -2805,10 +2776,6 @@ client.on('messageCreate', async message => {
     //  SECURITY & EMERGENCY — Owner only
     // =========================================================
 
-    // --------------------------------------------------
-    // ×nuke / ×nukeall / ×emergency / ×emergencyoff
-    // ×emergencyall / ×emergencyoffall
-    // --------------------------------------------------
     if (command === 'nuke') {
         if (!isFiveStar(uid) && !isGeneral(uid)) return reply('❌ Generals and Owner only.');
         await reply('⚠️ **NUKE INITIATED** — Kicking all members...');
@@ -2892,12 +2859,6 @@ client.on('messageCreate', async message => {
     //  BOT MANAGEMENT — Owner only
     // =========================================================
 
-    // --------------------------------------------------
-    // ×botstatus / ×botavatar / ×botname
-    // ×restart / ×shutdown / ×eval
-    // ×blacklistuser / ×unblacklistuser
-    // ×blacklistserver / ×unblacklistserver / ×blacklistedlist
-    // --------------------------------------------------
     if (command === 'botstatus') {
         if (!isFiveStar(uid)) return reply('❌ Owner only.');
         const text = args.join(' ');
@@ -2982,9 +2943,6 @@ client.on('messageCreate', async message => {
     //  CONFIG
     // =========================================================
 
-    // --------------------------------------------------
-    // ×setprefix / ×settings / ×disable / ×enable
-    // --------------------------------------------------
     if (command === 'setprefix') {
         if (!message.member.permissions.has(PermissionFlagsBits.ManageGuild) && !isFiveStar(uid))
             return reply('❌ You need **Manage Server** permission.');
@@ -3033,13 +2991,10 @@ client.on('messageCreate', async message => {
         return reply(`✅ Command \`${cmd}\` re-enabled.`);
     }
 
-    // =========================================================
+// =========================================================
 //  HELP COMMANDS
-    // =========================================================
+// =========================================================
 
-    // --------------------------------------------------
-    // ×help — General help (BLUE) — visible to all
-    // --------------------------------------------------
     if (command === 'help') {
         const embed1 = new EmbedBuilder()
             .setColor(0x3498DB)
@@ -3176,7 +3131,7 @@ client.on('messageCreate', async message => {
     }
 
     // --------------------------------------------------
-    // ×staffhelp — Staff help (RED) — Generals/Officers/Owner only
+    // ×staffhelp — Staff help Generals/Officers/Owner only
     // --------------------------------------------------
     if (command === 'staffhelp') {
         if (!isFiveStar(uid) && !isGeneral(uid) && !isOfficer(uid))
@@ -3259,24 +3214,16 @@ client.on('messageCreate', async message => {
     }
 
 });
-// ============================================================
-//  MESSAGE CREATE — END
-// ============================================================
 
-// -- END: MASTER MESSAGE HANDLER --
+// ☆ END: MASTER MESSAGE HANDLER/MESSAGE CREATE END ☆
+
 // ============================================================
-//  SECTION 7 -- INFRASTRUCTURE & LOGIN  //
+// ☆ SECTION 7 START: INFRASTRUCTURE & LOGIN ☆
 // ============================================================
-// -- START: INFRASTRUCTURE & LOGIN --
-// ============================================================
-//  SLASH COMMAND HANDLER — /hello only
+//  SLASH COMMAND HANDLER /
 // ============================================================
 client.on('interactionCreate', async interaction => {
     if (!interaction.isChatInputCommand()) return;
-
-    // --------------------------------------------------
-    // /hello
-    // --------------------------------------------------
     if (interaction.commandName === 'hello') {
         return interaction.reply('👋 Hello! I am **SOLDIER²** — the Ultimate Mod & Rank Authority System. ★');
     }
@@ -3287,4 +3234,4 @@ client.on('interactionCreate', async interaction => {
 // ============================================================
 client.login(process.env.BOT_TOKEN);
 
-// -- END: INFRASTRUCTURE & LOGIN --
+// ☆ END: INFRASTRUCTURE & LOGIN ☆
