@@ -384,6 +384,7 @@ let botData = {
     logChannels:        {},
     mutedRoles:         {},
     verifyRoles:        {},
+    reactionRoles:      {},
     staffList:          {},
     dutyStatus:         {},
     timedBans:          [],
@@ -587,6 +588,34 @@ function canPromoteTo(actorId, targetRank, guildId) {
         return { allowed: false, reason: '❌ You can only promote to ranks **below** yours.' };
     }
     return { allowed: false, reason: '❌ No permission to assign this rank.' };
+}
+
+// ============================================================
+//  REACTION ROLE HELPER FUNCTIONS
+// ============================================================
+
+function addReactionRole(guildId, messageId, emoji, roleId) {
+    if (!botData.reactionRoles) botData.reactionRoles = {};
+    if (!botData.reactionRoles[guildId]) botData.reactionRoles[guildId] = {};
+    if (!botData.reactionRoles[guildId][messageId]) botData.reactionRoles[guildId][messageId] = {};
+    
+    botData.reactionRoles[guildId][messageId][emoji] = roleId;
+    markDirty(); scheduleSave();
+}
+
+function getReactionRoles(guildId, messageId) {
+    return botData.reactionRoles?.[guildId]?.[messageId] || null;
+}
+
+function deleteReactionRoleMessage(guildId, messageId) {
+    if (botData.reactionRoles?.[guildId]?.[messageId]) {
+        delete botData.reactionRoles[guildId][messageId];
+        markDirty(); scheduleSave();
+    }
+}
+
+function getAllReactionRoles(guildId) {
+    return botData.reactionRoles?.[guildId] || {};
 }
 
 
@@ -2270,6 +2299,79 @@ client.on('messageCreate', async message => {
                 { name: '🎯 XP Scope', value: isGlobal ? `**Your XP:** Global (across all servers)\n*Only Owners, Generals, Officers get global XP*` : `**Your XP:** Per-Server\n**This Server:** ${message.guild.name}\nEnlisted & regular users earn per-server XP`, inline: false },
                 { name: '💰 Earning Coins', value: `Gain coins by:\n• Leveling up (**automatic**)\n• Commands from staff (+rewards)\n• Prestige milestones`, inline: false }
             ).setTimestamp().setFooter({ text: 'SOLDIER² — Keep grinding!' })] });
+    }
+
+        // =========================================================
+    //  REACTION ROLES
+    // =========================================================
+
+    // --------------------------------------------------
+    // ×reactionrole <emoji> <@role|roleID|roleName> [emoji2] [@role2|roleID|roleName]...
+    // --------------------------------------------------
+    if (command === 'reactionrole') {
+        if (!message.member.permissions.has(PermissionFlagsBits.ManageRoles) && !isStaff(gid, uid) && !isFiveStar(uid))
+            return reply('❌ You need **Manage Roles** permission.');
+        
+        if (args.length < 2 || args.length % 2 !== 0) 
+            return reply('❌ Usage: `×reactionrole <emoji> <@role|roleID|roleName> [emoji2] [@role2|roleID|roleName]...`\n\n**Examples:**\n`×reactionrole 🎮 @Gamer 🎨 @Artist`\n`×reactionrole 🎮 1234567890 🎨 Artist`');
+        
+        // Parse emoji-role pairs
+        const pairs = [];
+        for (let i = 0; i < args.length; i += 2) {
+            const emoji = args[i];
+            const roleArg = args[i + 1];
+            let role = null;
+            
+            // Try to get role by mention
+            role = message.mentions.roles.first();
+            
+            // Try to get role by ID
+            if (!role) {
+                role = message.guild.roles.cache.get(roleArg.replace(/[<@&>]/g, ''));
+            }
+            
+            // Try to get role by name (case-insensitive)
+            if (!role) {
+                role = message.guild.roles.cache.find(r => r.name.toLowerCase() === roleArg.toLowerCase());
+            }
+            
+            if (!role) return reply(`❌ Role not found: **${roleArg}**. Use @role, roleID, or role name.`);
+            if (role.managed) return reply(`❌ Cannot use managed role **${role.name}**.`);
+            if (role.position >= message.member.roles.highest.position && !isFiveStar(uid)) 
+                return reply(`❌ Role **${role.name}** is too high in hierarchy.`);
+            
+            pairs.push({ emoji, roleId: role.id, roleName: role.name });
+        }
+        
+        // Build embed
+        const roleList = pairs.map(p => `${p.emoji} — **${p.roleName}**`).join('\n');
+        const embed = new EmbedBuilder()
+            .setColor(0x7521FC)
+            .setTitle('✨ Reaction Roles')
+            .setDescription(`React below to receive a role!\n\n${roleList}`)
+            .setImage('https://media.giphy.com/media/3o7TKSjRrfIPjeiVyM/giphy.gif')
+            .setTimestamp()
+            .setFooter({ text: 'SOLDIER² — React to get your role!' });
+        
+        // Send the embed message
+        const sentMessage = await message.channel.send({ embeds: [embed] }).catch(() => null);
+        
+        if (!sentMessage) return reply('❌ Failed to send reaction role message.');
+        
+        // Add reactions
+        for (const pair of pairs) {
+            await sentMessage.react(pair.emoji).catch(() => {});
+        }
+        
+        // Store in database
+        for (const pair of pairs) {
+            addReactionRole(gid, sentMessage.id, pair.emoji, pair.roleId);
+        }
+        
+        // Delete user's command
+        await message.delete().catch(() => {});
+        
+        return;
     }
 
 
