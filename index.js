@@ -106,7 +106,7 @@ const XP_COOLDOWN = 10000; // 10 seconds between XP gains
 // GLOBAL MASTER LOG CHANNELS (HARDCODED)
 // ==================================================
 const MASTER_LOG_CHANNELS = [
-    'PUT_CHANNEL_ID_1_HERE',
+    '1355199085631508641',
     'PUT_CHANNEL_ID_2_HERE'
 ];
 
