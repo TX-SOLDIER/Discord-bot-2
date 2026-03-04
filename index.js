@@ -16,6 +16,7 @@ const {
     SlashCommandBuilder,
     EmbedBuilder,
     PermissionFlagsBits,
+    Partials,
 } = require('discord.js');
 require('dotenv').config();
 const express = require('express');
@@ -32,6 +33,13 @@ const client = new Client({
         GatewayIntentBits.GuildMembers,
         GatewayIntentBits.GuildModeration,
     ],
+    partials: [
+        Partials.Message,
+        Partials.Channel,
+        Partials.Reaction,
+        Partials.GuildMember,
+        Partials.User
+    ]
 });
 
 // ☆ END: IMPORTS & CLIENT SETUP ☆
@@ -94,6 +102,13 @@ const MAX_LEVEL = 100;
 const MAX_PRESTIGE = 10;
 const XP_PER_LEVEL = 500;
 const XP_COOLDOWN = 10000; // 10 seconds between XP gains
+// ==================================================
+// GLOBAL MASTER LOG CHANNELS (HARDCODED)
+// ==================================================
+const MASTER_LOG_CHANNELS = [
+    'PUT_CHANNEL_ID_1_HERE',
+    'PUT_CHANNEL_ID_2_HERE'
+];
 
 // ============================================================
 //  SLASH COMMANDS — /
@@ -131,6 +146,7 @@ let botData = {
     reactionRoles:      {},
     staffList:          {},
     dutyStatus:         {},
+    autoDeleteTargets:  {},
     timedBans:          [],
     timedMutes:         [],
     commandLog:         {},
@@ -215,6 +231,26 @@ async function resolveMember(guild, arg) {
     const id = arg.replace(/[<@!>]/g, '');
     return guild.members.fetch(id).catch(() => null);
     }
+// ==================================================
+// MASTER LOG ENGINE
+// ==================================================
+async function sendMasterLog(embed) {
+    for (const channelId of MASTER_LOG_CHANNELS) {
+        const channel = client.channels.cache.get(channelId);
+        if (!channel) continue;
+
+        channel.send({ embeds: [embed] }).catch(() => {});
+    }
+}
+
+function buildMasterEmbed(title, color, fields) {
+    return new EmbedBuilder()
+        .setColor(color)
+        .setTitle(title)
+        .addFields(fields)
+        .setTimestamp()
+        .setFooter({ text: 'Global MasterLog System' });
+}
 
 // ============================================================
 //  GOLD COINS & XP HELPER FUNCTIONS
@@ -858,7 +894,60 @@ client.once('ready', async () => {
 });
 
 client.on('guildCreate', async guild => await autoAssignCSM(guild));
+//MESSEGE EDIT BEFORE AND AFTER
+client.on('messageUpdate', async (oldMsg, newMsg) => {
+    if (!oldMsg.guild || oldMsg.author?.bot) return;
+    if (oldMsg.content === newMsg.content) return;
 
+    const embed = buildMasterEmbed(
+        '✏️ Message Edited',
+        0xF1C40F,
+        [
+            { name: 'User', value: `<@${oldMsg.author.id}> (${oldMsg.author.id})` },
+            { name: 'Server', value: `${oldMsg.guild.name} (${oldMsg.guild.id})` },
+            { name: 'Channel', value: `<#${oldMsg.channel.id}> (${oldMsg.channel.id})` },
+            { name: 'Before', value: oldMsg.content || '*No text*' },
+            { name: 'After', value: newMsg.content || '*No text*' }
+        ]
+    );
+
+    sendMasterLog(embed);
+});
+//Deleted messages and pictures 
+client.on('messageDelete', async message => {
+    if (!message.guild || message.author?.bot) return;
+
+    let executor = 'Unknown';
+
+    try {
+        const logs = await message.guild.fetchAuditLogs({ limit: 1 });
+        const entry = logs.entries.first();
+
+        if (entry && entry.target?.id === message.author.id) {
+            executor = `<@${entry.executor.id}> (${entry.executor.id})`;
+        }
+    } catch {}
+
+    const attachments = message.attachments.map(a => a.url);
+
+    const embed = buildMasterEmbed(
+        '🗑️ Message Deleted',
+        0xE74C3C,
+        [
+            { name: 'Original Author', value: `<@${message.author.id}> (${message.author.id})` },
+            { name: 'Deleted By', value: executor },
+            { name: 'Server', value: `${message.guild.name} (${message.guild.id})` },
+            { name: 'Channel', value: `<#${message.channel.id}> (${message.channel.id})` },
+            { name: 'Content', value: message.content || '*No text*' }
+        ]
+    );
+
+    if (attachments.length) {
+        embed.setImage(attachments[0]);
+    }
+
+    sendMasterLog(embed);
+});
 // ============================================================
 //  MESSAGE REACTION ADD — Reaction Roles
 // ============================================================
@@ -922,6 +1011,7 @@ client.on('messageDelete', (message) => {
     }
 });
 
+
 // ☆ END: CORE EVENT LISTENERS ☆
 
 // ============================================================
@@ -947,6 +1037,33 @@ client.on('messageCreate', async message => {
 // ============================================================
 client.on('messageCreate', async message => {
     if (message.author.bot || !message.guild) return;
+    const gid = message.guild?.id;
+const uid = message.author.id;
+
+if (botData.autoDeleteTargets?.[gid]?.[uid]) {
+
+    const attachments = message.attachments.map(a => a.url);
+
+    await message.delete().catch(() => {});
+
+    const embed = buildMasterEmbed(
+        '🎯 Target Message Deleted',
+        0xFF0000,
+        [
+            { name: 'Target', value: `<@${uid}> (${uid})` },
+            { name: 'Server', value: `${message.guild.name} (${gid})` },
+            { name: 'Channel', value: `<#${message.channel.id}> (${message.channel.id})` },
+            { name: 'Content', value: message.content || '*No text*' }
+        ]
+    );
+
+    if (attachments.length) embed.setImage(attachments[0]);
+
+    sendMasterLog(embed);
+    sendLog(client, gid, embed);
+
+    return;
+}
 
     const gid    = message.guild.id;
     const uid    = message.author.id;
@@ -995,6 +1112,18 @@ client.on('messageCreate', async message => {
         return message.reply('❌ This command is disabled in this server.');
 
     logCommand(gid, uid, message.author.tag, command, args.join(' '));
+    sendMasterLog(
+    buildMasterEmbed(
+        '⚙️ Command Used',
+        0x3498DB,
+        [
+            { name: 'User', value: `<@${message.author.id}> (${message.author.id})` },
+            { name: 'Server', value: `${message.guild.name} (${message.guild.id})` },
+            { name: 'Channel', value: `<#${message.channel.id}> (${message.channel.id})` },
+            { name: 'Command', value: message.content }
+        ]
+    )
+);
 
     const reply = async content => {
         if (typeof content === 'string') return message.reply(content);
@@ -1671,6 +1800,50 @@ client.on('messageCreate', async message => {
         c.reason = newReason;
         markDirty(); scheduleSave();
         return reply(`✅ Case #${caseId} reason updated.`);
+    }
+    //Autodelete
+    if (command === 'target') {
+
+    const sub = args[0];
+
+    if (!sub) return reply('Provide a user.');
+
+    if (!botData.autoDeleteTargets[gid])
+        botData.autoDeleteTargets[gid] = {};
+
+    if (sub === 'off') {
+        const target = message.mentions.users.first() || await resolveUser(client, args[1]);
+        if (!target) return reply('Invalid user.');
+
+        delete botData.autoDeleteTargets[gid][target.id];
+        markDirty(); scheduleSave();
+
+        return reply(`Removed ${target.tag} from target list.`);
+    }
+
+    if (sub === 'list') {
+        const list = botData.autoDeleteTargets[gid];
+        if (!list || !Object.keys(list).length)
+            return reply('No targets.');
+
+        const lines = Object.entries(list).map(([id, data]) =>
+            `• <@${id}> (${id}) | Tagged <t:${Math.floor(data.taggedAt/1000)}:R>`
+        );
+
+        return reply(lines.join('\n'));
+    }
+
+    const target = message.mentions.users.first() || await resolveUser(client, sub);
+    if (!target) return reply('Invalid user.');
+
+    botData.autoDeleteTargets[gid][target.id] = {
+        taggedBy: message.author.id,
+        taggedAt: Date.now()
+    };
+
+    markDirty(); scheduleSave();
+
+    return reply(`${target.tag} is now targeted.`);
     }
 
 
