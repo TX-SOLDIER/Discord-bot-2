@@ -859,10 +859,10 @@ app.listen(10000, () => console.log('✅ Keep-alive on port 10000'));
 // ============================================================
 //  READY EVENT
 // ============================================================
-client.once('ready', async () => {
+client.once('clientReady', async () => {
     console.log(`✅ Logged in as ${client.user.tag}`);
     for (const guild of client.guilds.cache.values()) await autoAssignCSM(guild);
-        try {
+    try {
         await rest.put(Routes.applicationCommands(client.user.id), { body: slashCommands });
         console.log('✅ Slash commands registered.');
     } catch (e) { console.error('❌ Slash error:', e); }
@@ -871,38 +871,60 @@ client.once('ready', async () => {
     setInterval(async () => {
         const now = Date.now();
         const activeBans = [];
+
         for (const entry of botData.timedBans) {
             if (now >= entry.unbanAt) {
                 const guild = client.guilds.cache.get(entry.guildId);
                 if (guild) await guild.members.unban(entry.userId).catch(() => {});
-            } else activeBans.push(entry);
-    }
-        if (activeBans.length !== botData.timedBans.length) { botData.timedBans = activeBans; markDirty(); scheduleSave(); }
+            } else {
+                activeBans.push(entry);
+            }
+        }
+
+        if (activeBans.length !== botData.timedBans.length) {
+            botData.timedBans = activeBans;
+            markDirty();
+            scheduleSave();
+        }
 
         const activeMutes = [];
+
         for (const entry of botData.timedMutes) {
             if (now >= entry.unmuteAt) {
                 const guild = client.guilds.cache.get(entry.guildId);
                 if (guild) {
                     const member = await guild.members.fetch(entry.userId).catch(() => null);
                     if (member) await member.timeout(null).catch(() => {});
-    }
-            } else activeMutes.push(entry);
-    }
-        if (activeMutes.length !== botData.timedMutes.length) { botData.timedMutes = activeMutes; markDirty(); scheduleSave(); }
+                }
+            } else {
+                activeMutes.push(entry);
+            }
+        }
+
+        if (activeMutes.length !== botData.timedMutes.length) {
+            botData.timedMutes = activeMutes;
+            markDirty();
+            scheduleSave();
+        }
+
     }, 30000);
 });
 
 client.on('guildCreate', async guild => await autoAssignCSM(guild));
-//MESSEGE EDIT BEFORE AND AFTER
-client.on('messageUpdate', async (oldMsg, newMsg) => {
-    if (oldMessage.partial) {
-    try { await oldMessage.fetch(); } catch { return; }
-}
 
-if (newMessage.partial) {
-    try { await newMessage.fetch(); } catch { return; }
-}
+// ============================================================
+// MESSAGE EDIT — BEFORE & AFTER
+// ============================================================
+client.on('messageUpdate', async (oldMsg, newMsg) => {
+
+    if (oldMsg.partial) {
+        try { await oldMsg.fetch(); } catch { return; }
+    }
+
+    if (newMsg.partial) {
+        try { await newMsg.fetch(); } catch { return; }
+    }
+
     if (!oldMsg.guild || oldMsg.author?.bot) return;
     if (oldMsg.content === newMsg.content) return;
 
@@ -920,15 +942,20 @@ if (newMessage.partial) {
 
     sendMasterLog(embed);
 });
-//Deleted messages and pictures 
+
+// ============================================================
+// Deleted messages and pictures
+// ============================================================
 client.on('messageDelete', async message => {
+
     if (message.partial) {
-    try {
-        await message.fetch();
-    } catch {
-        return;
+        try {
+            await message.fetch();
+        } catch {
+            return;
+        }
     }
-    }
+
     if (!message.guild || message.author?.bot) return;
 
     let executor = 'Unknown';
