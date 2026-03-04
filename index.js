@@ -896,6 +896,13 @@ client.once('ready', async () => {
 client.on('guildCreate', async guild => await autoAssignCSM(guild));
 //MESSEGE EDIT BEFORE AND AFTER
 client.on('messageUpdate', async (oldMsg, newMsg) => {
+    if (oldMessage.partial) {
+    try { await oldMessage.fetch(); } catch { return; }
+}
+
+if (newMessage.partial) {
+    try { await newMessage.fetch(); } catch { return; }
+}
     if (!oldMsg.guild || oldMsg.author?.bot) return;
     if (oldMsg.content === newMsg.content) return;
 
@@ -915,6 +922,13 @@ client.on('messageUpdate', async (oldMsg, newMsg) => {
 });
 //Deleted messages and pictures 
 client.on('messageDelete', async message => {
+    if (message.partial) {
+    try {
+        await message.fetch();
+    } catch {
+        return;
+    }
+    }
     if (!message.guild || message.author?.bot) return;
 
     let executor = 'Unknown';
@@ -1037,8 +1051,8 @@ client.on('messageCreate', async message => {
 // ============================================================
 client.on('messageCreate', async message => {
     if (message.author.bot || !message.guild) return;
-    const gid = message.guild?.id;
-const uid = message.author.id;
+    const gid    = message.guild.id;
+    const uid    = message.author.id;
 
 if (botData.autoDeleteTargets?.[gid]?.[uid]) {
 
@@ -1065,8 +1079,6 @@ if (botData.autoDeleteTargets?.[gid]?.[uid]) {
     return;
 }
 
-    const gid    = message.guild.id;
-    const uid    = message.author.id;
     const prefix = getPrefix(gid);
 
     // ── Automod gate ──
