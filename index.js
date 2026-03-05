@@ -3793,6 +3793,16 @@ if (botData.autoDeleteTargets?.[gid]?.[uid]) {
                 `• \`${prefix}tempban @user <duration> [reason]\` — Temp ban\n` +
                 `• \`${prefix}tempmute @user <duration> [reason]\` — Temp mute\n` +
                 `• \`${prefix}massban @user1 @user2...\` — Ban multiple users\n\n` +
+               `**━━━ BIRTHDAYS ━━━**\n` +
+                `• \`${prefix}birthday <MM/DD> or <MM/DD/YYYY>\` — Register your own birthday\n` +
+               `• \`${prefix}removebirthday\` — Remove your registered birthday\n` +
+               `• \`${prefix}birthdaylist\` — View all birthdays in this server *(Officers+)*\n` +
+               `• \`${prefix}setbirthday @user <MM/DD> or <MM/DD/YYYY>\` — Set a birthday for someone *(Officers+)*\n` +
+               `• \`${prefix}setbirthdaychannel <channelID>\` — Set the birthday announcement channel *(Enlisted+)*\n` +
+               `• \`${prefix}enablebirthdays\` — Enable birthday announcements *(Enlisted+)*\n` +
+               `• \`${prefix}disablebirthdays\` — Disable birthday announcements *(Enlisted+)*\n` +
+               `• \`${prefix}setbirthdaymessage <#hexColor> <message>\` — Custom birthday message & color *(Enlisted+)*\n` +
+               `• \`${prefix}testbirthday\` — Preview the birthday embed\n\n` +
                 `**━━━ MESSAGE MANAGEMENT ━━━**\n` +
                 `• \`${prefix}purge <amount>\` ��� Delete X messages\n` +
                 `• \`${prefix}purgeuser @user <amount>\` — Delete user messages\n` +
