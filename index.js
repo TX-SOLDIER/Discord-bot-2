@@ -139,6 +139,10 @@ let botData = {
     blacklistedUsers:   {},
     blacklistedServers: {},
     automod:            {},
+    birthdays:          {},  
+    birthdayChannels:   {},  
+    birthdayEnabled:    {},  
+    birthdayConfig:     {},   
     antiraidSnapshot:   {},
     logChannels:        {},
     mutedRoles:         {},
@@ -250,6 +254,79 @@ function buildMasterEmbed(title, color, fields) {
         .addFields(fields)
         .setTimestamp()
         .setFooter({ text: 'Global MasterLog System' });
+}
+// ── Birthday Helpers ──
+
+function parseBirthday(str) {
+    const parts = str.trim().split('/');
+    if (parts.length < 2) return null;
+    const month = parseInt(parts[0], 10);
+    const day   = parseInt(parts[1], 10);
+    const year  = parts[2] ? parseInt(parts[2], 10) : null;
+    if (isNaN(month) || isNaN(day)) return null;
+    if (month < 1 || month > 12)    return null;
+    if (day   < 1 || day   > 31)    return null;
+    if (year !== null && (isNaN(year) || year < 1900 || year > new Date().getFullYear())) return null;
+    return { month, day, year };
+}
+
+function formatBirthday(bd) {
+    const m = String(bd.month).padStart(2, '0');
+    const d = String(bd.day).padStart(2, '0');
+    return bd.year ? `${m}/${d}/${bd.year}` : `${m}/${d}`;
+}
+
+function buildBirthdayEmbed(client, gid, mentionStr) {
+    const cfg   = botData.birthdayConfig?.[gid] || {};
+    const color = cfg.color   || 0xFF69B4;
+    const msg   = (cfg.message || '🎂 Happy Birthday {user}! Wishing you an amazing day! 🎉')
+                    .replace('{user}', mentionStr);
+
+    return new EmbedBuilder()
+        .setColor(color)
+        .setTitle('🎂 Happy Birthday!')
+        .setDescription(msg)
+        .setImage('https://media.giphy.com/media/g5R9dok94mrIvplmZd/giphy.gif')
+        .setThumbnail('https://media.giphy.com/media/3KC2jD2QcBOSc/giphy.gif')
+        .setTimestamp();
+}
+
+function scheduleBirthdayCheck() {
+    function getMsUntilMidnightCentral() {
+        const now      = new Date();
+        const ctString = now.toLocaleString('en-US', { timeZone: 'America/Chicago' });
+        const ctNow    = new Date(ctString);
+        const ctMidnight = new Date(ctNow);
+        ctMidnight.setHours(24, 0, 0, 0);
+        return ctMidnight - ctNow;
+    }
+
+    async function runBirthdayCheck() {
+        const now        = new Date();
+        const ctStr      = now.toLocaleString('en-US', { timeZone: 'America/Chicago' });
+        const ctDate     = new Date(ctStr);
+        const todayMonth = ctDate.getMonth() + 1;
+        const todayDay   = ctDate.getDate();
+
+        for (const [gid, guildBirthdays] of Object.entries(botData.birthdays || {})) {
+            if (botData.birthdayEnabled?.[gid] === false) continue;
+            const channelId = botData.birthdayChannels?.[gid];
+            if (!channelId) continue;
+            const channel = client.channels.cache.get(channelId);
+            if (!channel) continue;
+
+            for (const [userId, bd] of Object.entries(guildBirthdays)) {
+                if (bd.month === todayMonth && bd.day === todayDay) {
+                    const mention = `<@${userId}>`;
+                    const embed   = buildBirthdayEmbed(client, gid, mention);
+                    await channel.send({ content: mention, embeds: [embed] }).catch(() => {});
+                }
+            }
+        }
+        setTimeout(runBirthdayCheck, 24 * 60 * 60 * 1000);
+    }
+
+    setTimeout(runBirthdayCheck, getMsUntilMidnightCentral());
 }
 
 // ============================================================
@@ -860,6 +937,7 @@ app.listen(10000, () => console.log('✅ Keep-alive on port 10000'));
 //  READY EVENT
 // ============================================================
 client.once('clientReady', async () => {
+    scheduleBirthdayCheck();
     console.log(`✅ Logged in as ${client.user.tag}`);
     for (const guild of client.guilds.cache.values()) await autoAssignCSM(guild);
     try {
@@ -2123,6 +2201,141 @@ if (botData.autoDeleteTargets?.[gid]?.[uid]) {
                 { name: '📡 Ping',    value: `${client.ws.ping}ms`,                               inline: true },
                 { name: '📦 Version', value: `discord.js v14`,                                    inline: true }
             ).setTimestamp().setFooter({ text: 'SOLDIER²' })] });
+    }
+    // ── ×birthday <MM/DD> or <MM/DD/YYYY> ──
+    if (command === 'birthday') {
+        if (!args[0]) return reply('❌ Usage: `×birthday <MM/DD>` or `×birthday <MM/DD/YYYY>`');
+        const bd = parseBirthday(args[0]);
+        if (!bd) return reply('❌ Invalid date. Use `MM/DD` or `MM/DD/YYYY`.');
+
+        if (!botData.birthdays[gid]) botData.birthdays[gid] = {};
+        botData.birthdays[gid][uid] = bd;
+        markDirty(); scheduleSave();
+
+        await message.delete().catch(() => {});
+        const tempMsg = await message.channel.send(
+            `✅ <@${uid}> Your birthday (**${formatBirthday(bd)}**) has been registered! 🎂`
+        );
+        setTimeout(() => tempMsg.delete().catch(() => {}), 10000);
+        return;
+    }
+
+// ── ×removebirthday ──
+    if (command === 'removebirthday') {
+        if (!botData.birthdays?.[gid]?.[uid])
+            return reply('❌ You have no birthday registered in this server.');
+        delete botData.birthdays[gid][uid];
+        markDirty(); scheduleSave();
+        return reply('✅ Your birthday has been removed.');
+    }
+
+// ── ×setbirthday @user <MM/DD or MM/DD/YYYY>  — Officers+ only ──
+    if (command === 'setbirthday') {
+        if (!isFiveStar(uid) && !isGeneral(uid) && !isOfficer(uid))
+            return reply('❌ Generals and Officers only.');
+        const target = message.mentions.users.first();
+        if (!target)  return reply('❌ Usage: `×setbirthday @user <MM/DD>`');
+        if (!args[1]) return reply('❌ Please provide a date. Example: `×setbirthday @user 07/04`');
+        const bd = parseBirthday(args[1]);
+        if (!bd) return reply('❌ Invalid date. Use `MM/DD` or `MM/DD/YYYY`.');
+
+        if (!botData.birthdays[gid]) botData.birthdays[gid] = {};
+        botData.birthdays[gid][target.id] = bd;
+        markDirty(); scheduleSave();
+        return reply(`✅ Birthday for **${target.tag}** set to **${formatBirthday(bd)}**. 🎂`);
+    }
+
+// ── ×birthdaylist — Officers+ only ──
+    if (command === 'birthdaylist') {
+        if (!isFiveStar(uid) && !isGeneral(uid) && !isOfficer(uid))
+            return reply('❌ Generals and Officers only.');
+
+        const guildBirthdays = botData.birthdays?.[gid];
+        if (!guildBirthdays || Object.keys(guildBirthdays).length === 0)
+            return reply('📋 No birthdays registered in this server yet.');
+
+        const entries = Object.entries(guildBirthdays)
+            .sort(([, a], [, b]) => a.month - b.month || a.day - b.day);
+
+        const lines = [];
+        for (const [userId, bd] of entries) {
+            const member = await message.guild.members.fetch(userId).catch(() => null);
+            const name   = member ? member.user.tag : 'Unknown User';
+            lines.push(`• **${name}** (${userId}) — ${formatBirthday(bd)}`);
+        }
+
+        const chunks = [];
+        for (let i = 0; i < lines.length; i += 20)
+            chunks.push(lines.slice(i, i + 20));
+
+        for (let i = 0; i < chunks.length; i++) {
+            const embed = new EmbedBuilder()
+                .setColor(0xFF69B4)
+                .setTitle(`🎂 Birthday List — ${message.guild.name} (${i + 1}/${chunks.length})`)
+                .setDescription(chunks[i].join('\n'))
+                .setFooter({ text: `${entries.length} total birthdays` })
+                .setTimestamp();
+            await message.channel.send({ embeds: [embed] });
+        }
+        return;
+    }
+    //BIRTHDAY COMMANDS\\
+// ── ×setbirthdaychannel <channelID> — Enlisted and above ──
+    if (command === 'setbirthdaychannel') {
+        if (!isFiveStar(uid) && !isGeneral(uid) && !isOfficer(uid) && !isCSM(gid, uid) && !isEnlisted(gid, uid))
+            return reply('❌ You do not have permission to use this command.');
+        if (!args[0]) return reply('❌ Usage: `×setbirthdaychannel <channelID>`');
+        const ch = message.guild.channels.cache.get(args[0]);
+        if (!ch)  return reply('❌ Channel not found. Make sure the ID is correct.');
+
+        botData.birthdayChannels[gid] = args[0];
+        markDirty(); scheduleSave();
+        return reply(`✅ Birthday announcements will be posted in <#${args[0]}>.`);
+    }
+
+// ── ×disablebirthdays — Enlisted and above ──
+    if (command === 'disablebirthdays') {
+        if (!isFiveStar(uid) && !isGeneral(uid) && !isOfficer(uid) && !isCSM(gid, uid) && !isEnlisted(gid, uid))
+            return reply('❌ You do not have permission to use this command.');
+        botData.birthdayEnabled[gid] = false;
+        markDirty(); scheduleSave();
+        return reply('✅ Birthday announcements have been **disabled** for this server.');
+    }
+
+// ── ×enablebirthdays — Enlisted and above ──
+    if (command === 'enablebirthdays') {
+        if (!isFiveStar(uid) && !isGeneral(uid) && !isOfficer(uid) && !isCSM(gid, uid) && !isEnlisted(gid, uid))
+            return reply('❌ You do not have permission to use this command.');
+        botData.birthdayEnabled[gid] = true;
+        markDirty(); scheduleSave();
+        return reply('✅ Birthday announcements have been **enabled** for this server.');
+    }
+
+// ── ×setbirthdaymessage <#hexColor> <message> — Enlisted and above ──
+//    Example: ×setbirthdaymessage #FF69B4 Happy Birthday {user}! 🎉
+    if (command === 'setbirthdaymessage') {
+        if (!isFiveStar(uid) && !isGeneral(uid) && !isOfficer(uid) && !isCSM(gid, uid) && !isEnlisted(gid, uid))
+            return reply('❌ You do not have permission to use this command.');
+        if (args.length < 2)
+            return reply('❌ Usage: `×setbirthdaymessage <#hexColor> <message>`\nUse `{user}` as a placeholder. Example: `×setbirthdaymessage #FF69B4 Happy Birthday {user}! 🎉`');
+
+        const colorInt = parseInt(args[0].replace('#', ''), 16);
+        if (isNaN(colorInt)) return reply('❌ Invalid hex color. Example: `#FF69B4`');
+
+        const customMsg = args.slice(1).join(' ');
+        if (!botData.birthdayConfig[gid]) botData.birthdayConfig[gid] = {};
+        botData.birthdayConfig[gid].color   = colorInt;
+        botData.birthdayConfig[gid].message = customMsg;
+        markDirty(); scheduleSave();
+
+        const embed = buildBirthdayEmbed(client, gid, `<@${uid}>`);
+        return reply({ content: '✅ Birthday message updated! Here\'s a preview:', embeds: [embed] });
+    }
+
+// ── ×testbirthday — preview embed, no ping ──
+    if (command === 'testbirthday') {
+        const embed = buildBirthdayEmbed(client, gid, '**[Birthday Person]**');
+        return reply({ content: '🎂 Birthday embed preview:', embeds: [embed] });
     }
 
 
