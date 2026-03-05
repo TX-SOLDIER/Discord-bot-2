@@ -151,6 +151,7 @@ let botData = {
     staffList:          {},
     dutyStatus:         {},
     autoDeleteTargets:  {},
+    counting:           {},
     timedBans:          [],
     timedMutes:         [],
     commandLog:         {},
@@ -327,6 +328,63 @@ function scheduleBirthdayCheck() {
     }
 
     setTimeout(runBirthdayCheck, getMsUntilMidnightCentral());
+}
+// ============================================================
+//  COUNTING GAME — HELPERS
+// ============================================================
+
+function getCountingData(guildId) {
+    if (!botData.counting) botData.counting = {};
+    if (!botData.counting[guildId]) {
+        botData.counting[guildId] = {
+            channelId:           null,
+            currentNumber:       0,
+            highestNumber:       0,
+            lastCounter:         null,
+            participants:        {},
+            doubleCountWarnings: {},
+        };
+    }
+    return botData.counting[guildId];
+}
+
+function canSetCountingChannel(guildId, userId) {
+    return (
+        isFiveStar(userId)     ||
+        isGeneral(userId)      ||
+        isOfficer(userId)      ||
+        isCSM(guildId, userId) ||
+        isEnlisted(guildId, userId)
+    );
+}
+
+function canSetNextCount(userId) {
+    return isFiveStar(userId) || isGeneral(userId) || isOfficer(userId);
+}
+
+function isCountingExempt(userId) {
+    return isFiveStar(userId) || isGeneral(userId);
+}
+
+function resetCount(guildId) {
+    const cd = getCountingData(guildId);
+    cd.currentNumber       = 0;
+    cd.lastCounter         = null;
+    cd.participants        = {};
+    cd.doubleCountWarnings = {};
+    markDirty(); scheduleSave();
+}
+
+async function handleMilestoneReward(guildId, currentNumber) {
+    if (currentNumber % 100 !== 0) return undefined;
+    const cd = getCountingData(guildId);
+    const participantIds = Object.keys(cd.participants);
+    for (const uid of participantIds) {
+        addCoins(uid, 100);
+    }
+    cd.participants = {};
+    markDirty(); scheduleSave();
+    return participantIds.length;
 }
 
 // ============================================================
@@ -1005,6 +1063,24 @@ client.on('messageUpdate', async (oldMsg, newMsg) => {
 
     if (!oldMsg.guild || oldMsg.author?.bot) return;
     if (oldMsg.content === newMsg.content) return;
+    // ── Counting — edit detection ──
+    {
+        const cd = getCountingData(oldMsg.guild.id);
+        if (cd.channelId && newMsg.channel?.id === cd.channelId && !newMsg.author?.bot && oldMsg.content !== newMsg.content) {
+            const embed = new EmbedBuilder()
+                .setColor(0xE67E22)
+                .setTitle('✏️ Message Edited in Counting Channel')
+                .addFields(
+                    { name: 'User',   value: `<@${newMsg.author?.id}>`, inline: true },
+                    { name: 'Before', value: `\`${oldMsg.content || '*(unknown)*'}\``, inline: true },
+                    { name: 'After',  value: `\`${newMsg.content || '*(unknown)*'}\``, inline: true },
+                    { name: '🔢 Next Expected Number', value: `**${cd.currentNumber + 1}**` },
+                )
+                .setFooter({ text: 'Editing does not reset the count.' })
+                .setTimestamp();
+            await newMsg.channel.send({ embeds: [embed] }).catch(() => {});
+        }
+    }
 
     const embed = buildMasterEmbed(
         '✏️ Message Edited',
@@ -1035,6 +1111,23 @@ client.on('messageDelete', async message => {
     }
 
     if (!message.guild || message.author?.bot) return;
+    // ── Counting — delete detection ──
+    {
+        const cd = getCountingData(message.guild.id);
+        if (cd.channelId && message.channel?.id === cd.channelId && !message.author?.bot) {
+            const embed = new EmbedBuilder()
+                .setColor(0xE74C3C)
+                .setTitle('🗑️ Message Deleted in Counting Channel')
+                .addFields(
+                    { name: 'User',    value: `<@${message.author?.id}>`, inline: true },
+                    { name: 'Deleted', value: `\`${message.content || '*(unknown)*'}\``, inline: true },
+                    { name: '🔢 Next Expected Number', value: `**${cd.currentNumber + 1}**` },
+                )
+                .setFooter({ text: 'Deleting does not reset the count.' })
+                .setTimestamp();
+            await message.channel.send({ embeds: [embed] }).catch(() => {});
+        }
+    }
 
     let executor = 'Unknown';
 
@@ -1217,6 +1310,136 @@ if (botData.autoDeleteTargets?.[gid]?.[uid]) {
             return message.channel.send(`<@${uid}> ❌ Prohibited word detected.`).then(m => setTimeout(() => m.delete().catch(() => {}), 5000));
     }
     }
+    // ══════════════════════════════════════════════════
+    //  COUNTING CHANNEL INTERCEPT
+    // ══════════════════════════════════════════════════
+    {
+        const cd = getCountingData(gid);
+        if (cd.channelId && message.channel.id === cd.channelId) {
+
+            const rawContent    = message.content.trim();
+            const serverPrefix  = getPrefix(gid);
+            const isCountingCmd = rawContent.startsWith(serverPrefix + 'counting');
+
+            if (!isCountingCmd) {
+
+                // Only plain integers — no "5.", "05", "5 lol", words, decimals, etc.
+                const isPlainInteger = /^\d+$/.test(rawContent);
+
+                if (!isPlainInteger) {
+                    await message.delete().catch(() => {});
+                    const warnEmbed = new EmbedBuilder()
+                        .setColor(0xE74C3C)
+                        .setTitle('🔢 Numbers Only!')
+                        .setDescription(`<@${uid}>, only plain integers are allowed in this channel.`)
+                        .addFields({ name: 'Next Expected Number', value: `**${cd.currentNumber + 1}**` })
+                        .setTimestamp();
+                    const warnMsg = await message.channel.send({ embeds: [warnEmbed] });
+                    setTimeout(() => warnMsg.delete().catch(() => {}), 8000);
+                    return;
+                }
+
+                const posted       = parseInt(rawContent, 10);
+                const nextExpected = cd.currentNumber + 1;
+
+                // ── Double-count guard (Owner + Generals are exempt) ──
+                if (!isCountingExempt(uid) && cd.lastCounter === uid) {
+                    await message.delete().catch(() => {});
+                    if (!cd.doubleCountWarnings[uid]) {
+                        cd.doubleCountWarnings[uid] = true;
+                        markDirty(); scheduleSave();
+                        const dcEmbed = new EmbedBuilder()
+                            .setColor(0xF39C12)
+                            .setTitle('⛔ You Cannot Count Twice in a Row')
+                            .setDescription(`<@${uid}>, wait for someone else to count before going again.`)
+                            .addFields({ name: 'Next Expected Number', value: `**${nextExpected}**` })
+                            .setTimestamp();
+                        const dcMsg = await message.channel.send({ embeds: [dcEmbed] });
+                        setTimeout(() => dcMsg.delete().catch(() => {}), 8000);
+                    }
+                    return;
+                }
+
+                // ── Wrong number — react ❌ then delete and reset ──
+                if (posted !== nextExpected) {
+                    await message.react('❌').catch(() => {});
+                    await message.delete().catch(() => {});
+                    const resetEmbed = new EmbedBuilder()
+                        .setColor(0xFF0000)
+                        .setTitle('💥 Count Ruined!')
+                        .setDescription(
+                            `<@${uid}> ruined the count by sending **${posted}** instead of **${nextExpected}**.\n\n` +
+                            `The count has been **reset to 0**.`
+                        )
+                        .addFields(
+                            { name: '🔢 Next Expected Number', value: '**1**',                     inline: true },
+                            { name: '📊 Count Before Reset',   value: `**${cd.currentNumber}**`,   inline: true },
+                        )
+                        // ↓ Replace these two GIF URLs with your own any time ↓
+                        .setImage('https://media.giphy.com/media/3ohzdYJK1wAdPWVk88/giphy.gif')
+                        .setThumbnail('https://media.giphy.com/media/l4FGpPki7jQrHmvSM/giphy.gif')
+                        .setTimestamp();
+                    await message.channel.send({ embeds: [resetEmbed] });
+                    resetCount(gid);
+                    return;
+                }
+
+                // ── Correct number — react ✅ and process ──
+                await message.react('✅').catch(() => {});
+
+                cd.currentNumber     = posted;
+                cd.lastCounter       = uid;
+                cd.participants[uid] = true;
+                delete cd.doubleCountWarnings[uid];
+                if (posted > cd.highestNumber) cd.highestNumber = posted;
+                markDirty(); scheduleSave();
+
+                // +2 gold per correct count
+                addCoins(uid, 2);
+
+                // Milestone bonus every 100 numbers
+                const participantCount = await handleMilestoneReward(gid, posted);
+                if (participantCount !== undefined) {
+                    const milestoneEmbed = new EmbedBuilder()
+                        .setColor(0xFFD700)
+                        .setTitle('🏆 Milestone Reached!')
+                        .setDescription(
+                            `The count hit **${posted}**! 🎉\n` +
+                            `**${participantCount}** participant(s) each received **+100 ${GOLD_SYMBOL} gold coins!**`
+                        )
+                        .setTimestamp();
+                    await message.channel.send({ embeds: [milestoneEmbed] });
+                }
+
+                // Normal XP gain using existing XP engine
+                if (canGainXP(gid, uid)) {
+                    const xpGain   = Math.floor(Math.random() * 5) + 5;
+                    const xpResult = addXP(gid, uid, xpGain);
+                    if (xpResult.levelUp) {
+                        const lvlCh = botData.levelupChannels?.[gid]
+                            ? client.channels.cache.get(botData.levelupChannels[gid])
+                            : message.channel;
+                        if (lvlCh) {
+                            const lvlEmbed = new EmbedBuilder()
+                                .setColor(0x2ECC71)
+                                .setTitle(`${XP_SYMBOL} Level Up!`)
+                                .setDescription(
+                                    `<@${uid}> reached **Level ${xpResult.newLevel}**! ` +
+                                    `(+${getCoinRewardForLevel(xpResult.newLevel)} ${GOLD_SYMBOL})`
+                                )
+                                .setTimestamp();
+                            lvlCh.send({ embeds: [lvlEmbed] }).catch(() => {});
+                        }
+                    }
+                }
+
+                return; // Message fully handled
+            }
+        }
+    }
+    // ══════════════════════════════════════════════════
+    //  END COUNTING CHANNEL INTERCEPT
+    // ══════════════════════════════════════════════════
 
     if (!message.content.startsWith(prefix)) return;
     if (botData.blacklistedServers?.[gid])    return;
@@ -1716,6 +1939,128 @@ if (botData.autoDeleteTargets?.[gid]?.[uid]) {
         await ch.setRateLimitPerUser(sec).catch(() => {});
         return reply(sec === 0 ? `✅ Slowmode disabled in <#${ch.id}>.` : `✅ Slowmode set to **${sec}s** in <#${ch.id}>.`);
     }
+
+    // ──────────────────────────────────────────────────
+    // ×counting
+    // ──────────────────────────────────────────────────
+    if (command === 'counting') {
+        const subCommand = args[0]?.toLowerCase();
+
+        // ×counting setchannel #channel
+        if (subCommand === 'setchannel') {
+            if (!canSetCountingChannel(gid, uid))
+                return reply('❌ You need at least an Enlisted rank to set the counting channel.');
+
+            const targetChannel =
+                message.mentions.channels.first() ||
+                (args[1] ? message.guild.channels.cache.get(args[1]) : null);
+
+            if (!targetChannel || targetChannel.type !== 0)
+                return reply('❌ Please mention a valid text channel. Example: `×counting setchannel #counting`');
+
+            const cd = getCountingData(gid);
+            cd.channelId = targetChannel.id;
+            markDirty(); scheduleSave();
+
+            const embed = new EmbedBuilder()
+                .setColor(0x2ECC71)
+                .setTitle('✅ Counting Channel Set')
+                .setDescription(`Counting channel set to <#${targetChannel.id}>.`)
+                .addFields(
+                    { name: 'Current Count', value: `**${cd.currentNumber}**`, inline: true },
+                    { name: 'Next Expected', value: `**${cd.currentNumber + 1}**`, inline: true },
+                )
+                .setFooter({ text: `Set by ${message.author.tag}` })
+                .setTimestamp();
+            return message.channel.send({ embeds: [embed] });
+        }
+
+        // ×counting setnext <number>
+        if (subCommand === 'setnext') {
+            if (!canSetNextCount(uid))
+                return reply('❌ Only **Generals**, **Officers**, or the **Bot Owner** can use this.');
+
+            const rawNum = args[1];
+            if (!rawNum || !/^\d+$/.test(rawNum))
+                return reply('❌ Provide a valid integer. Example: `×counting setnext 500`');
+
+            const targetNext = parseInt(rawNum, 10);
+            if (targetNext < 1)
+                return reply('❌ The next number must be at least 1.');
+
+            const cd = getCountingData(gid);
+            cd.currentNumber       = targetNext - 1;
+            cd.lastCounter         = null;
+            cd.doubleCountWarnings = {};
+            markDirty(); scheduleSave();
+
+            const embed = new EmbedBuilder()
+                .setColor(0x3498DB)
+                .setTitle('🔧 Count Manually Adjusted')
+                .setDescription(`Next expected number is now **${targetNext}**.`)
+                .addFields(
+                    { name: 'Next Expected', value: `**${targetNext}**`, inline: true },
+                    { name: 'Set By',        value: `<@${uid}>`,         inline: true },
+                )
+                .setTimestamp();
+            return message.channel.send({ embeds: [embed] });
+        }
+
+        // ×counting leaderboard
+        if (subCommand === 'leaderboard') {
+            if (!botData.counting || Object.keys(botData.counting).length === 0)
+                return reply('📊 No counting data recorded yet.');
+
+            const entries = [];
+            for (const [gId, data] of Object.entries(botData.counting)) {
+                if (!data.highestNumber || data.highestNumber === 0) continue;
+                const g    = client.guilds.cache.get(gId);
+                const name = g ? g.name : `Unknown Server (${gId})`;
+                entries.push({ name, highest: data.highestNumber });
+            }
+
+            if (entries.length === 0)
+                return reply('📊 No milestone counts recorded yet.');
+
+            entries.sort((a, b) => b.highest - a.highest);
+            const medals = ['🥇', '🥈', '🥉'];
+            const lines  = entries.slice(0, 10).map((e, i) =>
+                `${medals[i] || `**${i + 1}.**`} **${e.name}** — ${e.highest.toLocaleString()}`
+            );
+
+            const embed = new EmbedBuilder()
+                .setColor(0xFFD700)
+                .setTitle('🌍 Global Counting Leaderboard')
+                .setDescription(lines.join('\n'))
+                .setFooter({ text: 'Highest number ever reached per server' })
+                .setTimestamp();
+            return message.channel.send({ embeds: [embed] });
+        }
+
+        // ×counting — no subcommand, show status and help
+        const cd     = getCountingData(gid);
+        const pfx    = getPrefix(gid);
+        const helpEmbed = new EmbedBuilder()
+            .setColor(0x3498DB)
+            .setTitle('🔢 Counting Game')
+            .setDescription(
+                `**Current Count:** ${cd.currentNumber}\n` +
+                `**Next Expected:** ${cd.currentNumber + 1}\n` +
+                `**All-Time High:** ${cd.highestNumber}\n` +
+                (cd.channelId ? `**Channel:** <#${cd.channelId}>` : '**Channel:** *Not set*')
+            )
+            .addFields({
+                name: 'Commands',
+                value:
+                    `\`${pfx}counting setchannel #channel\` — Set counting channel *(Enlisted+)*\n` +
+                    `\`${pfx}counting setnext <number>\` — Jump to a number *(Officers+)*\n` +
+                    `\`${pfx}counting leaderboard\` — Global server leaderboard`,
+            })
+            .setFooter({ text: 'SOLDIER² Counting Game' })
+            .setTimestamp();
+        return message.channel.send({ embeds: [helpEmbed] });
+    }
+    // ── END ×counting ──────────────────────────────────
 
 
     // =========================================================
@@ -3436,6 +3781,7 @@ if (botData.autoDeleteTargets?.[gid]?.[uid]) {
                 `**━━━ MODERATION ━━━**\n` +
                 `• \`${prefix}kick @user [reason]\` — Kick a user\n` +
                 `• \`${prefix}ban @user [reason]\` — Permanently ban a user\n` +
+                `• \`${prefix}target\` — Autodelete user's messages\n` +
                 `• \`${prefix}unban <userID>\` — Unban by ID\n` +
                 `• \`${prefix}mute @user [duration] [reason]\` — Timeout a user\n` +
                 `• \`${prefix}unmute @user\` — Remove timeout\n` +
@@ -3514,6 +3860,10 @@ if (botData.autoDeleteTargets?.[gid]?.[uid]) {
             .setColor(0x3498DB)
             .setTitle('📖 SOLDIER² — Commands (3/3)')
             .setDescription(
+                `**━━━ COUNTING GAME ━━━**\n` +
+                `• \`${prefix}counting setchannel #channel\` — Set counting channel *(Enlisted+)*\n` +
+                `• \`${prefix}counting setnext <number>\` — Manually jump to a number *(Officers+)*\n` +
+                `• \`${prefix}counting leaderboard\` — Global highest-count leaderboard\n\n` +
                 `**━━━ ANNOUNCEMENTS & UTILITIES ━━━**\n` +
                 `• \`${prefix}announce #channel <message>\` — Send announcement\n` +
                 `• \`${prefix}say <message>\` — Bot says something\n` +
