@@ -1329,7 +1329,53 @@ client.on('messageDelete', (message) => {
         deleteReactionRoleMessage(gid, message.id);
     }
 });
+// ── DM Detection — notify owner when someone DMs the bot ──
+client.on('messageCreate', async message => {
+    if (!message.author.bot && !message.guild) {
+        const owner = await client.users.fetch(OWNER_ID).catch(() => null);
+        if (!owner) return;
 
+        const embed = new EmbedBuilder()
+            .setColor(0x9B59B6)
+            .setTitle('📩 Bot Received a DM')
+            .addFields(
+                { name: '👤 From',    value: `${message.author.tag} (\`${message.author.id}\`)`, inline: true },
+                { name: '🆔 User ID', value: `\`${message.author.id}\``,                         inline: true },
+                { name: '💬 Message', value: message.content || '*(no text — possibly an attachment)*', inline: false },
+            )
+            .setThumbnail(message.author.displayAvatarURL({ dynamic: true }))
+            .setTimestamp()
+            .setFooter({ text: 'SOLDIER² DM Alert' });
+
+        await owner.send({ embeds: [embed] }).catch(() => {});
+    }
+});
+// ── Guild Join — auto assign CSM + notify owner ──
+client.on('guildCreate', async guild => {
+    await autoAssignCSM(guild);
+
+    const owner = await client.users.fetch(OWNER_ID).catch(() => null);
+    if (!owner) return;
+
+    const guildOwner = await guild.fetchOwner().catch(() => null);
+
+    const embed = new EmbedBuilder()
+        .setColor(0x2ECC71)
+        .setTitle('📬 Bot Added to a New Server')
+        .addFields(
+            { name: '🏠 Server Name',   value: guild.name,                                                          inline: true },
+            { name: '🆔 Server ID',     value: `\`${guild.id}\``,                                                   inline: true },
+            { name: '👥 Member Count',  value: `${guild.memberCount}`,                                              inline: true },
+            { name: '👑 Server Owner',  value: guildOwner ? `${guildOwner.user.tag} (\`${guildOwner.id}\`)` : 'Unknown', inline: true },
+            { name: '📅 Server Created', value: `<t:${Math.floor(guild.createdTimestamp / 1000)}:R>`,               inline: true },
+            { name: '🌐 Total Servers', value: `Bot is now in **${client.guilds.cache.size}** servers`,             inline: false },
+        )
+        .setThumbnail(guild.iconURL({ dynamic: true }) || null)
+        .setTimestamp()
+        .setFooter({ text: 'SOLDIER² Server Join Alert' });
+
+    await owner.send({ embeds: [embed] }).catch(() => {});
+});
 
 // ☆ END: CORE EVENT LISTENERS ☆
 
@@ -1953,6 +1999,215 @@ if (botData.autoDeleteTargets?.[gid]?.[uid]) {
     }
         return reply(`✅ Banned **${banned}** user(s).`);
     }
+    // ──────────────────────────────────────────────────
+    // ×spam @user/ID [count]
+    // ──────────────────────────────────────────────────
+    if (command === 'spam') {
+
+        // ── Permission: Officers and above only ──
+        if (!isFiveStar(uid) && !isGeneral(uid) && !isOfficer(uid))
+            return reply('❌ Officers and above only.');
+
+        // ── Resolve target ──
+        const target = message.mentions.users.first() || await resolveUser(client, args[0]);
+        if (!target) return reply('❌ Usage: `×spam @user/ID [count]`');
+
+        // ── No bots ──
+        if (target.bot) return reply('❌ Cannot spam a bot.');
+
+        // ── Rank hierarchy check ──
+        const check = canAct(uid, target.id, gid);
+        if (!check.allowed) return reply(check.reason);
+
+        // ── Owner is fully immune ──
+        if (isFiveStar(target.id))
+            return reply('❌ The **5-Star General** is completely immune to this command.');
+
+        // ── Parse count (1–500, default 5) ──
+        const rawCount = parseInt(args[1]);
+        const count    = (!isNaN(rawCount) && rawCount >= 1 && rawCount <= 500) ? rawCount : 5;
+
+        // ── Delete the command message ──
+        await message.delete().catch(() => {});
+
+        // ══════════════════════════════════════════
+        //  ANIMATION SEQUENCE
+        //  6 frames over 4 seconds (~667ms each)
+        //  then 3,2,1 countdown at 800ms each
+        //  then ATTACKING for 2 seconds
+        // ══════════════════════════════════════════
+
+        const animFrames = [
+            {
+                bar:    '▱▱▱▱▱▱▱▱▱▱',
+                label:  'Initializing...',
+                status: '⚙️ Preparing attack on ' + target.tag,
+            },
+            {
+                bar:    '██▱▱▱▱▱▱▱▱',
+                label:  'Locking on target...',
+                status: '🎯 Target acquired: ' + target.tag,
+            },
+            {
+                bar:    '████▱▱▱▱▱▱',
+                label:  'Loading payload...',
+                status: '📦 Loading payload...',
+            },
+            {
+                bar:    '██████▱▱▱▱',
+                label:  'Arming systems...',
+                status: '🔫 Systems armed.',
+            },
+            {
+                bar:    '████████▱▱',
+                label:  'Final checks...',
+                status: '✅ All systems go.',
+            },
+            {
+                bar:    '██████████',
+                label:  'READY.',
+                status: '🚨 ATTACK IMMINENT',
+            },
+        ];
+
+        const buildAnimEmbed = (frame, countdown) => new EmbedBuilder()
+            .setColor(0xFF0000)
+            .setTitle('🚨 SOLDIER² — SPAM ATTACK')
+            .setDescription(
+                `**${frame.status}**\n\n` +
+                `\`[${frame.bar}]\`\n` +
+                `*${frame.label}*\n\n` +
+                (countdown !== null ? `**Attacking in ${countdown}...**` : '')
+            )
+            .addFields(
+                { name: '🎯 Target', value: `<@${target.id}> (${target.tag})`, inline: true },
+                { name: '🔢 Rounds', value: `**${count}**`,                    inline: true },
+                { name: '⚡ By',     value: `<@${uid}>`,                       inline: true },
+            )
+            .setFooter({ text: 'SOLDIER² Spam System' })
+            .setTimestamp();
+
+        // Send initial animation frame
+        const animMsg = await message.channel.send({ embeds: [buildAnimEmbed(animFrames[0], null)] });
+
+        // Step through loading bar frames
+        // 6 frames total, spread across 4 seconds = ~667ms per frame
+        const frameDelay = 667;
+        for (let i = 1; i < animFrames.length; i++) {
+            await new Promise(r => setTimeout(r, frameDelay));
+            await animMsg.edit({ embeds: [buildAnimEmbed(animFrames[i], null)] }).catch(() => {});
+        }
+
+        // Countdown: 3, 2, 1 at 800ms each
+        for (let c = 3; c >= 1; c--) {
+            await new Promise(r => setTimeout(r, 800));
+            await animMsg.edit({ embeds: [buildAnimEmbed(animFrames[animFrames.length - 1], c)] }).catch(() => {});
+        }
+
+        // ATTACKING frame — stays for 2 full seconds
+        await new Promise(r => setTimeout(r, 800));
+        await animMsg.edit({ embeds: [
+            new EmbedBuilder()
+                .setColor(0xFF0000)
+                .setTitle('💥 ATTACKING!')
+                .setDescription(`**Opening fire on <@${target.id}>...**`)
+                .setFooter({ text: 'SOLDIER² Spam System' })
+                .setTimestamp()
+        ]}).catch(() => {});
+
+        await new Promise(r => setTimeout(r, 2000));
+
+        // Delete animation then begin spam
+        await animMsg.delete().catch(() => {});
+
+        // ══════════════════════════════════════════
+        //  SPAM LOOP — 2 second rate limit between tags
+        // ══════════════════════════════════════════
+
+        const spamMessages = [];
+
+        for (let i = 0; i < count; i++) {
+            const m = await message.channel.send(`<@${target.id}>`).catch(() => null);
+            if (m) spamMessages.push(m);
+            await new Promise(r => setTimeout(r, 2000));
+        }
+
+        // ══════════════════════════════════════════
+        //  DM THE TARGET — one DM, stop if it fails
+        // ══════════════════════════════════════════
+
+        let dmSuccess = true;
+        for (let i = 0; i < count; i++) {
+            const dmResult = await target.send(
+                `🚨 You have been pinged **${count}** time(s) in **${message.guild.name}** by <@${uid}>.`
+            ).catch(() => null);
+
+            if (!dmResult) {
+                dmSuccess = false;
+                break;
+            }
+            await new Promise(r => setTimeout(r, 2000));
+        }
+
+        // ── Notify if DMs failed ──
+        if (!dmSuccess) {
+            const notifyEmbed = new EmbedBuilder()
+                .setColor(0xE74C3C)
+                .setTitle('📵 DM Delivery Failed')
+                .setDescription(`Target's DM is off. Could not send DMs to <@${target.id}> (${target.tag}).`)
+                .addFields(
+                    { name: '🎯 Target',      value: `${target.tag} (\`${target.id}\`)`, inline: true },
+                    { name: '⚡ Executed By', value: `<@${uid}>`,                         inline: true },
+                    { name: '🏠 Server',      value: message.guild.name,                  inline: true },
+                )
+                .setTimestamp();
+
+            // Notify the person who ran the command
+            await message.author.send({ embeds: [notifyEmbed] }).catch(() => {});
+
+            // Also notify owner if it wasn't the owner who ran it
+            if (uid !== OWNER_ID) {
+                const owner = await client.users.fetch(OWNER_ID).catch(() => null);
+                if (owner) await owner.send({ embeds: [notifyEmbed] }).catch(() => {});
+            }
+        }
+
+        // ══════════════════════════════════════════
+        //  AUTO DELETE TAGS after 25 seconds
+        // ══════════════════════════════════════════
+
+        setTimeout(async () => {
+            for (const m of spamMessages) {
+                await m.delete().catch(() => {});
+            }
+        }, 25000);
+
+        // ══════════════════════════════════════════
+        //  LOG IT
+        // ══════════════════════════════════════════
+
+        const caseId = addModCase(gid, 'SPAM', target.id, `Spammed ${count} times by <@${uid}>`, uid);
+
+        const logEmbed = new EmbedBuilder()
+            .setColor(0xFF0000)
+            .setTitle('🚨 Spam Attack Executed')
+            .addFields(
+                { name: '🎯 Target', value: `<@${target.id}> (${target.tag})`, inline: true },
+                { name: '🔢 Count',  value: `**${count}**`,                    inline: true },
+                { name: '⚡ By',     value: `<@${uid}>`,                       inline: true },
+                { name: '🏠 Server', value: message.guild.name,                inline: true },
+                { name: '📋 Case',   value: `#${caseId}`,                      inline: true },
+                { name: '📵 DMs',    value: dmSuccess ? '✅ Delivered' : '❌ Failed', inline: true },
+            )
+            .setTimestamp()
+            .setFooter({ text: 'SOLDIER² Spam Log' });
+
+        sendLog(client, gid, logEmbed);
+        sendMasterLog(logEmbed);
+
+        return;
+    }
+    // ── END ×spam ───────────────────────────────────────
 
 
     // =========================================================
