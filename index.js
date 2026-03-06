@@ -145,6 +145,7 @@ let botData = {
     birthdayConfig:     {},   
     antiraidSnapshot:   {},
     logChannels:        {},
+    qotd:               {},
     mutedRoles:         {},
     verifyRoles:        {},
     reactionRoles:      {},
@@ -385,6 +386,111 @@ async function handleMilestoneReward(guildId, currentNumber) {
     cd.participants = {};
     markDirty(); scheduleSave();
     return participantIds.length;
+}
+// ============================================================
+//  QOTD — QUESTIONS LIST & HELPERS
+// ============================================================
+
+const QOTD_QUESTIONS = [
+    'If you could have dinner with anyone in history, who would it be and why?',
+    'What is one skill you wish you had learned earlier in life?',
+    'If you could live in any time period, past or future, which would you choose?',
+    'What is the best piece of advice you have ever received?',
+    'If you could instantly master any instrument, which would you pick?',
+    'What movie or book has had the biggest impact on how you see the world?',
+    'If you could wake up tomorrow with one new ability, what would it be?',
+];
+
+// ── QOTD placeholder GIF — replace this URL with your own any time ──
+const QOTD_GIF = 'https://media.giphy.com/media/3o7TKSjRrfIPjeiVyM/giphy.gif';
+
+function getQotdData(guildId) {
+    if (!botData.qotd) botData.qotd = {};
+    if (!botData.qotd[guildId]) {
+        botData.qotd[guildId] = {
+            channelId:    null,
+            enabled:      false,
+            pingEveryone: false,
+            currentIndex: 0,
+            nextSendAt:   null,
+        };
+    }
+    return botData.qotd[guildId];
+}
+
+function canManageQotd(guildId, userId) {
+    return (
+        isFiveStar(userId)     ||
+        isGeneral(userId)      ||
+        isOfficer(userId)      ||
+        isCSM(guildId, userId) ||
+        isEnlisted(guildId, userId)
+    );
+}
+
+async function sendQotd(guildId) {
+    const qd = getQotdData(guildId);
+    if (!qd.channelId || !qd.enabled) return;
+
+    const channel = client.channels.cache.get(qd.channelId);
+    if (!channel) return;
+
+    const question = QOTD_QUESTIONS[qd.currentIndex % QOTD_QUESTIONS.length];
+    const questionNumber = qd.currentIndex + 1;
+
+    const embed = new EmbedBuilder()
+        .setColor(0x24c718)
+        .setTitle('❓ Question of the Day')
+        .setDescription(`**${question}**`)
+        .setThumbnail(QOTD_GIF)
+        .setFooter({ text: `Question ${questionNumber} of ${QOTD_QUESTIONS.length} • SOLDIER²` })
+        .setTimestamp();
+
+    const content = qd.pingEveryone ? '@everyone' : null;
+    await channel.send({ content, embeds: [embed] }).catch(() => {});
+
+    // Advance to next question, loop back when list ends
+    qd.currentIndex = (qd.currentIndex + 1) % QOTD_QUESTIONS.length;
+    qd.nextSendAt   = Date.now() + 24 * 60 * 60 * 1000;
+    markDirty(); scheduleSave();
+
+    // Schedule next question
+    scheduleQotd(guildId);
+}
+
+// In-memory timer map so we can cancel/reschedule
+const qotdTimers = {};
+
+function scheduleQotd(guildId) {
+    // Clear any existing timer for this guild
+    if (qotdTimers[guildId]) {
+        clearTimeout(qotdTimers[guildId]);
+        delete qotdTimers[guildId];
+    }
+
+    const qd = getQotdData(guildId);
+    if (!qd.enabled || !qd.channelId) return;
+
+    const now   = Date.now();
+    const delay = Math.max((qd.nextSendAt || now) - now, 1000);
+
+    qotdTimers[guildId] = setTimeout(() => sendQotd(guildId), delay);
+}
+
+// Called on bot startup to resume any active QOTD schedules
+function resumeAllQotd() {
+    if (!botData.qotd) return;
+    for (const guildId of Object.keys(botData.qotd)) {
+        const qd = botData.qotd[guildId];
+        if (qd.enabled && qd.channelId) {
+            // If the scheduled time already passed while bot was offline, send immediately
+            if (qd.nextSendAt && qd.nextSendAt <= Date.now()) {
+                sendQotd(guildId);
+            } else {
+                scheduleQotd(guildId);
+            }
+        }
+    }
 }
 
 // ============================================================
@@ -996,6 +1102,7 @@ app.listen(10000, () => console.log('✅ Keep-alive on port 10000'));
 // ============================================================
 client.once('clientReady', async () => {
     scheduleBirthdayCheck();
+    resumeAllQotd();
     console.log(`✅ Logged in as ${client.user.tag}`);
     for (const guild of client.guilds.cache.values()) await autoAssignCSM(guild);
     try {
@@ -2062,7 +2169,158 @@ if (botData.autoDeleteTargets?.[gid]?.[uid]) {
     }
     // ── END ×counting ──────────────────────────────────
 
+// ──────────────────────────────────────────────────
+    // ×qotd
+    // ──────────────────────────────────────────────────
+    if (command === 'qotd') {
+        if (!canManageQotd(gid, uid))
+            return reply('❌ You need at least an Enlisted rank to manage QOTD.');
 
+        const sub = args[0]?.toLowerCase();
+
+        // ×qotd setchannel #channel
+        if (sub === 'setchannel') {
+            const targetChannel =
+                message.mentions.channels.first() ||
+                (args[1] ? message.guild.channels.cache.get(args[1]) : null);
+
+            if (!targetChannel || targetChannel.type !== 0)
+                return reply('❌ Please mention a valid text channel. Example: `×qotd setchannel #qotd`');
+
+            const qd = getQotdData(gid);
+            qd.channelId = targetChannel.id;
+            markDirty(); scheduleSave();
+
+            const embed = new EmbedBuilder()
+                .setColor(0x24c718)
+                .setTitle('✅ QOTD Channel Set')
+                .setDescription(`Question of the Day will be posted in <#${targetChannel.id}>.`)
+                .setFooter({ text: `Set by ${message.author.tag}` })
+                .setTimestamp();
+            return message.channel.send({ embeds: [embed] });
+        }
+
+        // ×qotd start — begins the 24-hour cycle from now
+        if (sub === 'start') {
+            const qd = getQotdData(gid);
+            if (!qd.channelId)
+                return reply('❌ No QOTD channel set. Use `×qotd setchannel #channel` first.');
+
+            qd.enabled    = true;
+            qd.nextSendAt = Date.now() + 24 * 60 * 60 * 1000;
+            markDirty(); scheduleSave();
+            scheduleQotd(gid);
+
+            // Send the first question right now
+            await sendQotd(gid);
+
+            const embed = new EmbedBuilder()
+                .setColor(0x24c718)
+                .setTitle('✅ QOTD Started')
+                .setDescription(
+                    `Question of the Day is now **active** in <#${qd.channelId}>.\n` +
+                    `A new question will be sent every **24 hours**.`
+                )
+                .addFields(
+                    { name: 'Ping Everyone', value: qd.pingEveryone ? '✅ Yes' : '❌ No', inline: true },
+                    { name: 'Channel',       value: `<#${qd.channelId}>`,                 inline: true },
+                )
+                .setFooter({ text: `Started by ${message.author.tag}` })
+                .setTimestamp();
+            return message.channel.send({ embeds: [embed] });
+        }
+
+        // ×qotd stop — pauses the schedule
+        if (sub === 'stop') {
+            const qd = getQotdData(gid);
+            qd.enabled = false;
+
+            if (qotdTimers[gid]) {
+                clearTimeout(qotdTimers[gid]);
+                delete qotdTimers[gid];
+            }
+
+            markDirty(); scheduleSave();
+
+            const embed = new EmbedBuilder()
+                .setColor(0xE74C3C)
+                .setTitle('⛔ QOTD Stopped')
+                .setDescription('Question of the Day has been **disabled** for this server.')
+                .setFooter({ text: `Stopped by ${message.author.tag}` })
+                .setTimestamp();
+            return message.channel.send({ embeds: [embed] });
+        }
+
+        // ×qotd send — immediately sends a question (for a second question in one day)
+        if (sub === 'send') {
+            const qd = getQotdData(gid);
+            if (!qd.channelId)
+                return reply('❌ No QOTD channel set. Use `×qotd setchannel #channel` first.');
+
+            await sendQotd(gid);
+
+            return message.channel.send({ embeds: [
+                new EmbedBuilder()
+                    .setColor(0x24c718)
+                    .setTitle('✅ Question Sent')
+                    .setDescription(`A question was sent to <#${qd.channelId}>.`)
+                    .setTimestamp()
+            ]});
+        }
+
+        // ×qotd ping on/off — toggle @everyone ping
+        if (sub === 'ping') {
+            const toggle = args[1]?.toLowerCase();
+            if (!['on', 'off'].includes(toggle))
+                return reply('❌ Usage: `×qotd ping on` or `×qotd ping off`');
+
+            const qd = getQotdData(gid);
+            qd.pingEveryone = toggle === 'on';
+            markDirty(); scheduleSave();
+
+            return reply(`✅ QOTD **@everyone** ping is now **${toggle === 'on' ? 'enabled' : 'disabled'}**.`);
+        }
+
+        // ×qotd status — show current config
+        if (sub === 'status') {
+            const qd   = getQotdData(gid);
+            const next = qd.nextSendAt
+                ? `<t:${Math.floor(qd.nextSendAt / 1000)}:R>`
+                : '*(not scheduled)*';
+
+            const embed = new EmbedBuilder()
+                .setColor(0x24c718)
+                .setTitle('❓ QOTD Status')
+                .addFields(
+                    { name: 'Status',        value: qd.enabled ? '✅ Active' : '❌ Stopped',                    inline: true },
+                    { name: 'Channel',       value: qd.channelId ? `<#${qd.channelId}>` : '*(not set)*',        inline: true },
+                    { name: 'Ping Everyone', value: qd.pingEveryone ? '✅ Yes' : '❌ No',                        inline: true },
+                    { name: 'Next Question', value: next,                                                         inline: true },
+                    { name: 'Up Next',       value: `**"${QOTD_QUESTIONS[qd.currentIndex % QOTD_QUESTIONS.length]}"**`, inline: false },
+                )
+                .setFooter({ text: `${QOTD_QUESTIONS.length} questions in rotation` })
+                .setTimestamp();
+            return message.channel.send({ embeds: [embed] });
+        }
+
+        // ×qotd — no subcommand, show help
+        const pfx = getPrefix(gid);
+        const helpEmbed = new EmbedBuilder()
+            .setColor(0x24c718)
+            .setTitle('❓ Question of the Day — Commands')
+            .setDescription(
+                `\`${pfx}qotd setchannel #channel\` — Set the QOTD channel\n` +
+                `\`${pfx}qotd start\` — Start sending questions every 24 hours\n` +
+                `\`${pfx}qotd stop\` — Stop the question schedule\n` +
+                `\`${pfx}qotd send\` — Send a question right now (extra question)\n` +
+                `\`${pfx}qotd ping on/off\` — Toggle @everyone ping on questions\n` +
+                `\`${pfx}qotd status\` — View current QOTD config`
+            )
+            .setFooter({ text: 'SOLDIER² QOTD System • Enlisted and above' })
+            .setTimestamp();
+        return message.channel.send({ embeds: [helpEmbed] });
+    }
+    // ── END ×qotd ──────────────────────────────────────
     // =========================================================
     //  USER & SERVER INFO
     // =========================================================
@@ -3874,6 +4132,13 @@ if (botData.autoDeleteTargets?.[gid]?.[uid]) {
                 `• \`${prefix}counting setchannel #channel\` — Set counting channel *(Enlisted+)*\n` +
                 `• \`${prefix}counting setnext <number>\` — Manually jump to a number *(Officers+)*\n` +
                 `• \`${prefix}counting leaderboard\` — Global highest-count leaderboard\n\n` +
+                `**━━━ QUESTION OF THE DAY ━━━**\n` +
+                `• \`${prefix}qotd setchannel #channel\` — Set the QOTD channel *(Enlisted+)*\n` +
+                `• \`${prefix}qotd start\` — Start sending questions every 24 hours *(Enlisted+)*\n` +
+                `• \`${prefix}qotd stop\` — Stop the question schedule *(Enlisted+)*\n` +
+                `• \`${prefix}qotd send\` — Send a bonus question immediately *(Enlisted+)*\n` +
+                `• \`${prefix}qotd ping on/off\` — Toggle @everyone ping *(Enlisted+)*\n` +
+                `• \`${prefix}qotd status\` — View current QOTD config *(Enlisted+)*\n\n` +
                 `**━━━ ANNOUNCEMENTS & UTILITIES ━━━**\n` +
                 `• \`${prefix}announce #channel <message>\` — Send announcement\n` +
                 `• \`${prefix}say <message>\` — Bot says something\n` +
