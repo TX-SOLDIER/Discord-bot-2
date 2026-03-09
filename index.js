@@ -4419,6 +4419,52 @@ if (botData.autoDeleteTargets?.[gid]?.[uid]) {
                 { name: '🕐 Timestamp',     value: `<t:${Math.floor(Date.now()/1000)}:F>`, inline: false }
             ).setTimestamp().setFooter({ text: 'SOLDIER²' })] });
     }
+    // --------------------------------------------------
+    // ×ping — Latency check with color indicator
+    // --------------------------------------------------
+    if (command === 'ping') {
+        const loadingEmbed = new EmbedBuilder()
+            .setColor(0x3498DB)
+            .setTitle('📡 Pinging...')
+            .setThumbnail('https://media.giphy.com/media/3oEjI6SIIHBdRxXI40/giphy.gif') // REPLACE — loading gif 1 (thumbnail)
+            .setImage('https://media.giphy.com/media/3oEjI6SIIHBdRxXI40/giphy.gif')     // REPLACE — loading gif 2 (banner)
+            .setDescription('Measuring latency...')
+            .setTimestamp();
+        const sent = await message.channel.send({ embeds: [loadingEmbed] });
+
+        const apiLatency  = Math.round(client.ws.ping);
+        const roundTrip   = sent.createdTimestamp - message.createdTimestamp;
+
+        let color, label, indicator;
+        if (apiLatency < 100) {
+            color = 0x2ECC71; label = 'Excellent'; indicator = '🟢';
+        } else if (apiLatency < 200) {
+            color = 0xF1C40F; label = 'Moderate'; indicator = '🟡';
+        } else {
+            color = 0xE74C3C; label = 'Poor'; indicator = '🔴';
+        }
+
+        const resultEmbed = new EmbedBuilder()
+            .setColor(color)
+            .setTitle(`${indicator} SOLDIER² — Ping Results`)
+            .setThumbnail('https://media.giphy.com/media/3oEjI6SIIHBdRxXI40/giphy.gif') // REPLACE — result gif 1 (thumbnail)
+            .setImage('https://media.giphy.com/media/3oEjI6SIIHBdRxXI40/giphy.gif')     // REPLACE — result gif 2 (banner)
+            .addFields(
+                { name: '🏓 API Latency',     value: `\`${apiLatency}ms\``,   inline: true },
+                { name: '↩️ Round Trip',      value: `\`${roundTrip}ms\``,    inline: true },
+                { name: '📶 Status',          value: `${indicator} **${label}**`, inline: true },
+                { name: '🏠 Servers',         value: `${client.guilds.cache.size}`,            inline: true },
+                { name: '👥 Users',           value: `${client.guilds.cache.reduce((a, g) => a + g.memberCount, 0)}`, inline: true },
+                { name: '⏱️ Uptime',          value: (() => { const s = Math.floor(process.uptime()); const h = Math.floor(s/3600); const m = Math.floor((s%3600)/60); const sec = s%60; return `${h}h ${m}m ${sec}s`; })(), inline: true },
+                { name: '💾 Memory',          value: `${(process.memoryUsage().heapUsed/1024/1024).toFixed(2)} MB`, inline: true },
+                { name: '📅 Checked At',      value: `<t:${Math.floor(Date.now()/1000)}:F>`,  inline: true },
+                { name: '🖥️ Server',          value: message.guild.name,                      inline: true }
+            )
+            .setFooter({ text: `SOLDIER² • ${label} Connection` })
+            .setTimestamp();
+
+        return sent.edit({ embeds: [resultEmbed] });
+    }
 // =========================================================
 //  HELP COMMANDS
 // =========================================================
@@ -4492,6 +4538,7 @@ if (botData.autoDeleteTargets?.[gid]?.[uid]) {
                 `• \`${prefix}modreason <caseID> <reason>\` — Edit case reason\n\n` +
                 `**━━━ SERVER PROTECTION ━━━**\n` +
                 `• \`${prefix}lockdown\` — Lock ALL channels\n` +
+                `• \`${prefix}ping\` — pong!\n` +
                 `• \`${prefix}unlockdown\` — Unlock all channels\n` +
                 `• \`${prefix}antiraid on/off\` — Toggle anti-raid (auto-restores)\n` +
                 `• \`${prefix}antispam on/off\` — Toggle anti-spam\n` +
