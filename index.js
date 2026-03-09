@@ -802,9 +802,10 @@ function removeEnlisted(gid, uid) {
 async function autoAssignCSM(guild) {
     const gid = guild.id;
     if (getCSMOfServer(gid)) return;
-    const hasG = Object.keys(botData.generals || {}).length > 0;
-    const hasO = Object.keys(botData.officers || {}).length > 0;
-    if (!hasG && !hasO) {
+    const hasAnyRank = Object.keys(botData.generals || {}).length > 0 ||
+                       Object.keys(botData.officers || {}).length > 0 ||
+                       Object.keys(botData.enlisted?.[gid] || {}).length > 0;
+    if (!hasAnyRank) {
         const owner = await guild.fetchOwner().catch(() => null);
         if (owner && !isFiveStar(owner.id)) {
             setEnlistedRank(gid, owner.id, CSM_RANK, 'AUTO');
@@ -994,6 +995,10 @@ async function handleDemote(targetUser, rankInput, guild, actorId, reply) {
     const curE = getEnlistedRank(gid, targetUser.id);
     const cur  = curG || curO || curE;
     if (!cur) return reply(`❌ <@${targetUser.id}> has no rank.`);
+    if ((curG && !isGeneral(actorId) && !isFiveStar(actorId)) ||
+        (curO && !isGeneral(actorId) && !isFiveStar(actorId))) {
+        return reply('❌ Only Generals or the 5-Star can strip General/Officer ranks.');
+    }
 
     if (rankInput) {
         const resolved =
