@@ -49,7 +49,9 @@ const client = new Client({
 // ============================================================
 //  CONSTANTS
 // ============================================================
-const DATA_FILE = './botData.json';
+const JSONBIN_ID  = process.env.JSONBIN_ID;
+const JSONBIN_KEY = process.env.JSONBIN_KEY;
+const JSONBIN_URL = `https://api.jsonbin.io/v3/b/${JSONBIN_ID}`;
 const PREFIX    = '×';
 const OWNER_ID  = '782155864134909952';
 
@@ -167,33 +169,39 @@ let botData = {
 let isDirty   = false;
 let saveTimer = null;
 
-function loadData() {
-        try {
-        if (fs.existsSync(DATA_FILE)) {
-            const parsed = JSON.parse(fs.readFileSync(DATA_FILE, 'utf8'));
-            botData = { ...botData, ...parsed };
-            console.log('✅ Bot data loaded.');
-    } else {
-            console.log('ℹ️ No data file — starting fresh.');
-    }
-    } catch (e) { console.error('❌ Load error:', e); }
-    }
+async function loadData() {
+    try {
+        const res  = await fetch(`${JSONBIN_URL}/latest`, {
+            headers: { 'X-Master-Key': JSONBIN_KEY }
+        });
+        const json = await res.json();
+        if (json.record) {
+            botData = { ...botData, ...json.record };
+            console.log('✅ Bot data loaded from JSONBin.');
+        }
+    } catch (e) { console.error('❌ JSONBin load error:', e); }
+}
 
 function markDirty() { isDirty = true; }
 
 function scheduleSave() {
     if (saveTimer) clearTimeout(saveTimer);
-    saveTimer = setTimeout(() => {
+    saveTimer = setTimeout(async () => {
         if (!isDirty) return;
         try {
-            fs.writeFileSync(DATA_FILE, JSON.stringify(botData, null, 2), 'utf8');
+            await fetch(JSONBIN_URL, {
+                method: 'PUT',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-Master-Key': JSONBIN_KEY
+                },
+                body: JSON.stringify(botData)
+            });
             isDirty = false;
-            console.log('💾 Saved.');
-        } catch (e) { console.error('❌ Save error:', e); }
+            console.log('💾 Saved to JSONBin.');
+        } catch (e) { console.error('❌ JSONBin save error:', e); }
     }, 2000);
-    }
-
-loadData();
+}
 
 // ☆ END: DATA PERSISTENCE ☆
 
@@ -1106,6 +1114,7 @@ app.listen(10000, () => console.log('✅ Keep-alive on port 10000'));
 //  READY EVENT
 // ============================================================
 client.once('clientReady', async () => {
+    await loadData();
     scheduleBirthdayCheck();
     resumeAllQotd();
     console.log(`✅ Logged in as ${client.user.tag}`);
