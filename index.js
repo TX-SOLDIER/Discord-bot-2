@@ -184,6 +184,15 @@ async function loadData() {
 
 function markDirty() { isDirty = true; }
 
+function getCleanData() {
+    const clean = { ...botData };
+    delete clean.xpCooldowns;
+    delete clean.commandLog;
+    delete clean.dutyStatus;
+    delete clean.antiraidSnapshot;
+    return clean;
+}
+
 function scheduleSave() {
     if (saveTimer) clearTimeout(saveTimer);
     saveTimer = setTimeout(async () => {
@@ -195,12 +204,33 @@ function scheduleSave() {
                     'Content-Type': 'application/json',
                     'X-Master-Key': JSONBIN_KEY
                 },
-                body: JSON.stringify(botData)
+                body: JSON.stringify(getCleanData())
             });
             isDirty = false;
             console.log('💾 Saved to JSONBin.');
         } catch (e) { console.error('❌ JSONBin save error:', e); }
     }, 2000);
+}
+
+async function forceSaveNow() {
+    try {
+        const res = await fetch(JSONBIN_URL, {
+            method: 'PUT',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-Master-Key': JSONBIN_KEY
+            },
+            body: JSON.stringify(getCleanData())
+        });
+        isDirty = false;
+        const json = await res.json();
+        const bytes = JSON.stringify(getCleanData()).length;
+        const kb = (bytes / 1024).toFixed(2);
+        return { success: true, kb };
+    } catch (e) {
+        console.error('❌ Force save error:', e);
+        return { success: false };
+    }
 }
 
 // ☆ END: DATA PERSISTENCE ☆
@@ -1117,6 +1147,10 @@ client.once('clientReady', async () => {
     await loadData();
     scheduleBirthdayCheck();
     resumeAllQotd();
+    setInterval(async () => {
+        const result = await forceSaveNow();
+        console.log(result.success ? `⏰ Auto-save complete. (${result.kb} KB)` : '❌ Auto-save failed.');
+    }, 5 * 60 * 60 * 1000);
     console.log(`✅ Logged in as ${client.user.tag}`);
     for (const guild of client.guilds.cache.values()) await autoAssignCSM(guild);
     try {
@@ -4310,7 +4344,81 @@ if (botData.autoDeleteTargets?.[gid]?.[uid]) {
         markDirty(); scheduleSave();
         return reply(`✅ Command \`${cmd}\` re-enabled.`);
     }
+// --------------------------------------------------
+    // ×forcesave — Force save to JSONBin immediately
+    // --------------------------------------------------
+    if (command === 'forcesave') {
+        if (!isFiveStar(uid) && !isGeneral(uid) && !isOfficer(uid)) return reply('❌ No permission.');
+        const confirmMsg = await message.channel.send({ embeds: [new EmbedBuilder()
+            .setColor(0x3498DB)
+            .setTitle('💾 Confirm Force Save')
+            .setDescription('This will immediately save all bot data to JSONBin.\n\nReact ✅ to confirm or ❌ to cancel.')
+            .setTimestamp().setFooter({ text: 'SOLDIER²' })]});
+        await confirmMsg.react('✅');
+        await confirmMsg.react('❌');
+        const filter = (r, u) => ['✅','❌'].includes(r.emoji.name) && u.id === uid;
+        const collected = await confirmMsg.awaitReactions({ filter, max: 1, time: 30000 }).catch(() => null);
+        const choice = collected?.first()?.emoji?.name;
+        await confirmMsg.reactions.removeAll().catch(() => {});
+        if (choice !== '✅') return confirmMsg.edit({ embeds: [new EmbedBuilder().setColor(0x808080).setDescription('❌ Force save cancelled.')] });
+        const result = await forceSaveNow();
+        if (!result.success) return confirmMsg.edit({ embeds: [new EmbedBuilder().setColor(0xFF0000).setDescription('❌ Force save failed. Check logs.')] });
+        return confirmMsg.edit({ embeds: [new EmbedBuilder()
+            .setColor(0x2ECC71)
+            .setTitle('💾 Force Save Complete')
+            .addFields(
+                { name: '👤 Executed By',  value: `<@${uid}> (\`${uid}\`)`,         inline: true },
+                { name: '🏠 Server',       value: `${message.guild.name} (\`${gid}\`)`, inline: true },
+                { name: '📦 Data Size',    value: `${result.kb} KB`,                inline: true },
+                { name: '🕐 Timestamp',    value: `<t:${Math.floor(Date.now()/1000)}:F>`, inline: false }
+            ).setTimestamp().setFooter({ text: 'SOLDIER²' })] });
+    }
 
+    // --------------------------------------------------
+    // ×cleanjson — Strip junk fields and save to JSONBin
+    // --------------------------------------------------
+    if (command === 'cleanjson') {
+        if (!isFiveStar(uid) && !isGeneral(uid) && !isOfficer(uid)) return reply('❌ No permission.');
+        const cooldownCount  = Object.values(botData.xpCooldowns  || {}).reduce((a, g) => a + Object.keys(g).length, 0);
+        const logCount       = Object.values(botData.commandLog    || {}).reduce((a, g) => a + g.length, 0);
+        const dutyCount      = Object.values(botData.dutyStatus    || {}).reduce((a, g) => a + Object.keys(g).length, 0);
+        const raidCount      = Object.keys(botData.antiraidSnapshot || {}).length;
+        const confirmMsg = await message.channel.send({ embeds: [new EmbedBuilder()
+            .setColor(0xE67E22)
+            .setTitle('🧹 Confirm JSON Cleanup')
+            .setDescription('The following junk data will be permanently stripped from JSONBin:')
+            .addFields(
+                { name: '⏱️ XP Cooldowns',       value: `${cooldownCount} entries`,  inline: true },
+                { name: '📋 Command Logs',        value: `${logCount} entries`,       inline: true },
+                { name: '🟢 Duty Statuses',       value: `${dutyCount} entries`,      inline: true },
+                { name: '🚨 Antiraid Snapshots',  value: `${raidCount} entries`,      inline: true }
+            )
+            .setDescription('The following junk data will be permanently stripped.\n\nReact ✅ to confirm or ❌ to cancel.')
+            .setTimestamp().setFooter({ text: 'This cannot be undone.' })]});
+        await confirmMsg.react('✅');
+        await confirmMsg.react('❌');
+        const filter = (r, u) => ['✅','❌'].includes(r.emoji.name) && u.id === uid;
+        const collected = await confirmMsg.awaitReactions({ filter, max: 1, time: 30000 }).catch(() => null);
+        const choice = collected?.first()?.emoji?.name;
+        await confirmMsg.reactions.removeAll().catch(() => {});
+        if (choice !== '✅') return confirmMsg.edit({ embeds: [new EmbedBuilder().setColor(0x808080).setDescription('❌ Cleanup cancelled.')] });
+        botData.xpCooldowns      = {};
+        botData.commandLog       = {};
+        botData.dutyStatus       = {};
+        botData.antiraidSnapshot = {};
+        const result = await forceSaveNow();
+        if (!result.success) return confirmMsg.edit({ embeds: [new EmbedBuilder().setColor(0xFF0000).setDescription('❌ Cleanup save failed. Check logs.')] });
+        return confirmMsg.edit({ embeds: [new EmbedBuilder()
+            .setColor(0x2ECC71)
+            .setTitle('🧹 JSON Cleanup Complete')
+            .addFields(
+                { name: '👤 Executed By',   value: `<@${uid}> (\`${uid}\`)`,              inline: true },
+                { name: '🏠 Server',        value: `${message.guild.name} (\`${gid}\`)`,  inline: true },
+                { name: '📦 New Size',      value: `${result.kb} KB`,                     inline: true },
+                { name: '🗑️ Removed',      value: `XP cooldowns, command logs, duty statuses, antiraid snapshots`, inline: false },
+                { name: '🕐 Timestamp',     value: `<t:${Math.floor(Date.now()/1000)}:F>`, inline: false }
+            ).setTimestamp().setFooter({ text: 'SOLDIER²' })] });
+    }
 // =========================================================
 //  HELP COMMANDS
 // =========================================================
@@ -4539,6 +4647,8 @@ if (botData.autoDeleteTargets?.[gid]?.[uid]) {
                 ` • \`${prefix}botname <n>\` — Change bot username\n` +
                 `• \`${prefix}restart\` — Restart the bot\n` +
                 `• \`${prefix}shutdown\` — Shut down the bot\n` +
+                `• \`${prefix}forcesave\` — Force save all data to JSONBin immediately *(Owner/Generals/Officers)*\n` +
+                `• \`${prefix}cleanjson\` — Strip junk data and save to JSONBin *(Owner/Generals/Officers)*\n` +
                 `• \`${prefix}eval <code>\` — Execute raw JS ⚠️\n\n` +
                 `**━━━ BLACKLIST *(Owner only)* ━━━**\n` +
                 `• \`${prefix}blacklistuser <userID>\` — Block user from bot globally\n` +
