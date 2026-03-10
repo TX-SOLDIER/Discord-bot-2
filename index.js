@@ -2096,14 +2096,6 @@ if (botData.autoDeleteTargets?.[gid]?.[uid]) {
     }
     //END OF SPAM COMMAND\\
 
-
-    // =========================================================
-    //  MESSAGE MANAGEMENT
-    // =========================================================
-
-    // --------------------------------------------------
-    // ×purge <amount>
-    // --------------------------------------------------
     if (command === 'purge') {
         if (!message.member.permissions.has(PermissionFlagsBits.ManageMessages) && !isStaff(gid, uid) && !isFiveStar(uid))
             return reply('❌ You need **Manage Messages** permission.');
@@ -2112,10 +2104,6 @@ if (botData.autoDeleteTargets?.[gid]?.[uid]) {
         await message.channel.bulkDelete(amt + 1, true).catch(() => {});
         return message.channel.send(`✅ Deleted **${amt}** messages.`).then(m => setTimeout(() => m.delete().catch(() => {}), 3000));
     }
-
-    // --------------------------------------------------
-    // ×purgeuser @user/ID <amount>
-    // --------------------------------------------------
     if (command === 'purgeuser') {
         if (!message.member.permissions.has(PermissionFlagsBits.ManageMessages) && !isStaff(gid, uid) && !isFiveStar(uid))
             return reply('❌ You need **Manage Messages** permission.');
@@ -2127,10 +2115,6 @@ if (botData.autoDeleteTargets?.[gid]?.[uid]) {
         await message.channel.bulkDelete(del, true).catch(() => {});
         return reply(`✅ Deleted messages from <@${target.id}>.`);
     }
-
-    // --------------------------------------------------
-    // ×purgebot <amount>
-    // --------------------------------------------------
     if (command === 'purgebot') {
         if (!message.member.permissions.has(PermissionFlagsBits.ManageMessages) && !isStaff(gid, uid) && !isFiveStar(uid))
             return reply('❌ You need **Manage Messages** permission.');
@@ -2140,10 +2124,6 @@ if (botData.autoDeleteTargets?.[gid]?.[uid]) {
         await message.channel.bulkDelete(del, true).catch(() => {});
         return reply(`✅ Deleted bot messages.`);
     }
-
-    // --------------------------------------------------
-    // ×purgelinks <amount>
-    // --------------------------------------------------
     if (command === 'purgelinks') {
         if (!message.member.permissions.has(PermissionFlagsBits.ManageMessages) && !isStaff(gid, uid) && !isFiveStar(uid))
             return reply('❌ You need **Manage Messages** permission.');
@@ -2153,10 +2133,6 @@ if (botData.autoDeleteTargets?.[gid]?.[uid]) {
         await message.channel.bulkDelete(del, true).catch(() => {});
         return reply(`✅ Deleted messages with links.`);
     }
-
-    // --------------------------------------------------
-    // ×lock [#channel]
-    // --------------------------------------------------
     if (command === 'lock') {
         if (!message.member.permissions.has(PermissionFlagsBits.ManageChannels) && !isStaff(gid, uid) && !isFiveStar(uid))
             return reply('❌ You need **Manage Channels** permission.');
@@ -2164,10 +2140,6 @@ if (botData.autoDeleteTargets?.[gid]?.[uid]) {
             await ch.permissionOverwrites.edit(message.guild.roles.everyone, { SendMessages: false }).catch(() => {});
         return reply(`🔒 <#${ch.id}> locked.`);
     }
-
-    // --------------------------------------------------
-    // ×unlock [#channel]
-    // --------------------------------------------------
     if (command === 'unlock') {
         if (!message.member.permissions.has(PermissionFlagsBits.ManageChannels) && !isStaff(gid, uid) && !isFiveStar(uid))
             return reply('❌ You need **Manage Channels** permission.');
@@ -2175,10 +2147,6 @@ if (botData.autoDeleteTargets?.[gid]?.[uid]) {
             await ch.permissionOverwrites.edit(message.guild.roles.everyone, { SendMessages: null }).catch(() => {});
         return reply(`🔓 <#${ch.id}> unlocked.`);
     }
-
-    // --------------------------------------------------
-    // ×slowmode <seconds> [#channel]
-    // --------------------------------------------------
     if (command === 'slowmode') {
         if (!message.member.permissions.has(PermissionFlagsBits.ManageChannels) && !isStaff(gid, uid) && !isFiveStar(uid))
             return reply('❌ You need **Manage Channels** permission.');
@@ -2188,14 +2156,10 @@ if (botData.autoDeleteTargets?.[gid]?.[uid]) {
         await ch.setRateLimitPerUser(sec).catch(() => {});
         return reply(sec === 0 ? `✅ Slowmode disabled in <#${ch.id}>.` : `✅ Slowmode set to **${sec}s** in <#${ch.id}>.`);
     }
-
-    // ──────────────────────────────────────────────────
-    // ×counting
-    // ──────────────────────────────────────────────────
+    //counting\\
     if (command === 'counting') {
         const subCommand = args[0]?.toLowerCase();
 
-        // ×counting setchannel #channel
         if (subCommand === 'setchannel') {
             if (!canSetCountingChannel(gid, uid))
                 return reply('❌ You need at least an Enlisted rank to set the counting channel.');
@@ -2223,8 +2187,6 @@ if (botData.autoDeleteTargets?.[gid]?.[uid]) {
                 .setTimestamp();
             return message.channel.send({ embeds: [embed] });
         }
-
-        // ×counting setnext <number>
         if (subCommand === 'setnext') {
             if (!canSetNextCount(uid))
                 return reply('❌ Only **Generals**, **Officers**, or the **Bot Owner** can use this.');
@@ -2254,8 +2216,6 @@ if (botData.autoDeleteTargets?.[gid]?.[uid]) {
                 .setTimestamp();
             return message.channel.send({ embeds: [embed] });
         }
-
-        // ×counting leaderboard
         if (subCommand === 'leaderboard') {
             if (!botData.counting || Object.keys(botData.counting).length === 0)
                 return reply('📊 No counting data recorded yet.');
@@ -2285,8 +2245,6 @@ if (botData.autoDeleteTargets?.[gid]?.[uid]) {
                 .setTimestamp();
             return message.channel.send({ embeds: [embed] });
         }
-
-        // ×counting — no subcommand, show status and help
         const cd     = getCountingData(gid);
         const pfx    = getPrefix(gid);
         const helpEmbed = new EmbedBuilder()
@@ -2309,18 +2267,14 @@ if (botData.autoDeleteTargets?.[gid]?.[uid]) {
             .setTimestamp();
         return message.channel.send({ embeds: [helpEmbed] });
     }
-    // ── END ×counting ──────────────────────────────────
-
-// ──────────────────────────────────────────────────
-    // ×qotd
-    // ──────────────────────────────────────────────────
+    //END OF counting COMMANDS\\
+  
+    //qotd\\
     if (command === 'qotd') {
         if (!canManageQotd(gid, uid))
             return reply('❌ You need at least an Enlisted rank to manage QOTD.');
 
         const sub = args[0]?.toLowerCase();
-
-        // ×qotd setchannel #channel
         if (sub === 'setchannel') {
             const targetChannel =
                 message.mentions.channels.first() ||
@@ -2341,8 +2295,6 @@ if (botData.autoDeleteTargets?.[gid]?.[uid]) {
                 .setTimestamp();
             return message.channel.send({ embeds: [embed] });
         }
-
-        // ×qotd start — begins the 24-hour cycle from now
         if (sub === 'start') {
             const qd = getQotdData(gid);
             if (!qd.channelId)
@@ -2353,7 +2305,6 @@ if (botData.autoDeleteTargets?.[gid]?.[uid]) {
             markDirty(); scheduleSave();
             scheduleQotd(gid);
 
-            // Send the first question right now
             await sendQotd(gid);
 
             const embed = new EmbedBuilder()
@@ -2371,8 +2322,6 @@ if (botData.autoDeleteTargets?.[gid]?.[uid]) {
                 .setTimestamp();
             return message.channel.send({ embeds: [embed] });
         }
-
-        // ×qotd stop — pauses the schedule
         if (sub === 'stop') {
             const qd = getQotdData(gid);
             qd.enabled = false;
@@ -2392,8 +2341,6 @@ if (botData.autoDeleteTargets?.[gid]?.[uid]) {
                 .setTimestamp();
             return message.channel.send({ embeds: [embed] });
         }
-
-        // ×qotd send — immediately sends a question (for a second question in one day)
         if (sub === 'send') {
             const qd = getQotdData(gid);
             if (!qd.channelId)
@@ -2409,8 +2356,6 @@ if (botData.autoDeleteTargets?.[gid]?.[uid]) {
                     .setTimestamp()
             ]});
         }
-
-        // ×qotd ping on/off — toggle @everyone ping
         if (sub === 'ping') {
             const toggle = args[1]?.toLowerCase();
             if (!['on', 'off'].includes(toggle))
@@ -2422,8 +2367,6 @@ if (botData.autoDeleteTargets?.[gid]?.[uid]) {
 
             return reply(`✅ QOTD **@everyone** ping is now **${toggle === 'on' ? 'enabled' : 'disabled'}**.`);
         }
-
-        // ×qotd status — show current config
         if (sub === 'status') {
             const qd   = getQotdData(gid);
             const next = qd.nextSendAt
@@ -2444,8 +2387,6 @@ if (botData.autoDeleteTargets?.[gid]?.[uid]) {
                 .setTimestamp();
             return message.channel.send({ embeds: [embed] });
         }
-
-        // ×qotd — no subcommand, show help
         const pfx = getPrefix(gid);
         const helpEmbed = new EmbedBuilder()
             .setColor(0x24c718)
@@ -2462,14 +2403,9 @@ if (botData.autoDeleteTargets?.[gid]?.[uid]) {
             .setTimestamp();
         return message.channel.send({ embeds: [helpEmbed] });
     }
-    // ── END ×qotd ──────────────────────────────────────
-    // =========================================================
-    //  USER & SERVER INFO
-    // =========================================================
-
-    // --------------------------------------------------
-    // ×userinfo @user/ID
-    // --------------------------------------------------
+    //END OF qotd COMMANDS\\
+    
+    //USER & SERVER INFO\\
     if (command === 'userinfo') {
         const target = message.mentions.users.first() || await resolveUser(client, args[0]) || message.author;
         const member = await resolveMember(message.guild, target.id);
@@ -2486,10 +2422,6 @@ if (botData.autoDeleteTargets?.[gid]?.[uid]) {
                 { name: '🎭 Roles',           value: member ? member.roles.cache.filter(r => r.id !== gid).map(r => `<@&${r.id}>`).join(', ').slice(0, 1000) || 'None' : 'N/A', inline: false }
             ).setTimestamp().setFooter({ text: 'SOLDIER²' })] });
     }
-
-    // --------------------------------------------------
-    // ×serverinfo [serverID]
-    // --------------------------------------------------
     if (command === 'serverinfo') {
         let guild = message.guild;
         if (args[0] && (isFiveStar(uid) || isGeneral(uid))) {
@@ -2508,19 +2440,11 @@ if (botData.autoDeleteTargets?.[gid]?.[uid]) {
                 { name: '🎭 Roles',   value: `${guild.roles.cache.size}`,                        inline: true }
             ).setTimestamp().setFooter({ text: 'SOLDIER²' })] });
     }
-
-    // --------------------------------------------------
-    // ×avatar @user/ID
-    // --------------------------------------------------
     if (command === 'avatar') {
         const target = message.mentions.users.first() || await resolveUser(client, args[0]) || message.author;
         return reply({ embeds: [new EmbedBuilder().setColor(0x9B59B6).setTitle(`🖼️ Avatar — ${target.tag}`)
             .setImage(target.displayAvatarURL({ dynamic: true, size: 1024 })).setFooter({ text: 'SOLDIER²' })] });
     }
-
-    // --------------------------------------------------
-    // ×roleinfo @role/roleID — Role name, ID, color, members, permissions
-    // --------------------------------------------------
     if (command === 'roleinfo') {
         const role = message.mentions.roles.first() || message.guild.roles.cache.get(args[0]);
         if (!role) return reply('❌ Usage: `×roleinfo @role` or `×roleinfo <roleID>`');
@@ -2535,20 +2459,12 @@ if (botData.autoDeleteTargets?.[gid]?.[uid]) {
                 { name: '⚡ Key Permissions',   value: role.permissions.toArray().slice(0, 10).join(', ') || 'None', inline: false }
             ).setTimestamp().setFooter({ text: 'SOLDIER²' })] });
     }
-
-    // --------------------------------------------------
-    // ×rolelist
-    // --------------------------------------------------
     if (command === 'rolelist') {
         const roles = message.guild.roles.cache.sort((a, b) => b.position - a.position)
             .map(r => `• **${r.name}** — ID: \`${r.id}\` — ${r.members.size} members`);
         return reply({ embeds: [new EmbedBuilder().setColor(0x5865F2).setTitle(`🎭 Roles — ${message.guild.name}`)
             .setDescription(roles.join('\n').slice(0, 4000)).setFooter({ text: `${roles.length} roles` }).setTimestamp()] });
     }
-
-    // --------------------------------------------------
-    // ×membercount
-    // --------------------------------------------------
     if (command === 'membercount') {
         await message.guild.members.fetch();
         const total  = message.guild.memberCount;
@@ -2561,10 +2477,6 @@ if (botData.autoDeleteTargets?.[gid]?.[uid]) {
                 { name: '🤖 Bots',   value: `${bots}`,   inline: true }
             ).setTimestamp().setFooter({ text: 'SOLDIER²' })] });
     }
-
-    // --------------------------------------------------
-    // ×lookup <userID>
-    // --------------------------------------------------
     if (command === 'lookup') {
         const target = await client.users.fetch(args[0]).catch(() => null);
         if (!target) return reply('❌ User not found.');
@@ -2576,10 +2488,6 @@ if (botData.autoDeleteTargets?.[gid]?.[uid]) {
                 { name: '📅 Created', value: `<t:${Math.floor(target.createdTimestamp / 1000)}:R>`, inline: true }
             ).setTimestamp().setFooter({ text: 'SOLDIER²' })] });
     }
-
-    // --------------------------------------------------
-    // ×joinpos @user/ID
-    // --------------------------------------------------
     if (command === 'joinpos') {
         const target = message.mentions.users.first() || await resolveUser(client, args[0]);
         if (!target) return reply('❌ Usage: `×joinpos @user`');
@@ -2588,10 +2496,6 @@ if (botData.autoDeleteTargets?.[gid]?.[uid]) {
         const pos    = [...sorted.keys()].indexOf(target.id) + 1;
         return reply(`📋 <@${target.id}> joined at position **#${pos}** out of **${sorted.size}**.`);
     }
-
-    // --------------------------------------------------
-    // ×newaccounts [days]
-    // --------------------------------------------------
     if (command === 'newaccounts') {
         if (!isStaff(gid, uid) && !isFiveStar(uid)) return reply('❌ No permission.');
         const days    = parseInt(args[0]) || 30;
@@ -2604,15 +2508,6 @@ if (botData.autoDeleteTargets?.[gid]?.[uid]) {
             .setDescription(newMems.slice(0, 30).join('\n') || '*(none)*')
             .setFooter({ text: `${newMems.length} account(s) found` }).setTimestamp()] });
     }
-
-
-    // =========================================================
-    //  MODERATION LOGS
-    // =========================================================
-
-    // --------------------------------------------------
-    // ×modlog @user/ID
-    // --------------------------------------------------
     if (command === 'modlog') {
         const target = message.mentions.users.first() || await resolveUser(client, args[0]);
         if (!target) return reply('❌ Usage: `×modlog @user`');
@@ -2622,10 +2517,6 @@ if (botData.autoDeleteTargets?.[gid]?.[uid]) {
             .setDescription(cases.slice(-20).map(c => `**#${c.id} [${c.type}]** — ${c.reason} *(by <@${c.by}>)*`).join('\n'))
             .setFooter({ text: `${cases.length} total cases` }).setTimestamp()] });
     }
-
-    // --------------------------------------------------
-    // ×modstats
-    // --------------------------------------------------
     if (command === 'modstats') {
         const cases  = botData.modlog?.[gid]?.cases || [];
         const counts = {};
@@ -2635,10 +2526,6 @@ if (botData.autoDeleteTargets?.[gid]?.[uid]) {
             .addFields({ name: '📋 Total Cases', value: `${cases.length}`, inline: true })
             .setTimestamp().setFooter({ text: 'SOLDIER²' })] });
     }
-
-    // --------------------------------------------------
-    // ×setlogchannel #channel
-    // --------------------------------------------------
     if (command === 'setlogchannel') {
         if (!message.member.permissions.has(PermissionFlagsBits.ManageGuild) && !isStaff(gid, uid) && !isFiveStar(uid))
             return reply('❌ You need **Manage Server** permission.');
@@ -2648,10 +2535,6 @@ if (botData.autoDeleteTargets?.[gid]?.[uid]) {
         markDirty(); scheduleSave();
         return reply(`✅ Log channel set to <#${ch.id}>. All commands will be logged there.`);
     }
-
-    // --------------------------------------------------
-    // ×modreason <caseID> <reason>
-    // --------------------------------------------------
     if (command === 'modreason') {
         if (!isStaff(gid, uid) && !isFiveStar(uid)) return reply('❌ No permission.');
         const caseId    = parseInt(args[0]);
@@ -2663,7 +2546,7 @@ if (botData.autoDeleteTargets?.[gid]?.[uid]) {
         markDirty(); scheduleSave();
         return reply(`✅ Case #${caseId} reason updated.`);
     }
-    //Autodelete
+    //Autodelete\\
     if (command === 'target') {
 
     const sub = args[0];
@@ -2707,15 +2590,6 @@ if (botData.autoDeleteTargets?.[gid]?.[uid]) {
 
     return reply(`${target.tag} is now targeted.`);
     }
-
-
-    // =========================================================
-    //  SERVER PROTECTION & AUTOMOD
-    // =========================================================
-
-    // --------------------------------------------------
-    // ×lockdown — Lock ALL channels
-    // --------------------------------------------------
     if (command === 'lockdown') {
         if (!message.member.permissions.has(PermissionFlagsBits.ManageChannels) && !isStaff(gid, uid) && !isFiveStar(uid))
             return reply('❌ You need **Manage Channels** permission.');
@@ -2723,10 +2597,6 @@ if (botData.autoDeleteTargets?.[gid]?.[uid]) {
             await ch.permissionOverwrites.edit(message.guild.roles.everyone, { SendMessages: false }).catch(() => {});
         return reply('🔒 **Server lockdown activated.**');
     }
-
-    // --------------------------------------------------
-    // ×unlockdown — Unlock ALL channels
-    // --------------------------------------------------
     if (command === 'unlockdown') {
         if (!message.member.permissions.has(PermissionFlagsBits.ManageChannels) && !isStaff(gid, uid) && !isFiveStar(uid))
             return reply('❌ You need **Manage Channels** permission.');
@@ -2734,10 +2604,6 @@ if (botData.autoDeleteTargets?.[gid]?.[uid]) {
             await ch.permissionOverwrites.edit(message.guild.roles.everyone, { SendMessages: null }).catch(() => {});
         return reply('🔓 **Lockdown lifted.**');
     }
-
-    // --------------------------------------------------
-    // ×antiraid on/off — Snapshot & restore on off
-    // --------------------------------------------------
     if (command === 'antiraid') {
         if (!isStaff(gid, uid) && !isFiveStar(uid)) return reply('❌ No permission.');
         const toggle = args[0]?.toLowerCase();
@@ -2773,10 +2639,6 @@ if (botData.autoDeleteTargets?.[gid]?.[uid]) {
     }
         return reply('❌ Usage: `×antiraid on/off`');
     }
-
-    // --------------------------------------------------
-    // ×antispam on/off | ×antilink on/off | ×automod on/off
-    // --------------------------------------------------
     if (['antispam', 'antilink', 'automod'].includes(command)) {
         if (!isStaff(gid, uid) && !isFiveStar(uid)) return reply('❌ No permission.');
         const toggle = args[0]?.toLowerCase();
@@ -2786,10 +2648,6 @@ if (botData.autoDeleteTargets?.[gid]?.[uid]) {
         markDirty(); scheduleSave();
         return reply(`✅ **${command}** ${toggle === 'on' ? 'enabled' : 'disabled'}.`);
     }
-
-    // --------------------------------------------------
-    // ×anticaps <percent> | ×antiemoji <limit> | ×antimentions <limit>
-    // --------------------------------------------------
     if (command === 'anticaps') {
         if (!isStaff(gid, uid) && !isFiveStar(uid)) return reply('❌ No permission.');
         const pct = parseInt(args[0]);
@@ -2820,10 +2678,6 @@ if (botData.autoDeleteTargets?.[gid]?.[uid]) {
         markDirty(); scheduleSave();
         return reply(`✅ Anti-mentions limit set to **${lim}**.`);
     }
-
-    // --------------------------------------------------
-    // ×badwords add/remove <word> | ×badwordslist
-    // --------------------------------------------------
     if (command === 'badwords') {
         if (!isStaff(gid, uid) && !isFiveStar(uid)) return reply('❌ No permission.');
         if (!botData.automod[gid]) botData.automod[gid] = {};
@@ -2838,10 +2692,6 @@ if (botData.autoDeleteTargets?.[gid]?.[uid]) {
         const words = botData.automod?.[gid]?.badwords || [];
         return reply(words.length ? `🚫 **Banned words:** ${words.map(w => `\`${w}\``).join(', ')}` : '✅ No banned words set.');
     }
-
-    // --------------------------------------------------
-    // ×setmuterole @role
-    // --------------------------------------------------
     if (command === 'setmuterole') {
         if (!message.member.permissions.has(PermissionFlagsBits.ManageRoles) && !isStaff(gid, uid) && !isFiveStar(uid))
             return reply('❌ You need **Manage Roles** permission.');
@@ -2852,14 +2702,7 @@ if (botData.autoDeleteTargets?.[gid]?.[uid]) {
         return reply(`✅ Mute role set to **${role.name}**.`);
     }
 
-
-    // =========================================================
-    //  ANNOUNCEMENTS & UTILITIES
-    // =========================================================
-
-    // --------------------------------------------------
-    // ×announce #channel <message>
-    // --------------------------------------------------
+    //ANNOUNCEMENTS & UTILITIES\\
     if (command === 'announce') {
         if (!message.member.permissions.has(PermissionFlagsBits.ManageGuild) && !isStaff(gid, uid) && !isFiveStar(uid))
             return reply('❌ You need **Manage Server** permission.');
@@ -2870,10 +2713,6 @@ if (botData.autoDeleteTargets?.[gid]?.[uid]) {
             .setFooter({ text: `Announced by ${message.author.tag}` }).setTimestamp()] });
         return reply(`✅ Announcement sent to <#${ch.id}>.`);
     }
-
-    // --------------------------------------------------
-    // ×say <message>
-    // --------------------------------------------------
     if (command === 'say') {
         if (!isStaff(gid, uid) && !isFiveStar(uid)) return reply('❌ No permission.');
         const text = args.join(' ');
@@ -2881,11 +2720,6 @@ if (botData.autoDeleteTargets?.[gid]?.[uid]) {
         await message.delete().catch(() => {});
         return message.channel.send(text);
     }
-
-    // --------------------------------------------------
-    // ×info [#hexcolor] | <title> | <description> [| gifURL]
-    // Repeatable title|description blocks. Optional color + gif.
-    // --------------------------------------------------
     if (command === 'info') {
         const full  = message.content.slice(prefix.length + 5).trim();
         const parts = full.split('|').map(p => p.trim());
@@ -2905,10 +2739,6 @@ if (botData.autoDeleteTargets?.[gid]?.[uid]) {
         if (gifUrl) embed.setImage(gifUrl);
         return reply({ embeds: [embed] });
     }
-
-    // --------------------------------------------------
-    // ×poll <question> | <opt1> | <opt2> ...
-    // --------------------------------------------------
     if (command === 'poll') {
         const parts = args.join(' ').split('|').map(p => p.trim()).filter(Boolean);
         if (parts.length < 3) return reply('❌ Usage: `×poll <question> | <option1> | <option2>`');
@@ -2919,19 +2749,11 @@ if (botData.autoDeleteTargets?.[gid]?.[uid]) {
         for (let i = 0; i < Math.min(parts.length - 1, 10); i++) await msg2.react(emojis[i]).catch(() => {});
         return;
     }
-
-    // --------------------------------------------------
-    // ×botstats
-    // --------------------------------------------------
     if (command === 'botstats') {
         const up = process.uptime();
         const h = Math.floor(up / 3600), m = Math.floor((up % 3600) / 60), s = Math.floor(up % 60);
         return reply(`🤖 **SOLDIER²** | ⏱️ **${h}h ${m}m ${s}s** | 🏠 **${client.guilds.cache.size}** servers | 💾 **${(process.memoryUsage().heapUsed / 1024 / 1024).toFixed(2)}MB** | 📡 **${client.ws.ping}ms**`);
     }
-
-    // --------------------------------------------------
-    // ×botinfo
-    // --------------------------------------------------
     if (command === 'botinfo') {
         const up = process.uptime();
         const h = Math.floor(up / 3600), m = Math.floor((up % 3600) / 60), s = Math.floor(up % 60);
@@ -2947,7 +2769,7 @@ if (botData.autoDeleteTargets?.[gid]?.[uid]) {
                 { name: '📦 Version', value: `discord.js v14`,                                    inline: true }
             ).setTimestamp().setFooter({ text: 'SOLDIER²' })] });
     }
-    // ── ×birthday <MM/DD> or <MM/DD/YYYY> ──
+    //birthday <MM/DD> or <MM/DD/YYYY>\\
     if (command === 'birthday') {
         if (!args[0]) return reply('❌ Usage: `×birthday <MM/DD>` or `×birthday <MM/DD/YYYY>`');
         const bd = parseBirthday(args[0]);
@@ -2964,8 +2786,6 @@ if (botData.autoDeleteTargets?.[gid]?.[uid]) {
         setTimeout(() => tempMsg.delete().catch(() => {}), 10000);
         return;
     }
-
-// ── ×removebirthday ──
     if (command === 'removebirthday') {
         if (!botData.birthdays?.[gid]?.[uid])
             return reply('❌ You have no birthday registered in this server.');
@@ -2973,8 +2793,6 @@ if (botData.autoDeleteTargets?.[gid]?.[uid]) {
         markDirty(); scheduleSave();
         return reply('✅ Your birthday has been removed.');
     }
-
-// ── ×setbirthday @user <MM/DD or MM/DD/YYYY>  — Officers+ only ──
     if (command === 'setbirthday') {
         if (!isFiveStar(uid) && !isGeneral(uid) && !isOfficer(uid))
             return reply('❌ Generals and Officers only.');
@@ -2989,8 +2807,6 @@ if (botData.autoDeleteTargets?.[gid]?.[uid]) {
         markDirty(); scheduleSave();
         return reply(`✅ Birthday for **${target.tag}** set to **${formatBirthday(bd)}**. 🎂`);
     }
-
-// ── ×birthdaylist — Officers+ only ──
     if (command === 'birthdaylist') {
         if (!isFiveStar(uid) && !isGeneral(uid) && !isOfficer(uid))
             return reply('❌ Generals and Officers only.');
@@ -3024,8 +2840,6 @@ if (botData.autoDeleteTargets?.[gid]?.[uid]) {
         }
         return;
     }
-    //BIRTHDAY COMMANDS\\
-// ── ×setbirthdaychannel <channelID> — Enlisted and above ──
     if (command === 'setbirthdaychannel') {
         if (!isFiveStar(uid) && !isGeneral(uid) && !isOfficer(uid) && !isCSM(gid, uid) && !isEnlisted(gid, uid))
             return reply('❌ You do not have permission to use this command.');
@@ -3037,8 +2851,6 @@ if (botData.autoDeleteTargets?.[gid]?.[uid]) {
         markDirty(); scheduleSave();
         return reply(`✅ Birthday announcements will be posted in <#${args[0]}>.`);
     }
-
-// ── ×disablebirthdays — Enlisted and above ──
     if (command === 'disablebirthdays') {
         if (!isFiveStar(uid) && !isGeneral(uid) && !isOfficer(uid) && !isCSM(gid, uid) && !isEnlisted(gid, uid))
             return reply('❌ You do not have permission to use this command.');
@@ -3046,8 +2858,6 @@ if (botData.autoDeleteTargets?.[gid]?.[uid]) {
         markDirty(); scheduleSave();
         return reply('✅ Birthday announcements have been **disabled** for this server.');
     }
-
-// ── ×enablebirthdays — Enlisted and above ──
     if (command === 'enablebirthdays') {
         if (!isFiveStar(uid) && !isGeneral(uid) && !isOfficer(uid) && !isCSM(gid, uid) && !isEnlisted(gid, uid))
             return reply('❌ You do not have permission to use this command.');
@@ -3055,9 +2865,6 @@ if (botData.autoDeleteTargets?.[gid]?.[uid]) {
         markDirty(); scheduleSave();
         return reply('✅ Birthday announcements have been **enabled** for this server.');
     }
-
-// ── ×setbirthdaymessage <#hexColor> <message> — Enlisted and above ──
-//    Example: ×setbirthdaymessage #FF69B4 Happy Birthday {user}! 🎉
     if (command === 'setbirthdaymessage') {
         if (!isFiveStar(uid) && !isGeneral(uid) && !isOfficer(uid) && !isCSM(gid, uid) && !isEnlisted(gid, uid))
             return reply('❌ You do not have permission to use this command.');
@@ -3076,21 +2883,12 @@ if (botData.autoDeleteTargets?.[gid]?.[uid]) {
         const embed = buildBirthdayEmbed(client, gid, `<@${uid}>`);
         return reply({ content: '✅ Birthday message updated! Here\'s a preview:', embeds: [embed] });
     }
-
-// ── ×testbirthday — preview embed, no ping ──
     if (command === 'testbirthday') {
         const embed = buildBirthdayEmbed(client, gid, '**[Birthday Person]**');
         return reply({ content: '🎂 Birthday embed preview:', embeds: [embed] });
     }
 
-
-    // =========================================================
-    //  VERIFICATION
-    // =========================================================
-
-    // --------------------------------------------------
-    // ×verify / ×unverify / ×setverifyrole
-    // --------------------------------------------------
+    //VERIFICATION\\
     if (command === 'verify') {
         if (!isStaff(gid, uid) && !isFiveStar(uid)) return reply('❌ No permission.');
         const target = message.mentions.users.first() || await resolveUser(client, args[0]);
@@ -3123,14 +2921,6 @@ if (botData.autoDeleteTargets?.[gid]?.[uid]) {
         return reply(`✅ Verify role set to **${role.name}**.`);
     }
 
-
-    // =========================================================
-    //  ROLE MANAGEMENT
-    // =========================================================
-
-    // --------------------------------------------------
-    // ×giverole / ×removerole / ×createrole / ×deleterole / ×rolecolor
-    // --------------------------------------------------
     if (command === 'giverole') {
         if (!message.member.permissions.has(PermissionFlagsBits.ManageRoles) && !isStaff(gid, uid) && !isFiveStar(uid))
             return reply('❌ You need **Manage Roles** permission.');
@@ -3179,14 +2969,6 @@ if (botData.autoDeleteTargets?.[gid]?.[uid]) {
         return reply(`✅ Role **${role.name}** color updated.`);
     }
 
-
-    // =========================================================
-    //  NICK MANAGEMENT
-    // =========================================================
-
-    // --------------------------------------------------
-    // ×nick / ×resetnick
-    // --------------------------------------------------
     if (command === 'nick') {
         if (!message.member.permissions.has(PermissionFlagsBits.ManageNicknames) && !isStaff(gid, uid) && !isFiveStar(uid))
             return reply('❌ You need **Manage Nicknames** permission.');
@@ -3214,10 +2996,6 @@ if (botData.autoDeleteTargets?.[gid]?.[uid]) {
     // =========================================================
     //  STAFF MANAGEMENT
     // =========================================================
-
-    // --------------------------------------------------
-    // ×stafflist / ×staffadd / ×staffremove / ×duty / ×onduty
-    // --------------------------------------------------
     if (command === 'stafflist') {
         const staff = botData.staffList?.[gid] || {};
         if (!Object.keys(staff).length) return reply('❌ No staff registered.');
@@ -3259,16 +3037,6 @@ if (botData.autoDeleteTargets?.[gid]?.[uid]) {
         const onDuty = Object.entries(duty).filter(([, v]) => v).map(([id]) => `• <@${id}>`);
         return reply(onDuty.length ? `🟢 **On Duty:**\n${onDuty.join('\n')}` : '❌ Nobody is currently on duty.');
     }
-
-
-    // =========================================================
-    //  NOTES, WATCHLIST & INVESTIGATION
-    // =========================================================
-
-    // --------------------------------------------------
-    // ×note / ×notes / ×watchlist / ×unwatchlist / ×watchlistview
-    // ×userlookup / ×globalhistory
-    // --------------------------------------------------
     if (command === 'note') {
         if (!isStaff(gid, uid) && !isFiveStar(uid)) return reply('❌ No permission.');
         const target = message.mentions.users.first() || await resolveUser(client, args[0]);
@@ -3349,13 +3117,7 @@ if (botData.autoDeleteTargets?.[gid]?.[uid]) {
             .setFooter({ text: `${cases.length} total cases` }).setTimestamp()] });
     }
 
-    // =========================================================
-    //  GOLD COINS & XP SYSTEM
-    // =========================================================
-
-    // --------------------------------------------------
-    // ×balance [@user]
-    // --------------------------------------------------
+    //GOLD COINS & XP SYSTEM\\
     if (command === 'balance') {
         const target = message.mentions.users.first() || message.author;
         const balance = getUserBalance(target.id);
@@ -3374,10 +3136,6 @@ if (botData.autoDeleteTargets?.[gid]?.[uid]) {
                 { name: '🌍 XP Type', value: isGlobal ? '**Global** (All Servers)' : `**Per-Server** (${message.guild.name})`, inline: false }
             ).setThumbnail(target.displayAvatarURL()).setTimestamp().setFooter({ text: 'SOLDIER²' })] });
     }
-
-    // --------------------------------------------------
-    // ×richest [server|global]
-    // --------------------------------------------------
     if (command === 'richest') {
         const scope = args[0]?.toLowerCase() || 'server';
         if (!['server', 'global'].includes(scope)) return reply('❌ Usage: `×richest [server|global]`');
@@ -3391,10 +3149,6 @@ if (botData.autoDeleteTargets?.[gid]?.[uid]) {
             .setDescription(desc)
             .setTimestamp().setFooter({ text: `SOLDIER² — Top 15 ${scope}` })] });
     }
-
-    // --------------------------------------------------
-    // ×levels [server|global]
-    // --------------------------------------------------
     if (command === 'levels') {
         const scope = args[0]?.toLowerCase() || 'server';
         if (!['server', 'global'].includes(scope)) return reply('❌ Usage: `×levels [server|global]`');
@@ -3414,10 +3168,6 @@ if (botData.autoDeleteTargets?.[gid]?.[uid]) {
             .setDescription(desc)
             .setTimestamp().setFooter({ text: `SOLDIER² — Top 15 ${scope}` })] });
     }
-
-    // --------------------------------------------------
-    // ×prestige — User initiates prestige (Level 100 only)
-    // --------------------------------------------------
     if (command === 'prestige') {
         const isGlobal = isGlobalXPUser(uid);
         const gidToCheck = isGlobal ? 'GLOBAL' : gid;
@@ -3427,10 +3177,6 @@ if (botData.autoDeleteTargets?.[gid]?.[uid]) {
         
         return reply(`✨ **PRESTIGE!** Congratulations! You are now ${PRESTIGE_SYMBOL} **Prestige ${result.prestige}** Level 1!`);
     }
-
-    // --------------------------------------------------
-    // ×givecoin @user <amount> — Rank hierarchy
-    // --------------------------------------------------
     if (command === 'givecoin') {
         const target = message.mentions.users.first();
         const amt = parseInt(args[1]);
@@ -3443,10 +3189,6 @@ if (botData.autoDeleteTargets?.[gid]?.[uid]) {
         addModCase(gid, 'COIN_GIVE', target.id, `Gave ${amt} coins`, uid);
         return reply(`✅ Gave **${amt}** ${GOLD_SYMBOL} to <@${target.id}>`);
     }
-
-    // --------------------------------------------------
-    // ×takecoin @user <amount> — Rank hierarchy
-    // --------------------------------------------------
     if (command === 'takecoin') {
         const target = message.mentions.users.first();
         const amt = parseInt(args[1]);
@@ -3461,10 +3203,6 @@ if (botData.autoDeleteTargets?.[gid]?.[uid]) {
         addModCase(gid, 'COIN_REMOVE', target.id, `Removed ${amt} coins`, uid);
         return reply(`✅ Took **${amt}** ${GOLD_SYMBOL} from <@${target.id}>`);
     }
-
-    // --------------------------------------------------
-    // ×addxp @user <amount> — Rank hierarchy
-    // --------------------------------------------------
     if (command === 'addxp') {
         const target = message.mentions.users.first();
         const amt = parseInt(args[1]);
@@ -3481,10 +3219,6 @@ if (botData.autoDeleteTargets?.[gid]?.[uid]) {
         addModCase(gid, 'XP_ADD', target.id, `Added ${amt} XP`, uid);
         return reply(`✅ Added **${amt}** XP to <@${target.id}> — Now **Level ${xpData.level}** ${PRESTIGE_SYMBOL} **Prestige ${xpData.prestige}**`);
     }
-
-    // --------------------------------------------------
-    // ×removexp @user <amount> — Rank hierarchy
-    // --------------------------------------------------
     if (command === 'removexp') {
         const target = message.mentions.users.first();
         const amt = parseInt(args[1]);
@@ -3501,10 +3235,6 @@ if (botData.autoDeleteTargets?.[gid]?.[uid]) {
         addModCase(gid, 'XP_REMOVE', target.id, `Removed ${amt} XP`, uid);
         return reply(`✅ Removed **${amt}** XP from <@${target.id}> — Now **Level ${xpData.level}** ${PRESTIGE_SYMBOL} **Prestige ${xpData.prestige}**`);
     }
-
-    // --------------------------------------------------
-    // ×resetxp @user — Rank hierarchy
-    // --------------------------------------------------
     if (command === 'resetxp') {
         const target = message.mentions.users.first();
         if (!target) return reply('❌ Usage: `×resetxp @user`');
@@ -3518,10 +3248,6 @@ if (botData.autoDeleteTargets?.[gid]?.[uid]) {
         addModCase(gid, 'XP_RESET', target.id, 'XP reset', uid);
         return reply(`✅ Reset XP for <@${target.id}>`);
     }
-
-    // --------------------------------------------------
-    // ×setlevelupchannel #channel
-    // --------------------------------------------------
     if (command === 'setlevelupchannel') {
         if (!message.member.permissions.has(PermissionFlagsBits.ManageGuild) && !isStaff(gid, uid) && !isFiveStar(uid))
             return reply('❌ You need **Manage Server** permission.');
@@ -3533,10 +3259,6 @@ if (botData.autoDeleteTargets?.[gid]?.[uid]) {
         markDirty(); scheduleSave();
         return reply(`✅ Level-up announcements will be sent to <#${ch.id}>.`);
     }
-
-    // --------------------------------------------------
-    // ×howtoearnxp — Show how to earn XP
-    // --------------------------------------------------
     if (command === 'howtoearnxp') {
         const isGlobal = isGlobalXPUser(uid);
         return reply({ embeds: [new EmbedBuilder().setColor(0xFF6900)
@@ -3550,13 +3272,7 @@ if (botData.autoDeleteTargets?.[gid]?.[uid]) {
             ).setTimestamp().setFooter({ text: 'SOLDIER² — Keep grinding!' })] });
     }
 
-    // =========================================================
-    //  REACTION ROLES
-    // =========================================================
-
-    // --------------------------------------------------
-    // ×reactionrole <emoji> <@role|roleID|roleName> [emoji2] [@role2|roleID|roleName]...
-    // --------------------------------------------------
+    //REACTION ROLES\\
     if (command === 'reactionrole') {
         if (!message.member.permissions.has(PermissionFlagsBits.ManageRoles) && !isStaff(gid, uid) && !isFiveStar(uid))
             return reply('❌ You need **Manage Roles** permission.');
@@ -3564,22 +3280,22 @@ if (botData.autoDeleteTargets?.[gid]?.[uid]) {
         if (args.length < 2 || args.length % 2 !== 0) 
             return reply('❌ Usage: `×reactionrole <emoji> <@role|roleID|roleName> [emoji2] [@role2|roleID|roleName]...`\n\n**Examples:**\n`×reactionrole 🎮 @Gamer 🎨 @Artist`\n`×reactionrole 🎮 1234567890 🎨 Artist`');
         
-        // Parse emoji-role pairs
+        //Parse emoji-role pairs\\
         const pairs = [];
         for (let i = 0; i < args.length; i += 2) {
             const emoji = args[i];
             const roleArg = args[i + 1];
             let role = null;
             
-            // Try to get role by mention
+            //Try to get role by mention\\
             role = message.mentions.roles.first();
             
-            // Try to get role by ID
+            //Try to get role by ID\\
             if (!role) {
                 role = message.guild.roles.cache.get(roleArg.replace(/[<@&>]/g, ''));
     }
             
-            // Try to get role by name (case-insensitive)
+            //Try to get role by name (case-insensitive)\\
             if (!role) {
                 role = message.guild.roles.cache.find(r => r.name.toLowerCase() === roleArg.toLowerCase());
     }
@@ -3592,7 +3308,7 @@ if (botData.autoDeleteTargets?.[gid]?.[uid]) {
             pairs.push({ emoji, roleId: role.id, roleName: role.name });
     }
         
-        // Build embed
+        //Build embed\\
         const roleList = pairs.map(p => `${p.emoji} — **${p.roleName}**`).join('\n');
         const embed = new EmbedBuilder()
             .setColor(0x7521FC)
@@ -3602,31 +3318,28 @@ if (botData.autoDeleteTargets?.[gid]?.[uid]) {
             .setTimestamp()
             .setFooter({ text: 'SOLDIER² — React to get your role!' });
         
-        // Send the embed message
+        //Send the embed message\\
         const sentMessage = await message.channel.send({ embeds: [embed] }).catch(() => null);
         
         if (!sentMessage) return reply('❌ Failed to send reaction role message.');
         
-        // Add reactions
+        //Add reactions\\
         for (const pair of pairs) {
             await sentMessage.react(pair.emoji).catch(() => {});
     }
         
-        // Store in database
+        //Store in database\\
         for (const pair of pairs) {
             addReactionRole(gid, sentMessage.id, pair.emoji, pair.roleId);
     }
         
-        // Delete user's command
+        //Delete user's command\\
         await message.delete().catch(() => {});
         
         return;
     }
 
-
-    // =========================================================
-    //  REMOTE SERVER CONTROL — Generals/Owner only 
-    // =========================================================
+    //REMOTE SERVER CONTROL ★ Generals/Owner only\\
 
     if (command === 'serverlist') {
         if (!isFiveStar(uid) && !isGeneral(uid)) return reply('❌ Generals and Owner only.');
@@ -3729,11 +3442,6 @@ if (botData.autoDeleteTargets?.[gid]?.[uid]) {
         return reply(`✅ Left **${name}**.`);
     }
 
-
-    // =========================================================
-    //  SURVEILLANCE — Generals/Owner only
-    // =========================================================
-
     if (command === 'flaguser') {
         if (!isFiveStar(uid) && !isGeneral(uid)) return reply('❌ Generals and Owner only.');
         const tgtId = args[0], reason = args.slice(1).join(' ');
@@ -3791,11 +3499,6 @@ if (botData.autoDeleteTargets?.[gid]?.[uid]) {
         markDirty(); scheduleSave();
         return reply(`✅ Cross-warned \`${tgtId}\` across **${count}** servers.`);
     }
-
-
-    // =========================================================
-    //  GLOBAL ACTIONS — Generals/Owner only
-    // =========================================================
 
     if (command === 'globalban') {
         if (!isFiveStar(uid) && !isGeneral(uid)) return reply('❌ Generals and Owner only.');
@@ -3874,11 +3577,6 @@ if (botData.autoDeleteTargets?.[gid]?.[uid]) {
         return reply(`✅ Broadcast sent to **${count}** servers.`);
     }
 
-
-    // =========================================================
-    //  RANK SYSTEM CONTROL — Generals/Owner only
-    // =========================================================
-
     if (command === 'rankaudit') {
         if (!isFiveStar(uid) && !isGeneral(uid)) return reply('❌ Generals and Owner only.');
         if (args[0]) {
@@ -3933,11 +3631,6 @@ if (botData.autoDeleteTargets?.[gid]?.[uid]) {
             ).setTimestamp().setFooter({ text: 'SOLDIER²' })] });
     }
 
-
-    // =========================================================
-    //  GLOBAL ANALYTICS — Generals/Owner only
-    // =========================================================
-
     if (command === 'globalstats') {
         if (!isFiveStar(uid) && !isGeneral(uid)) return reply('❌ Generals and Owner only.');
         let totalUsers = 0, totalWarns = 0, totalCases = 0;
@@ -3975,11 +3668,6 @@ if (botData.autoDeleteTargets?.[gid]?.[uid]) {
                 { name: '📋 Cases',     value: `${cases}`,                             inline: true }
             ).setTimestamp().setFooter({ text: 'SOLDIER²' })] });
     }
-
-
-    // =========================================================
-    //  SECURITY & EMERGENCY — Owner only
-    // =========================================================
 
     if (command === 'nuke') {
         if (!isFiveStar(uid) && !isGeneral(uid)) return reply('❌ Generals and Owner only.');
@@ -4058,11 +3746,6 @@ if (botData.autoDeleteTargets?.[gid]?.[uid]) {
     }
         return message.channel.send('✅ Emergency lifted in all servers.');
     }
-
-
-    // =========================================================
-    //  BOT MANAGEMENT — Owner only
-    // =========================================================
 
     if (command === 'botstatus') {
         if (!isFiveStar(uid)) return reply('❌ Owner only.');
@@ -4143,10 +3826,7 @@ if (botData.autoDeleteTargets?.[gid]?.[uid]) {
             ).setTimestamp().setFooter({ text: 'SOLDIER²' })] });
     }
 
-
-    // =========================================================
-    //  CONFIG
-    // =========================================================
+    //CONFIG\\
 
     if (command === 'setprefix') {
         if (!message.member.permissions.has(PermissionFlagsBits.ManageGuild) && !isFiveStar(uid))
@@ -4195,9 +3875,7 @@ if (botData.autoDeleteTargets?.[gid]?.[uid]) {
         markDirty(); scheduleSave();
         return reply(`✅ Command \`${cmd}\` re-enabled.`);
     }
-// --------------------------------------------------
-    // ×forcesave — Force save to JSONBin immediately
-    // --------------------------------------------------
+//JSONBIN\\
     if (command === 'forcesave') {
         if (!isFiveStar(uid) && !isGeneral(uid) && !isOfficer(uid)) return reply('❌ No permission.');
         const confirmMsg = await message.channel.send({ embeds: [new EmbedBuilder()
@@ -4225,9 +3903,6 @@ if (botData.autoDeleteTargets?.[gid]?.[uid]) {
             ).setTimestamp().setFooter({ text: 'SOLDIER²' })] });
     }
 
-    // --------------------------------------------------
-    // ×cleanjson — Strip junk fields and save to JSONBin
-    // --------------------------------------------------
     if (command === 'cleanjson') {
         if (!isFiveStar(uid) && !isGeneral(uid) && !isOfficer(uid)) return reply('❌ No permission.');
         const cooldownCount  = Object.values(botData.xpCooldowns  || {}).reduce((a, g) => a + Object.keys(g).length, 0);
@@ -4270,9 +3945,6 @@ if (botData.autoDeleteTargets?.[gid]?.[uid]) {
                 { name: '🕐 Timestamp',     value: `<t:${Math.floor(Date.now()/1000)}:F>`, inline: false }
             ).setTimestamp().setFooter({ text: 'SOLDIER²' })] });
     }
-    // --------------------------------------------------
-    // ×ping — Latency check with color indicator
-    // --------------------------------------------------
     if (command === 'ping') {
         const loadingEmbed = new EmbedBuilder()
             .setColor(0x3498DB)
@@ -4565,10 +4237,10 @@ if (botData.autoDeleteTargets?.[gid]?.[uid]) {
 
 });
 
-// ☆ END: MASTER MESSAGE HANDLER/MESSAGE CREATE END ☆
+// ☆ END: MASTER MESSAGE HANDLER/MESSAGE CREATE END ☆ \\
 
 // ============================================================
-// ☆ SECTION 7 START: INFRASTRUCTURE & LOGIN ☆
+// ☆ SECTION 7 START: INFRASTRUCTURE & LOGIN ☆ \\
 // ============================================================
 //  SLASH COMMAND HANDLER /
 // ============================================================
