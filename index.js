@@ -6,8 +6,8 @@
 // ============================================================
 // ☆ SECTION 1 START: IMPORTS & CLIENT SETUP ☆
 // ============================================================
-//  IMPORTS
-// ============================================================
+
+//IMPORTS\\
 const {
     Client,
     GatewayIntentBits,
@@ -22,9 +22,7 @@ require('dotenv').config();
 const express = require('express');
 const fs      = require('fs');
 
-// ============================================================
-//  DISCORD CLIENT
-// ============================================================
+//DISCORD CLIENT\\
 const client = new Client({
     intents: [
         GatewayIntentBits.Guilds,
@@ -42,10 +40,10 @@ const client = new Client({
     ]
 });
 
-// ☆ END: IMPORTS & CLIENT SETUP ☆
+// ☆ END: IMPORTS & CLIENT SETUP ☆ \\
 
 // ============================================================
-// ☆ SECTION 2 START: CONSTANTS & RANKS ☆
+// ☆ SECTION 2 START: CONSTANTS & RANKS ☆ \\
 // ============================================================
 
 const JSONBIN_ID  = process.env.JSONBIN_ID;
@@ -94,15 +92,13 @@ const PRESTIGE_SYMBOL = '👑';
 const MAX_LEVEL = 100;
 const MAX_PRESTIGE = 10;
 const XP_PER_LEVEL = 500;
-const XP_COOLDOWN = 10000; // 10 seconds between XP gains
+const XP_COOLDOWN = 10000; //10 seconds between XP gains\\
 const MASTER_LOG_CHANNELS = [
     '1355199085631508641',
     'PUT_CHANNEL_ID_2_HERE'
 ];
 
-// ============================================================
-//  SLASH COMMANDS 
-// ============================================================
+//SLASH COMMANDS\\
 const slashCommands = [
     new SlashCommandBuilder().setName('hello').setDescription('Say hello to SOLDIER²'),
 ].map(c => c.toJSON());
@@ -112,7 +108,7 @@ const rest = new REST({ version: '10' }).setToken(process.env.BOT_TOKEN);
 // ☆ END: CONSTANTS & RANKS ☆ \\
 
 // ============================================================
-// ☆ SECTION 3 START: DATA PERSISTENCE ☆
+// ☆ SECTION 3 START: DATA PERSISTENCE ☆ \\
 // ============================================================
 
 let botData = {
@@ -1668,39 +1664,23 @@ if (botData.autoDeleteTargets?.[gid]?.[uid]) {
     //=========================================================
     // ★ COMMANDS ★ \\
     // =========================================================
-    //  RANK COMMANDS
-    // =========================================================
-
-    // --------------------------------------------------
-    // ×promote @user <rank>
-    // --------------------------------------------------
+  
+    //RANK COMMANDS\\
     if (command === 'promote') {
         const target = message.mentions.users.first() || await resolveUser(client, args[0]);
         if (!target) return reply('❌ Usage: `×promote @user <rank>`');
         return handlePromote(target, args.slice(1).join(' '), message.guild, uid, reply);
     }
-
-    // --------------------------------------------------
-    // ×demote @user [rank]
-    // --------------------------------------------------
     if (command === 'demote') {
         const target = message.mentions.users.first() || await resolveUser(client, args[0]);
         if (!target) return reply('❌ Usage: `×demote @user [rank]`');
         return handleDemote(target, args.slice(1).join(' '), message.guild, uid, reply);
     }
-
-    // --------------------------------------------------
-    // ×csmtransfer @user
-    // --------------------------------------------------
     if (command === 'csmtransfer') {
         const target = message.mentions.users.first() || await resolveUser(client, args[0]);
         if (!target) return reply('❌ Usage: `×csmtransfer @user`');
         return handleCSMTransfer(target, message.guild, uid, reply);
     }
-
-    // --------------------------------------------------
-    // ×myrank — View your own rank
-    // --------------------------------------------------
     if (command === 'myrank') {
         if (isFiveStar(uid)) return reply('★★★★★ You are the **General of the Army** — absolute authority.');
         const rank = getHighestRank(gid, uid);
@@ -1709,10 +1689,6 @@ if (botData.autoDeleteTargets?.[gid]?.[uid]) {
             .addFields({ name: '🪖 Rank', value: `**${rank}**`, inline: true }, { name: '📍 Server', value: message.guild.name, inline: true })
             .setThumbnail(message.author.displayAvatarURL({ dynamic: true })).setTimestamp().setFooter({ text: 'SOLDIER²' })] });
     }
-
-    // --------------------------------------------------
-    // ×ranks — Full hierarchy (visible to all)
-    // --------------------------------------------------
     if (command === 'ranks') {
         return reply({ embeds: [new EmbedBuilder().setColor(0x9B59B6).setTitle('📋 Full Rank Hierarchy — SOLDIER²')
             .addFields(
@@ -1721,31 +1697,16 @@ if (botData.autoDeleteTargets?.[gid]?.[uid]) {
                 { name: `${SYM_ENLISTED} Enlisted (Per-Server)`, value: ENLISTED_RANKS.map((r, i) => `${i + 1}. ${r}`).join('\n') }
             ).setTimestamp().setFooter({ text: 'SOLDIER² — ★ General  ● Officer  ◆ Enlisted' })] });
     }
-
-    // --------------------------------------------------
-    // ×globalranks — Generals/Officers/5-Star only
-    // --------------------------------------------------
     if (command === 'globalranks') {
         if (!isFiveStar(uid) && !isGeneral(uid) && !isOfficer(uid)) return reply('❌ Generals and Officers only.');
         return reply({ embeds: [buildGlobalRankEmbed()] });
     }
-
-    // --------------------------------------------------
-    // ×serverranks — Officers/Generals/CSM only
-    // --------------------------------------------------
     if (command === 'serverranks') {
         if (!isFiveStar(uid) && !isGeneral(uid) && !isOfficer(uid) && !isCSM(gid, uid)) return reply('❌ Officers, Generals, or CSM only.');
         return reply({ embeds: [buildServerRankEmbed(gid, message.guild.name)] });
     }
 
-
-    // =========================================================
-    //  BASIC MODERATION
-    // =========================================================
-
-    // --------------------------------------------------
-    // ×kick @user/ID [reason]
-    // --------------------------------------------------
+    //MODERATION\\
     if (command === 'kick') {
         if (!message.member.permissions.has(PermissionFlagsBits.KickMembers) && !isStaff(gid, uid) && !isFiveStar(uid))
             return reply('�� You need **Kick Members** permission.');
@@ -1767,10 +1728,6 @@ if (botData.autoDeleteTargets?.[gid]?.[uid]) {
                 { name: '🔑 By',     value: `<@${uid}>`,                        inline: true }
             ).setTimestamp().setFooter({ text: 'SOLDIER²' })] });
     }
-
-    // --------------------------------------------------
-    // ×ban @user/ID [reason]
-    // --------------------------------------------------
     if (command === 'ban') {
         if (!message.member.permissions.has(PermissionFlagsBits.BanMembers) && !isStaff(gid, uid) && !isFiveStar(uid))
             return reply('❌ You need **Ban Members** permission.');
@@ -1790,10 +1747,6 @@ if (botData.autoDeleteTargets?.[gid]?.[uid]) {
                 { name: '🔑 By',     value: `<@${uid}>`,                        inline: true }
             ).setTimestamp().setFooter({ text: 'SOLDIER²' })] });
     }
-
-    // --------------------------------------------------
-    // ×unban <userID>
-    // --------------------------------------------------
     if (command === 'unban') {
         if (!message.member.permissions.has(PermissionFlagsBits.BanMembers) && !isStaff(gid, uid) && !isFiveStar(uid))
             return reply('❌ You need **Ban Members** permission.');
@@ -1801,10 +1754,6 @@ if (botData.autoDeleteTargets?.[gid]?.[uid]) {
         await message.guild.members.unban(args[0]).catch(() => {});
         return reply(`✅ User \`${args[0]}\` unbanned.`);
     }
-
-    // --------------------------------------------------
-    // ×mute @user/ID [duration] [reason]
-    // --------------------------------------------------
     if (command === 'mute') {
         if (!message.member.permissions.has(PermissionFlagsBits.ModerateMembers) && !isStaff(gid, uid) && !isFiveStar(uid))
             return reply('❌ You need **Moderate Members** permission.');
@@ -1829,10 +1778,6 @@ if (botData.autoDeleteTargets?.[gid]?.[uid]) {
                 { name: '🔑 By',       value: `<@${uid}>`,              inline: true }
             ).setTimestamp().setFooter({ text: 'SOLDIER²' })] });
     }
-
-    // --------------------------------------------------
-    // ×unmute @user/ID
-    // --------------------------------------------------
     if (command === 'unmute') {
         if (!message.member.permissions.has(PermissionFlagsBits.ModerateMembers) && !isStaff(gid, uid) && !isFiveStar(uid))
             return reply('❌ You need **Moderate Members** permission.');
@@ -1845,10 +1790,6 @@ if (botData.autoDeleteTargets?.[gid]?.[uid]) {
         await member.timeout(null).catch(() => {});
         return reply(`✅ <@${target.id}> unmuted.`);
     }
-
-    // --------------------------------------------------
-    // ×warn @user/ID <reason>
-    // --------------------------------------------------
     if (command === 'warn') {
         if (!isStaff(gid, uid) && !isFiveStar(uid) && !message.member.permissions.has(PermissionFlagsBits.ModerateMembers))
             return reply('❌ No permission to warn.');
@@ -1873,10 +1814,6 @@ if (botData.autoDeleteTargets?.[gid]?.[uid]) {
                 { name: '🔑 By',        value: `<@${uid}>`,        inline: true }
             ).setTimestamp().setFooter({ text: 'SOLDIER²' })] });
     }
-
-    // --------------------------------------------------
-    // ×warnings @user/ID
-    // --------------------------------------------------
     if (command === 'warnings') {
         const target = message.mentions.users.first() || await resolveUser(client, args[0]);
         if (!target) return reply('❌ Usage: `×warnings @user`');
@@ -1886,10 +1823,6 @@ if (botData.autoDeleteTargets?.[gid]?.[uid]) {
             .setDescription(warns.map(w => `**#${w.id}** — ${w.reason} *(by <@${w.by}>)*`).join('\n'))
             .setFooter({ text: `${warns.length} total warning(s)` }).setTimestamp()] });
     }
-
-    // --------------------------------------------------
-    // ×clearwarnings @user/ID
-    // --------------------------------------------------
     if (command === 'clearwarnings') {
         if (!isStaff(gid, uid) && !isFiveStar(uid)) return reply('❌ No permission.');
         const target = message.mentions.users.first() || await resolveUser(client, args[0]);
@@ -1898,10 +1831,6 @@ if (botData.autoDeleteTargets?.[gid]?.[uid]) {
         markDirty(); scheduleSave();
         return reply(`✅ Cleared all warnings for <@${target.id}>.`);
     }
-
-    // --------------------------------------------------
-    // ×removewarning @user/ID <id>
-    // --------------------------------------------------
     if (command === 'removewarning') {
         if (!isStaff(gid, uid) && !isFiveStar(uid)) return reply('❌ No permission.');
         const target = message.mentions.users.first() || await resolveUser(client, args[0]);
@@ -1914,10 +1843,6 @@ if (botData.autoDeleteTargets?.[gid]?.[uid]) {
         markDirty(); scheduleSave();
         return reply(`✅ Removed warning #${args[1]} from <@${target.id}>.`);
     }
-
-    // --------------------------------------------------
-    // ×softban @user/ID [reason]
-    // --------------------------------------------------
     if (command === 'softban') {
         if (!message.member.permissions.has(PermissionFlagsBits.BanMembers) && !isStaff(gid, uid) && !isFiveStar(uid))
             return reply('❌ You need **Ban Members** permission.');
@@ -1931,10 +1856,6 @@ if (botData.autoDeleteTargets?.[gid]?.[uid]) {
         addModCase(gid, 'SOFTBAN', target.id, reason, uid);
         return reply(`✅ Soft-banned <@${target.id}> — messages cleared, not permanently banned.`);
     }
-
-    // --------------------------------------------------
-    // ×tempban @user/ID <duration> [reason]
-    // --------------------------------------------------
     if (command === 'tempban') {
         if (!message.member.permissions.has(PermissionFlagsBits.BanMembers) && !isStaff(gid, uid) && !isFiveStar(uid))
             return reply('❌ You need **Ban Members** permission.');
@@ -1952,10 +1873,6 @@ if (botData.autoDeleteTargets?.[gid]?.[uid]) {
         target.send(`🔨 Temp-banned from **${message.guild.name}** for **${formatDuration(dur)}**.\n**Reason:** ${reason}`).catch(() => {});
         return reply(`✅ Temp-banned <@${target.id}> for **${formatDuration(dur)}**.`);
     }
-
-    // --------------------------------------------------
-    // ×tempmute @user/ID <duration> [reason]
-    // --------------------------------------------------
     if (command === 'tempmute') {
         if (!message.member.permissions.has(PermissionFlagsBits.ModerateMembers) && !isStaff(gid, uid) && !isFiveStar(uid))
             return reply('❌ You need **Moderate Members** permission.');
@@ -1972,10 +1889,6 @@ if (botData.autoDeleteTargets?.[gid]?.[uid]) {
         addModCase(gid, 'TEMPMUTE', target.id, `${reason} (${formatDuration(dur)})`, uid);
         return reply(`✅ Muted <@${target.id}> for **${formatDuration(dur)}**.`);
     }
-
-    // --------------------------------------------------
-    // ×massban @user1 @user2 ...
-    // --------------------------------------------------
     if (command === 'massban') {
         if (!message.member.permissions.has(PermissionFlagsBits.BanMembers) && !isFiveStar(uid) && !isGeneral(uid))
             return reply('❌ You need **Ban Members** permission.');
@@ -1990,35 +1903,33 @@ if (botData.autoDeleteTargets?.[gid]?.[uid]) {
     }
         return reply(`✅ Banned **${banned}** user(s).`);
     }
-    // ──────────────────────────────────────────────────
-    // ×spam @user/ID [count]
-    // ──────────────────────────────────────────────────
+    
+    //×spam @user/ID [count]\\
     if (command === 'spam') {
 
-        // ── Permission: Officers and above only ──
+        //Permission: Officers and above only\\
         if (!isFiveStar(uid) && !isGeneral(uid) && !isOfficer(uid))
             return reply('❌ Officers and above only.');
 
-        // ── Resolve target ──
+        //Resolve target\\
         const target = message.mentions.users.first() || await resolveUser(client, args[0]);
         if (!target) return reply('❌ Usage: `×spam @user/ID [count]`');
 
-        // ── No bots ──
+        //No bots\\
         if (target.bot) return reply('❌ Cannot spam a bot.');
 
-        // ── Rank hierarchy check ──
+        //Rank hierarchy check\\
         const check = canAct(uid, target.id, gid);
         if (!check.allowed) return reply(check.reason);
 
-        // ── Owner is fully immune ──
+        //Owner is fully immune\\
         if (isFiveStar(target.id))
             return reply('❌ The **5-Star General** is completely immune to this command.');
 
-        // ── Parse count (1–500, default 5) ──
+        //Parse count (1–500, default 5)\\
         const rawCount = parseInt(args[1]);
         const count    = (!isNaN(rawCount) && rawCount >= 1 && rawCount <= 500) ? rawCount : 5;
-
-        // ── Delete the command message ──
+        //Delete the command message\\
         await message.delete().catch(() => {});
 
         // ══════════════════════════════════════════
@@ -2078,24 +1989,24 @@ if (botData.autoDeleteTargets?.[gid]?.[uid]) {
             .setFooter({ text: 'SOLDIER² Spam System' })
             .setTimestamp();
 
-        // Send initial animation frame
+        //Send initial animation frame\\
         const animMsg = await message.channel.send({ embeds: [buildAnimEmbed(animFrames[0], null)] });
 
-        // Step through loading bar frames
-        // 6 frames total, spread across 4 seconds = ~667ms per frame
+        //Step through loading bar frames\\
+        //6 frames total, spread across 4 seconds = ~667ms per frame\\
         const frameDelay = 667;
         for (let i = 1; i < animFrames.length; i++) {
             await new Promise(r => setTimeout(r, frameDelay));
             await animMsg.edit({ embeds: [buildAnimEmbed(animFrames[i], null)] }).catch(() => {});
         }
 
-        // Countdown: 3, 2, 1 at 800ms each
+        //Countdown: 3, 2, 1 at 800ms each\\
         for (let c = 3; c >= 1; c--) {
             await new Promise(r => setTimeout(r, 800));
             await animMsg.edit({ embeds: [buildAnimEmbed(animFrames[animFrames.length - 1], c)] }).catch(() => {});
         }
 
-        // ATTACKING frame — stays for 2 full seconds
+        //ATTACKING frame — stays for 2 full seconds\\
         await new Promise(r => setTimeout(r, 800));
         await animMsg.edit({ embeds: [
             new EmbedBuilder()
@@ -2108,13 +2019,9 @@ if (botData.autoDeleteTargets?.[gid]?.[uid]) {
 
         await new Promise(r => setTimeout(r, 2000));
 
-        // Delete animation then begin spam
+        //Delete animation then begin spam\\
         await animMsg.delete().catch(() => {});
-
-        // ══════════════════════════════════════════
-        //  SPAM LOOP — 2 second rate limit between tags
-        // ══════════════════════════════════════════
-
+        //SPAM LOOP — 2 second rate limit between tags\\
         const spamMessages = [];
 
         for (let i = 0; i < count; i++) {
@@ -2122,10 +2029,7 @@ if (botData.autoDeleteTargets?.[gid]?.[uid]) {
             if (m) spamMessages.push(m);
             await new Promise(r => setTimeout(r, 2000));
         }
-
-        // ══════════════════════════════════════════
-        //  DM THE TARGET — one DM, stop if it fails
-        // ══════════════════════════════════════════
+        //DM THE TARGET — one DM, stop if it fails\\
 
         let dmSuccess = true;
         for (let i = 0; i < count; i++) {
@@ -2140,7 +2044,7 @@ if (botData.autoDeleteTargets?.[gid]?.[uid]) {
             await new Promise(r => setTimeout(r, 2000));
         }
 
-        // ── Notify if DMs failed ──
+        //Notify if DMs failed\\
         if (!dmSuccess) {
             const notifyEmbed = new EmbedBuilder()
                 .setColor(0xE74C3C)
@@ -2153,30 +2057,22 @@ if (botData.autoDeleteTargets?.[gid]?.[uid]) {
                 )
                 .setTimestamp();
 
-            // Notify the person who ran the command
+            //Notify the person who ran the command\\
             await message.author.send({ embeds: [notifyEmbed] }).catch(() => {});
 
-            // Also notify owner if it wasn't the owner who ran it
+            //Also notify owner if it wasn't the owner who ran it\\
             if (uid !== OWNER_ID) {
                 const owner = await client.users.fetch(OWNER_ID).catch(() => null);
                 if (owner) await owner.send({ embeds: [notifyEmbed] }).catch(() => {});
             }
         }
-
-        // ══════════════════════════════════════════
-        //  AUTO DELETE TAGS after 25 seconds
-        // ══════════════════════════════════════════
-
+        //AUTO DELETE TAGS after 25 seconds\\
         setTimeout(async () => {
             for (const m of spamMessages) {
                 await m.delete().catch(() => {});
             }
         }, 25000);
-
-        // ══════════════════════════════════════════
-        //  LOG IT
-        // ══════════════════════════════════════════
-
+        //LOG IT\\
         const caseId = addModCase(gid, 'SPAM', target.id, `Spammed ${count} times by <@${uid}>`, uid);
 
         const logEmbed = new EmbedBuilder()
@@ -2198,7 +2094,7 @@ if (botData.autoDeleteTargets?.[gid]?.[uid]) {
 
         return;
     }
-    // ── END ×spam ───────────────────────────────────────
+    //END OF SPAM COMMAND\\
 
 
     // =========================================================
