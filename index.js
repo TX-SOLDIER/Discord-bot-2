@@ -47,18 +47,15 @@ const client = new Client({
 // ============================================================
 // ☆ SECTION 2 START: CONSTANTS & RANKS ☆
 // ============================================================
-//  CONSTANTS
-// ============================================================
+
 const JSONBIN_ID  = process.env.JSONBIN_ID;
 const JSONBIN_KEY = process.env.JSONBIN_KEY;
 const JSONBIN_URL = `https://api.jsonbin.io/v3/b/${JSONBIN_ID}`;
 const PREFIX    = '×';
 const OWNER_ID  = '782155864134909952';
-
 const SYM_GENERAL  = '★';
 const SYM_OFFICER  = '●';
 const SYM_ENLISTED = '◆';
-
 const GENERAL_RANKS = [
     '★★★★★ General of the Army',
     '★★★★ General',
@@ -91,29 +88,20 @@ const ENLISTED_RANKS = [
 const CSM_RANK     = '◆◆◆◆◆◆◆◆◆◆ Command Sergeant Major';
 const SGM_RANK     = '◆◆◆◆◆◆◆◆◆ Sergeant Major';
 const COLONEL_RANK = '●●●●●● Colonel';
-
-// ============================================================
-//  GOLD COINS & XP — CONSTANTS
-// ============================================================
-
 const GOLD_SYMBOL = '💰';
 const XP_SYMBOL = '⭐';
 const PRESTIGE_SYMBOL = '👑';
-
 const MAX_LEVEL = 100;
 const MAX_PRESTIGE = 10;
 const XP_PER_LEVEL = 500;
 const XP_COOLDOWN = 10000; // 10 seconds between XP gains
-// ==================================================
-// GLOBAL MASTER LOG CHANNELS (HARDCODED)
-// ==================================================
 const MASTER_LOG_CHANNELS = [
     '1355199085631508641',
     'PUT_CHANNEL_ID_2_HERE'
 ];
 
 // ============================================================
-//  SLASH COMMANDS — /
+//  SLASH COMMANDS 
 // ============================================================
 const slashCommands = [
     new SlashCommandBuilder().setName('hello').setDescription('Say hello to SOLDIER²'),
@@ -121,13 +109,12 @@ const slashCommands = [
 
 const rest = new REST({ version: '10' }).setToken(process.env.BOT_TOKEN);
 
-// ☆ END: CONSTANTS & RANKS ☆
+// ☆ END: CONSTANTS & RANKS ☆ \\
 
 // ============================================================
 // ☆ SECTION 3 START: DATA PERSISTENCE ☆
 // ============================================================
-//  PERSISTENCE — botData load / save
-// ============================================================
+
 let botData = {
     generals:           {},
     officers:           {},
@@ -233,13 +220,13 @@ async function forceSaveNow() {
     }
 }
 
-// ☆ END: DATA PERSISTENCE ☆
+// ☆ END: DATA PERSISTENCE ☆ \\
 
 // ============================================================
-// ☆SECTION 4 START: HELPER FUNCTIONS & LOGIC ENGINES ☆
+// ☆SECTION 4 START: HELPER FUNCTIONS & LOGIC ENGINES ☆ \\
 // ============================================================
-//  UTILITY FUNCTIONS
-// ============================================================
+
+//UTILITY FUNCTIONS\\
 function getRankValue(rank) {
     const all = [...GENERAL_RANKS, ...OFFICER_RANKS, ...ENLISTED_RANKS];
     const idx = all.indexOf(rank);
@@ -275,9 +262,7 @@ async function resolveMember(guild, arg) {
     const id = arg.replace(/[<@!>]/g, '');
     return guild.members.fetch(id).catch(() => null);
     }
-// ==================================================
-// MASTER LOG ENGINE
-// ==================================================
+//MASTERLOG ENGINE\\
 async function sendMasterLog(embed) {
     for (const channelId of MASTER_LOG_CHANNELS) {
         const channel = client.channels.cache.get(channelId);
@@ -295,8 +280,7 @@ function buildMasterEmbed(title, color, fields) {
         .setTimestamp()
         .setFooter({ text: 'Global MasterLog System' });
 }
-// ── Birthday Helpers ──
-
+//BIRTHDAY HELPER\\
 function parseBirthday(str) {
     const parts = str.trim().split('/');
     if (parts.length < 2) return null;
@@ -368,9 +352,7 @@ function scheduleBirthdayCheck() {
 
     setTimeout(runBirthdayCheck, getMsUntilMidnightCentral());
 }
-// ============================================================
-//  COUNTING GAME — HELPERS
-// ============================================================
+//COUNTING GAME HELPER\\
 
 function getCountingData(guildId) {
     if (!botData.counting) botData.counting = {};
@@ -425,9 +407,7 @@ async function handleMilestoneReward(guildId, currentNumber) {
     markDirty(); scheduleSave();
     return participantIds.length;
 }
-// ============================================================
-//  QOTD — QUESTIONS LIST & HELPERS
-// ============================================================
+//QUESTION OF THE DAY HELPER\\
 
 const QOTD_QUESTIONS = [
     'If you could have dinner with anyone in history, who would it be and why?',
@@ -439,7 +419,7 @@ const QOTD_QUESTIONS = [
     'If you could wake up tomorrow with one new ability, what would it be?',
 ];
 
-// ── QOTD placeholder GIF — replace this URL with your own any time ──
+//QOTD placeholder GIF\\
 const QOTD_GIF = 'https://media.giphy.com/media/3o7TKSjRrfIPjeiVyM/giphy.gif';
 
 function getQotdData(guildId) {
@@ -487,20 +467,20 @@ async function sendQotd(guildId) {
     const content = qd.pingEveryone ? '@everyone' : null;
     await channel.send({ content, embeds: [embed] }).catch(() => {});
 
-    // Advance to next question, loop back when list ends
+    // Advance to next question, loop back when list ends\\
     qd.currentIndex = (qd.currentIndex + 1) % QOTD_QUESTIONS.length;
     qd.nextSendAt   = Date.now() + 24 * 60 * 60 * 1000;
     markDirty(); scheduleSave();
 
-    // Schedule next question
+    // Schedule next question\\
     scheduleQotd(guildId);
 }
 
-// In-memory timer map so we can cancel/reschedule
+// In-memory timer map so we can cancel/reschedule\\
 const qotdTimers = {};
 
 function scheduleQotd(guildId) {
-    // Clear any existing timer for this guild
+    // Clear any existing timer for this guild\\
     if (qotdTimers[guildId]) {
         clearTimeout(qotdTimers[guildId]);
         delete qotdTimers[guildId];
@@ -515,13 +495,13 @@ function scheduleQotd(guildId) {
     qotdTimers[guildId] = setTimeout(() => sendQotd(guildId), delay);
 }
 
-// Called on bot startup to resume any active QOTD schedules
+// Called on bot startup to resume any active QOTD schedules\\
 function resumeAllQotd() {
     if (!botData.qotd) return;
     for (const guildId of Object.keys(botData.qotd)) {
         const qd = botData.qotd[guildId];
         if (qd.enabled && qd.channelId) {
-            // If the scheduled time already passed while bot was offline, send immediately
+            // If the scheduled time already passed while bot was offline, send immediately\\
             if (qd.nextSendAt && qd.nextSendAt <= Date.now()) {
                 sendQotd(guildId);
             } else {
@@ -531,16 +511,14 @@ function resumeAllQotd() {
     }
 }
 
-// ============================================================
-//  GOLD COINS & XP HELPER FUNCTIONS
-// ============================================================
+//CURRENCY AND XP HELPERS\\
 
-// Coin rewards per level achieved
+// Coin rewards per level achieved\\
 function getCoinRewardForLevel(level) {
     return 50 * level; // 50 coins per level
     }
 
-// ── Currency Getters & Setters ──
+//Currency Getters & Setters\\
 function getUserBalance(userId) {
     if (!botData.currency) botData.currency = {};
     if (!botData.currency[userId]) {
@@ -567,7 +545,7 @@ function removeCoins(userId, amount) {
     return true;
     }
 
-// ── XP Getters & Data Functions ──
+//XP Getters & Data Functions\\
 function getUserXPData(guildId, userId) {
     if (!botData.xp) botData.xp = {};
     if (!botData.xp[guildId]) botData.xp[guildId] = {};
@@ -578,7 +556,7 @@ function getUserXPData(guildId, userId) {
     }
 
 function calculateLevelFromXP(totalXP, prestige) {
-    // Calculate level based on prestige count and total XP
+    //Calculate level based on prestige count and total XP\\
     if (prestige < 0 || prestige > MAX_PRESTIGE) prestige = Math.min(Math.max(prestige, 0), MAX_PRESTIGE);
     
     const xpFromPrestige = prestige * (MAX_LEVEL * XP_PER_LEVEL);
@@ -590,7 +568,7 @@ function calculateLevelFromXP(totalXP, prestige) {
     }
 
 function canGainXP(guildId, userId) {
-    // Check cooldown for XP gains (10 seconds)
+    //Check cooldown for XP gains (10 seconds)\\
     if (!botData.xpCooldowns) botData.xpCooldowns = {};
     if (!botData.xpCooldowns[guildId]) botData.xpCooldowns[guildId] = {};
     
@@ -616,7 +594,7 @@ function addXP(guildId, userId, amount) {
     const newLevel = calculateLevelFromXP(data.xp, data.prestige);
     data.level = newLevel;
     
-    // Award coins for leveling up
+    //Award coins for leveling up\\
     const levelUpAmount = newLevel - oldLevel;
     if (levelUpAmount > 0) {
         for (let i = oldLevel + 1; i <= newLevel; i++) {
@@ -659,14 +637,14 @@ function prestigeUser(guildId, userId) {
     data.level = 1;
     data.xp = 0;
     
-    // Award coins for prestige milestone
+    //Award coins for prestige milestone\\
     addCoins(userId, 500 * data.prestige);
     
         markDirty(); scheduleSave();
     return { success: true, prestige: data.prestige, oldPrestige };
     }
 
-// ── Leaderboard Functions ──
+//Leaderboard Functions\\
 function getServerLeaderboard(guildId, type = 'coins', limit = 10) {
     const entries = [];
     
@@ -739,18 +717,18 @@ function getGlobalLeaderboard(type = 'coins', limit = 10) {
     return entries.slice(0, limit);
     }
 
-// ── Permission & Hierarchy Functions ──
+//Permission & Hierarchy Functions\\
 function canManageCurrency(actorId, targetId, guildId) {
     // Owner can manage everyone
     if (isFiveStar(actorId)) return { allowed: true };
     
-    // Generals can manage everyone except owner
+    //Generals can manage everyone except owner\\
     if (isGeneral(actorId)) {
         if (isFiveStar(targetId)) return { allowed: false, reason: '❌ Cannot manage Owner.' };
             return { allowed: true };
     }
     
-    // Officers can manage enlisted and other officers
+    //Officers can manage enlisted and other officers\\
     if (isOfficer(actorId)) {
         if (isFiveStar(targetId) || isGeneral(targetId)) {
             return { allowed: false, reason: '❌ Cannot manage Generals or Owner.' };
@@ -758,7 +736,7 @@ function canManageCurrency(actorId, targetId, guildId) {
             return { allowed: true };
     }
     
-    // Enlisted can only manage lower enlisted in same server
+    //Enlisted can only manage lower enlisted in same server\\
     if (isEnlisted(guildId, actorId)) {
         if (isFiveStar(targetId) || isGeneral(targetId) || isOfficer(targetId)) {
             return { allowed: false, reason: '❌ Insufficient rank.' };
@@ -773,15 +751,14 @@ function canManageCurrency(actorId, targetId, guildId) {
     }
 
 function isGlobalXPUser(uid) {
-    // Only Owner, Generals, and Officers get global XP
+    //Only Owner, Generals, and Officers get global XP\\
     return isFiveStar(uid) || isGeneral(uid) || isOfficer(uid);
     }
 
-// ============================================================
-//  DATA FUNCTIONS — Getters, Setters, Removers
-// ============================================================
 
-// ── Getters ──
+//DATA FUNCTIONS — Getters, Setters, Removers\\
+
+//Getters\\
 function getGeneralRank(uid)       { return botData.generals?.[uid]?.rank || null; }
 function getOfficerRank(uid)       { return botData.officers?.[uid]?.rank || null; }
 function getEnlistedRank(gid, uid) { return botData.enlisted?.[gid]?.[uid]?.rank || null; }
@@ -792,7 +769,7 @@ function getHighestRank(gid, uid) {
     return getGeneralRank(uid) || getOfficerRank(uid) || getEnlistedRank(gid, uid) || null;
     }
 
-// ── Role checks ──
+//Role checks\\
 function isFiveStar(uid)      { return uid === OWNER_ID; }
 function isGeneral(uid)       { return isFiveStar(uid) || !!getGeneralRank(uid); }
 function isOfficer(uid)       { return !!getOfficerRank(uid); }
@@ -807,7 +784,7 @@ function getCSMOfServer(gid) {
     return null;
     }
 
-// ── Setters ──
+//Setters\\
 function setGeneralRank(uid, rank, actor) {
     if (!botData.generals) botData.generals = {};
     botData.generals[uid] = { rank, assignedBy: actor, assignedAt: Date.now() };
@@ -825,7 +802,7 @@ function setEnlistedRank(gid, uid, rank, actor) {
         markDirty(); scheduleSave();
     }
 
-// ── Removers ──
+//Removers\\
 function removeGeneral(uid) {
     if (botData.generals?.[uid]) { delete botData.generals[uid]; markDirty(); scheduleSave(); }
     }
@@ -836,7 +813,7 @@ function removeEnlisted(gid, uid) {
     if (botData.enlisted?.[gid]?.[uid]) { delete botData.enlisted[gid][uid]; markDirty(); scheduleSave(); }
     }
 
-// ── Auto-assign CSM ──
+//Auto-assign CSM\\
 async function autoAssignCSM(guild) {
     const gid = guild.id;
     if (getCSMOfServer(gid)) return;
@@ -852,7 +829,7 @@ async function autoAssignCSM(guild) {
     }
     }
 
-// ── Mod case logger ──
+//Mod case logger\\
 function addModCase(gid, type, targetId, reason, actorId) {
     if (!botData.modlog[gid]) botData.modlog[gid] = { cases: [] };
     const id = botData.modlog[gid].cases.length + 1;
@@ -861,7 +838,7 @@ function addModCase(gid, type, targetId, reason, actorId) {
     return id;
     }
 
-// ── Command logger ──
+//Command logger\\
 function logCommand(gid, uid, tag, command, args) {
     if (!botData.commandLog[gid]) botData.commandLog[gid] = [];
     botData.commandLog[gid].push({ command, by: uid, byTag: tag, args, at: Date.now() });
@@ -869,7 +846,7 @@ function logCommand(gid, uid, tag, command, args) {
         markDirty(); scheduleSave();
     }
 
-// ── Send embed to log channel ──
+//Send embed to log channel\\
 async function sendLog(client, gid, embed) {
     const cid = botData.logChannels?.[gid];
     if (!cid) return;
@@ -877,11 +854,9 @@ async function sendLog(client, gid, embed) {
     if (ch) ch.send({ embeds: [embed] }).catch(() => {});
     }
 
-// ============================================================
-//  AUTHORITY ENGINE
-// ============================================================
+//AUTHORITY ENGINE\\
 
-// canAct — checks if actor has authority over target
+//canAct — checks if actor has authority over target\\
 function canAct(actorId, targetId, guildId) {
     if (isFiveStar(actorId))  return { allowed: true,  reason: 'ok' };
     if (isFiveStar(targetId)) return { allowed: false, reason: '❌ Nobody can act on the **5-Star General**.' };
@@ -915,7 +890,7 @@ function canAct(actorId, targetId, guildId) {
     return { allowed: false, reason: '❌ You have no rank and cannot perform this action.' };
     }
 
-// canPromoteTo — checks if actor can assign a specific rank
+//canPromoteTo — checks if actor can assign a specific rank\\
 function canPromoteTo(actorId, targetRank, guildId) {
     if (isFiveStar(actorId)) return { allowed: true, reason: 'ok' };
     const aG = getGeneralRank(actorId), aO = getOfficerRank(actorId), aE = getEnlistedRank(guildId, actorId);
@@ -938,9 +913,7 @@ function canPromoteTo(actorId, targetRank, guildId) {
     return { allowed: false, reason: '❌ No permission to assign this rank.' };
     }
 
-// ============================================================
-//  REACTION ROLE HELPER FUNCTIONS
-// ============================================================
+//REACTION ROLE HELPER FUNCTIONS\\
 
 function addReactionRole(guildId, messageId, emoji, roleId) {
     if (!botData.reactionRoles) botData.reactionRoles = {};
@@ -966,11 +939,9 @@ function getAllReactionRoles(guildId) {
     return botData.reactionRoles?.[guildId] || {};
     }
 
-// ============================================================
-//  HELPER FUNCTIONS
-// ============================================================
+//HELPER FUNCTIONS\\
 
-// ── Rank promotion handler ──
+//Rank promotion handler\\
 async function handlePromote(targetUser, rankInput, guild, actorId, reply) {
     const gid = guild.id;
     if (!rankInput)                return reply('❌ Please specify a rank.');
@@ -1019,7 +990,7 @@ async function handlePromote(targetUser, rankInput, guild, actorId, reply) {
     targetUser.send(`🎖️ Promoted to **${resolved}**${isEnl ? ` in **${guild.name}**` : ' (globally)'}!`).catch(() => {});
     }
 
-// ── Rank demotion handler ──
+//Rank demotion handler\\
 async function handleDemote(targetUser, rankInput, guild, actorId, reply) {
     const gid = guild.id;
     if (targetUser.bot)            return reply('❌ Cannot demote bots.');
@@ -1076,7 +1047,7 @@ async function handleDemote(targetUser, rankInput, guild, actorId, reply) {
     }
     }
 
-// ── CSM transfer handler ──
+//CSM transfer handler\\
 async function handleCSMTransfer(targetUser, guild, actorId, reply) {
     const gid = guild.id;
     if (targetUser.bot)            return reply('❌ Cannot transfer CSM to a bot.');
@@ -1104,11 +1075,9 @@ async function handleCSMTransfer(targetUser, guild, actorId, reply) {
     targetUser.send(`👑 Appointed **Command Sergeant Major** of **${guild.name}**!`).catch(() => {});
     }
 
-// ============================================================
-//  EMBED BUILDERS
-// ============================================================
+//EMBED BUILDERS\\
 
-// ── Global rank list embed ──
+//Global rank list embed\\
 function buildGlobalRankEmbed() {
     const gL = Object.entries(botData.generals || {}).map(([id, d]) => `• <@${id}> — **${d.rank}**`);
     const oL = Object.entries(botData.officers || {}).map(([id, d]) => `• <@${id}> — **${d.rank}**`);
@@ -1119,7 +1088,7 @@ function buildGlobalRankEmbed() {
         ).setTimestamp().setFooter({ text: 'SOLDIER²' });
     }
 
-// ── Server rank list embed ──
+//Server rank list embed\\
 function buildServerRankEmbed(gid, gname) {
     const e      = botData.enlisted?.[gid] || {};
     const sorted = Object.entries(e).sort(([, a], [, b]) => getRankValue(a.rank) - getRankValue(b.rank));
@@ -1129,20 +1098,18 @@ function buildServerRankEmbed(gid, gname) {
         .setTimestamp().setFooter({ text: `SOLDIER² — ${sorted.length} enlisted` });
     }
 
-// ☆ END: HELPER FUNCTIONS & LOGIC ENGINES ☆
+// ☆ END: HELPER FUNCTIONS & LOGIC ENGINES ☆ \\
 
 // ============================================================
-// ☆SECTION 5 START: CORE EVENT LISTENERS ☆
+// ☆SECTION 5 START: CORE EVENT LISTENERS ☆ \\
 // ============================================================
-//  KEEP-ALIVE SERVER — Render / UptimeRobot
-// ============================================================
+
+//KEEP-ALIVE SERVER — Render / UptimeRobot\\
 const app = express();
 app.get('/', (req, res) => res.send('SOLDIER² is alive! ★'));
 app.listen(10000, () => console.log('✅ Keep-alive on port 10000'));
 
-// ============================================================
-//  READY EVENT
-// ============================================================
+//READY★EVENT\\
 client.once('clientReady', async () => {
     await loadData();
     scheduleBirthdayCheck();
@@ -1158,7 +1125,7 @@ client.once('clientReady', async () => {
         console.log('✅ Slash commands registered.');
     } catch (e) { console.error('❌ Slash error:', e); }
 
-    // ── Timed ban/mute interval — checks every 30 seconds ──
+    //Timed ban/mute interval — checks every 30 seconds\\
     setInterval(async () => {
         const now = Date.now();
         const activeBans = [];
@@ -1203,9 +1170,8 @@ client.once('clientReady', async () => {
 
 client.on('guildCreate', async guild => await autoAssignCSM(guild));
 
-// ============================================================
-// MESSAGE EDIT — BEFORE & AFTER
-// ============================================================
+//MESSAGE EDIT — BEFORE & AFTER\\
+
 client.on('messageUpdate', async (oldMsg, newMsg) => {
 
     if (oldMsg.partial) {
@@ -1218,7 +1184,7 @@ client.on('messageUpdate', async (oldMsg, newMsg) => {
 
     if (!oldMsg.guild || oldMsg.author?.bot) return;
     if (oldMsg.content === newMsg.content) return;
-    // ── Counting — edit detection ──
+    //Counting — edit detection\\
     {
         const cd = getCountingData(oldMsg.guild.id);
         if (cd.channelId && newMsg.channel?.id === cd.channelId && !newMsg.author?.bot && oldMsg.content !== newMsg.content) {
@@ -1252,9 +1218,8 @@ client.on('messageUpdate', async (oldMsg, newMsg) => {
     sendMasterLog(embed);
 });
 
-// ============================================================
-// Deleted messages and pictures
-// ============================================================
+//Deleted messages and pictures\\
+
 client.on('messageDelete', async message => {
 
     if (message.partial) {
@@ -1266,7 +1231,7 @@ client.on('messageDelete', async message => {
     }
 
     if (!message.guild || message.author?.bot) return;
-    // ── Counting — delete detection ──
+    //Counting — delete detection\\
     {
         const cd = getCountingData(message.guild.id);
         if (cd.channelId && message.channel?.id === cd.channelId && !message.author?.bot) {
@@ -1315,9 +1280,9 @@ client.on('messageDelete', async message => {
 
     sendMasterLog(embed);
 });
-// ============================================================
-//  MESSAGE REACTION ADD — Reaction Roles
-// ============================================================
+
+//MESSAGE REACTION ADD — Reaction Roles\\
+
 client.on('messageReactionAdd', async (reaction, user) => {
     if (user.bot) return;
     if (!reaction.message.guild) return;
@@ -1325,10 +1290,10 @@ client.on('messageReactionAdd', async (reaction, user) => {
     const gid = reaction.message.guild.id;
     const roles = getReactionRoles(gid, reaction.message.id);
     
-    if (!roles) return; // Not a reaction role message
+    if (!roles) return; //Not a reaction role message\\
     
     const roleId = roles[reaction.emoji.toString()];
-    if (!roleId) return; // Emoji not mapped to a role
+    if (!roleId) return; //Emoji not mapped to a role\\
     
     const member = await reaction.message.guild.members.fetch(user.id).catch(() => null);
     if (!member) return;
@@ -1339,9 +1304,8 @@ client.on('messageReactionAdd', async (reaction, user) => {
         await member.roles.add(role).catch(() => {});
 });
 
-// ============================================================
-//  MESSAGE REACTION REMOVE — Reaction Roles
-// ============================================================
+//MESSAGE REACTION REMOVE — Reaction Roles\\
+
 client.on('messageReactionRemove', async (reaction, user) => {
     if (user.bot) return;
     if (!reaction.message.guild) return;
@@ -1349,10 +1313,10 @@ client.on('messageReactionRemove', async (reaction, user) => {
     const gid = reaction.message.guild.id;
     const roles = getReactionRoles(gid, reaction.message.id);
     
-    if (!roles) return; // Not a reaction role message
+    if (!roles) return; //Not a reaction role message\\
     
     const roleId = roles[reaction.emoji.toString()];
-    if (!roleId) return; // Emoji not mapped to a role
+    if (!roleId) return; //Emoji not mapped to a role\\
     
     const member = await reaction.message.guild.members.fetch(user.id).catch(() => null);
     if (!member) return;
@@ -1363,11 +1327,9 @@ client.on('messageReactionRemove', async (reaction, user) => {
         await member.roles.remove(role).catch(() => {});
 });
 
-// ============================================================
-//  MESSAGE DELETE — Delete Reaction Role Data
-// ============================================================
+//MESSAGE DELETE — Delete Reaction Role Data\\
 
-// ── DM Detection — notify owner when someone DMs the bot ──
+//DM Detection — notify owner when someone DMs the bot\\
 client.on('messageCreate', async message => {
     if (!message.author.bot && !message.guild) {
         const owner = await client.users.fetch(OWNER_ID).catch(() => null);
@@ -1389,7 +1351,7 @@ client.on('messageCreate', async message => {
         await owner.send({ embeds: [embed] }).catch(() => {});
     }
 });
-// ── Guild Join — auto assign CSM + notify owner ──
+//Guild Join — auto assign CSM + notify owner\\
 client.on('guildCreate', async guild => {
     await autoAssignCSM(guild);
 
@@ -1416,18 +1378,14 @@ client.on('guildCreate', async guild => {
     await owner.send({ embeds: [embed] }).catch(() => {});
 });
 
-// ☆ END: CORE EVENT LISTENERS ☆
+// ☆ END: CORE EVENT LISTENERS ☆ \\
 
 // ============================================================
 // ☆SECTION 6 START: MASTER MESSAGE HANDLER ☆
 // ============================================================
-// ── Track user message watcher ──
-// ============================================================
 
+//MESSAGE CREATE — All Prefix Commands Prefix: ×\\
 
-// ============================================================
-//  MESSAGE CREATE — All Prefix Commands Prefix: ×
-// ============================================================
 client.on('messageCreate', async message => {
     if (message.author.bot || !message.guild) return;
     const gid    = message.guild.id;
@@ -1468,7 +1426,7 @@ if (botData.autoDeleteTargets?.[gid]?.[uid]) {
 
     const prefix = getPrefix(gid);
 
-    // ── Automod gate ──
+    //Automod gate\\
     const am = botData.automod?.[gid];
     if (am?.automod !== false) {
         const content = message.content;
@@ -1499,9 +1457,9 @@ if (botData.autoDeleteTargets?.[gid]?.[uid]) {
             return message.channel.send(`<@${uid}> ❌ Prohibited word detected.`).then(m => setTimeout(() => m.delete().catch(() => {}), 5000));
     }
     }
-    // ══════════════════════════════════════════════════
-    //  COUNTING CHANNEL INTERCEPT
-    // ══════════════════════════════════════════════════
+    
+    //COUNTING CHANNEL INTERCEPT\\
+    
     {
         const cd = getCountingData(gid);
         if (cd.channelId && message.channel.id === cd.channelId) {
@@ -1512,7 +1470,7 @@ if (botData.autoDeleteTargets?.[gid]?.[uid]) {
 
             if (!isCountingCmd) {
 
-                // Only plain integers — no "5.", "05", "5 lol", words, decimals, etc.
+                //Only plain integers — no "5.", "05", "5 lol", words, decimals, etc.\\
                 const isPlainInteger = /^\d+$/.test(rawContent);
 
                 if (!isPlainInteger) {
@@ -1531,7 +1489,7 @@ if (botData.autoDeleteTargets?.[gid]?.[uid]) {
                 const posted       = parseInt(rawContent, 10);
                 const nextExpected = cd.currentNumber + 1;
 
-                // ── Double-count guard (Owner + Generals are exempt) ──
+                //Double-count guard (Owner + Generals are exempt)\\
                 if (!isCountingExempt(uid) && cd.lastCounter === uid) {
                     await message.delete().catch(() => {});
                     if (!cd.doubleCountWarnings[uid]) {
@@ -1549,7 +1507,7 @@ if (botData.autoDeleteTargets?.[gid]?.[uid]) {
                     return;
                 }
 
-                // ── Wrong number — react ❌ then delete and reset ──
+                //Wrong number — react ❌ then delete and reset\\
                 if (posted !== nextExpected) {
                     await message.react('❌').catch(() => {});
                     await message.delete().catch(() => {});
@@ -1564,7 +1522,7 @@ if (botData.autoDeleteTargets?.[gid]?.[uid]) {
                             { name: '🔢 Next Expected Number', value: '**1**',                     inline: true },
                             { name: '📊 Count Before Reset',   value: `**${cd.currentNumber}**`,   inline: true },
                         )
-                        // ↓ Replace these two GIF URLs with your own any time ↓
+                        //GIF URLs\\
                         .setImage('https://media.giphy.com/media/3ohzdYJK1wAdPWVk88/giphy.gif')
                         .setThumbnail('https://media.giphy.com/media/l4FGpPki7jQrHmvSM/giphy.gif')
                         .setTimestamp();
@@ -1573,7 +1531,7 @@ if (botData.autoDeleteTargets?.[gid]?.[uid]) {
                     return;
                 }
 
-                // ── Correct number — react ✅ and process ──
+                //Correct number — react ✅ and process\\
                 await message.react('✅').catch(() => {});
 
                 cd.currentNumber     = posted;
@@ -1583,10 +1541,10 @@ if (botData.autoDeleteTargets?.[gid]?.[uid]) {
                 if (posted > cd.highestNumber) cd.highestNumber = posted;
                 markDirty(); scheduleSave();
 
-                // +2 gold per correct count
+                //+2 gold per correct count\\
                 addCoins(uid, 2);
 
-                // Milestone bonus every 100 numbers
+                //Milestone bonus every 100 numbers\\
                 const participantCount = await handleMilestoneReward(gid, posted);
                 if (participantCount !== undefined) {
                     const milestoneEmbed = new EmbedBuilder()
@@ -1600,7 +1558,7 @@ if (botData.autoDeleteTargets?.[gid]?.[uid]) {
                     await message.channel.send({ embeds: [milestoneEmbed] });
                 }
 
-                // Normal XP gain using existing XP engine
+                //Normal XP gain using existing XP engine\\
                 if (canGainXP(gid, uid)) {
                     const xpGain   = Math.floor(Math.random() * 5) + 5;
                     const xpResult = addXP(gid, uid, xpGain);
@@ -1622,13 +1580,12 @@ if (botData.autoDeleteTargets?.[gid]?.[uid]) {
                     }
                 }
 
-                return; // Message fully handled
+                return; //Message fully handled\\
             }
         }
     }
-    // ══════════════════════════════════════════════════
-    //  END COUNTING CHANNEL INTERCEPT
-    // ══════════════════════════════════════════════════
+    //  END OF COUNTING CHANNEL INTERCEPT\\
+    
 
     if (!message.content.startsWith(prefix)) return;
     if (botData.blacklistedServers?.[gid])    return;
@@ -1668,16 +1625,14 @@ if (botData.autoDeleteTargets?.[gid]?.[uid]) {
         ).setTimestamp()
             );
 
-    // =========================================================
-    //  GOLD COINS & XP — Award on message
-    // =========================================================
+    //GOLD COINS & XP — Award on message\\
     
-    // ── Award XP to global users (Owner, Generals, Officers) ──
+    //Award XP to global users (Owner, Generals, Officers)\\
     if (isGlobalXPUser(uid)) {
         if (canGainXP('GLOBAL', uid)) {
             const result = addXP('GLOBAL', uid, 5);
             if (result.levelUp) {
-                // Announce levelup to all servers for global users
+                //Announce levelup to all servers for global users\\
         for (const [, srv] of client.guilds.cache) {
                     const ch = botData.levelupChannels?.[srv.id];
                 if (ch) {
@@ -1691,11 +1646,11 @@ if (botData.autoDeleteTargets?.[gid]?.[uid]) {
     }
     }
     } else {
-        // ── Award XP to per-server users (Enlisted & Regular) ──
+        //Award XP to per-server users (Enlisted & Regular)\\
         if (canGainXP(gid, uid)) {
             const result = addXP(gid, uid, 5);
             if (result.levelUp) {
-                // Announce levelup in this server
+                //Announce levelup in this server\\
                 const ch = botData.levelupChannels?.[gid];
                 if (ch) {
                     const chObj = client.channels.cache.get(ch);
