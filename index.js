@@ -1238,7 +1238,7 @@ client.on('messageDelete', async message => {
         }
     }
 
-    if (!message.guild || message.author?.bot) return;
+    if (!message.guild || !message.author || message.author.bot) return;
     //Counting — delete detection\\
     {
         const cd = getCountingData(message.guild.id);
@@ -1263,8 +1263,9 @@ client.on('messageDelete', async message => {
         const logs = await message.guild.fetchAuditLogs({ limit: 1 });
         const entry = logs.entries.first();
 
-        if (entry && entry.target?.id === message.author.id) {
+        if (entry && message.author && entry.target?.id === message.author.id) {
             executor = `<@${entry.executor.id}> (${entry.executor.id})`;
+        }
         }
     } catch {}
 
