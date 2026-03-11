@@ -8,9 +8,8 @@
 // ============================================================
 //GOOGLE GEMINI\\
 const { GoogleGenerativeAI } = require('@google/generative-ai');
-const genAI   = new GoogleGenerativeAI(process.env.GEMINI_KEY);
-const aiModel = genAI.getGenerativeModel({ model: 'gemini-1.5-flash' });
-
+const genAI   = new GoogleGenerativeAI(process.env.GOOGLE_API_KEY);
+const aiModel = genAI.getGenerativeModel({ model: 'gemini-2.5-flash' });
 // AI memory: stores last 4 exchanges per user { userId: [{role, parts}] }
 const aiMemory = new Map();
 const AI_MEMORY_LIMIT = 4;
