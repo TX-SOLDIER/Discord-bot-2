@@ -6,7 +6,19 @@
 // ============================================================
 // ☆ SECTION 1 START: IMPORTS & CLIENT SETUP ☆
 // ============================================================
+//GOOGLE GEMINI\\
+const { GoogleGenerativeAI } = require('@google/generative-ai');
+const genAI   = new GoogleGenerativeAI(process.env.GEMINI_KEY);
+const aiModel = genAI.getGenerativeModel({ model: 'gemini-1.5-flash' });
 
+// AI memory: stores last 4 exchanges per user { userId: [{role, parts}] }
+const aiMemory = new Map();
+const AI_MEMORY_LIMIT = 4;
+
+const AI_SYSTEM_PROMPT = `You are SOLDIER², a Discord bot assistant. 
+TX_SOLDIER is your creator — always refer to them with respect. 
+Keep all responses SHORT (2-4 sentences max). Never write long paragraphs. 
+Be helpful, direct, concise and with a military attitude willing to protect `;
 //IMPORTS\\
 const {
     Client,
@@ -1323,7 +1335,77 @@ client.on('messageReactionRemove', async (reaction, user) => {
         await member.roles.remove(role).catch(() => {});
 });
 
-//MESSAGE DELETE — Delete Reaction Role Data\\
+// ── Gemini AI — responds when bot is mentioned ──
+client.on('messageCreate', async message => {
+    if (message.author.bot) return;
+    if (!message.mentions.has(client.user)) return;
+
+    const question = message.content.replace(/<@!?\d+>/g, '').trim();
+    if (!question) return message.reply('👋 Mention me with a question and I\'ll answer!');
+
+    if (!process.env.GEMINI_KEY) {
+        return message.reply('❌ **AI Unavailable** — No API key configured.');
+    }
+
+    const uid = message.author.id;
+    const typing = await message.channel.sendTyping().catch(() => {});
+
+    try {
+        // Build history from memory
+        const history = aiMemory.get(uid) || [];
+
+        const chat = aiModel.startChat({
+            history: [
+                { role: 'user',  parts: [{ text: AI_SYSTEM_PROMPT }] },
+                { role: 'model', parts: [{ text: 'Understood. I am SOLDIER², created by TX_SOLDIER. I will keep all responses short and helpful.' }] },
+                ...history
+            ],
+            generationConfig: {
+                maxOutputTokens: 150,
+                temperature: 0.7,
+            },
+        });
+
+        const result   = await chat.sendMessage(question);
+        const response = result.response.text().trim();
+
+        // Update memory — keep last 4 exchanges
+        const updated = [...history,
+            { role: 'user',  parts: [{ text: question }] },
+            { role: 'model', parts: [{ text: response }] },
+        ];
+        if (updated.length > AI_MEMORY_LIMIT * 2) updated.splice(0, 2);
+        aiMemory.set(uid, updated);
+
+        const embed = new EmbedBuilder()
+            .setColor(0x4285F4)
+            .setAuthor({ name: 'SOLDIER² AI', iconURL: client.user.displayAvatarURL() })
+            .setDescription(response)
+            .setFooter({ text: `Memory: ${Math.floor(updated.length / 2)}/${AI_MEMORY_LIMIT} exchanges • Powered by Gemini` })
+            .setTimestamp();
+
+        return message.reply({ embeds: [embed] });
+
+    } catch (err) {
+        const errMsg = err?.message || '';
+        let reason = '❌ **AI Error** — Something went wrong.';
+
+        if (errMsg.includes('API_KEY_INVALID') || errMsg.includes('API key'))
+            reason = '❌ **AI Error** — Invalid or missing Gemini API key.';
+        else if (errMsg.includes('QUOTA_EXCEEDED') || errMsg.includes('quota'))
+            reason = '❌ **AI Unavailable** — Free tier quota reached. Try again tomorrow.';
+        else if (errMsg.includes('SAFETY'))
+            reason = '❌ **AI Blocked** — That message was blocked by Gemini safety filters.';
+        else if (errMsg.includes('503') || errMsg.includes('overloaded'))
+            reason = '❌ **AI Unavailable** — Gemini servers are currently overloaded. Try again shortly.';
+        else if (errMsg.includes('RECITATION'))
+            reason = '❌ **AI Error** — Gemini refused to answer due to recitation policy.';
+        else if (errMsg.includes('network') || errMsg.includes('ENOTFOUND'))
+            reason = '❌ **AI Unavailable** — Network error reaching Gemini servers.';
+
+        return message.reply(reason);
+    }
+});
 
 //DM Detection — notify owner when someone DMs the bot\\
 client.on('messageCreate', async message => {
@@ -3944,6 +4026,34 @@ if (botData.autoDeleteTargets?.[gid]?.[uid]) {
                 { name: '🗑️ Removed',      value: `XP cooldowns, command logs, duty statuses, antiraid snapshots`, inline: false },
                 { name: '🕐 Timestamp',     value: `<t:${Math.floor(Date.now()/1000)}:F>`, inline: false }
             ).setTimestamp().setFooter({ text: 'SOLDIER²' })] });
+    }
+    
+    //aistatus — Gemini AI status & memory info\\
+    if (command === 'aistatus') {
+        const userMemory = aiMemory.get(uid) || [];
+        const exchanges  = Math.floor(userMemory.length / 2);
+        const hasKey     = !!process.env.GEMINI_KEY;
+
+        let statusText = '🟢 **Online** — Ready to respond';
+        if (!hasKey) statusText = '🔴 **Offline** — No API key set';
+
+        const embed = new EmbedBuilder()
+            .setColor(hasKey ? 0x4285F4 : 0xe74c3c)
+            .setTitle('🤖 SOLDIER² — AI Status')
+            .addFields(
+                { name: '📡 Status',       value: statusText,                                      inline: false },
+                { name: '🧠 Model',        value: '`gemini-1.5-flash` (Free Tier)',                inline: true  },
+                { name: '📝 Max Tokens',   value: '150 per response',                              inline: true  },
+                { name: '💾 Your Memory',  value: `${exchanges}/${AI_MEMORY_LIMIT} exchanges stored`, inline: true },
+                { name: '🔁 Memory Reset', value: 'Auto-clears after 4 exchanges',                 inline: true  },
+                { name: '⚡ Trigger',      value: `Mention the bot: <@${client.user.id}> question`, inline: false },
+                { name: '📊 Outage Info',  value: '[Google AI Status](https://status.cloud.google.com)', inline: true },
+            )
+            .setThumbnail(client.user.displayAvatarURL())
+            .setFooter({ text: 'SOLDIER² AI • Powered by Google Gemini' })
+            .setTimestamp();
+
+        return reply({ embeds: [embed] });
     }
     if (command === 'ping') {
         const loadingEmbed = new EmbedBuilder()
