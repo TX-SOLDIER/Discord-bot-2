@@ -4125,6 +4125,8 @@ if (botData.autoDeleteTargets?.[gid]?.[uid]) {
                 `• \`${prefix}resetnick @user\` — Reset nickname\n\n` +
                 `**━━━ STAFF ━━━**\n` +
                 `• \`${prefix}stafflist\` — View all staff\n` +
+                `• \`${prefix}spam @user \` — spam plus dm spam\n` +
+                `• \`${prefix}aicheck \` — ai status check\n` +
                 `• \`${prefix}staffadd @user\` — Add to staff list\n` +
                 `• \`${prefix}staffremove @user\` — Remove from staff list\n` +
                 `• \`${prefix}duty on/off\` — Toggle on/off duty\n` +
