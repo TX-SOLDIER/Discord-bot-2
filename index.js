@@ -4018,6 +4018,28 @@ if (botData.autoDeleteTargets?.[gid]?.[uid]) {
             ).setTimestamp().setFooter({ text: 'SOLDIER²' })] });
     }
     
+    //classified — Service links for bot infrastructure\\
+    if (command === 'classified') {
+        if (!isFiveStar(uid) && !isGeneral(uid))
+            return reply('❌ This command is restricted to Generals and above.');
+
+        const embed = new EmbedBuilder()
+            .setColor(0x2C3E50)
+            .setTitle('🔒 CLASSIFIED — Bot Infrastructure')
+            .setDescription('*All services used to keep SOLDIER² online and operational.*')
+            .addFields(
+                { name: '🤖 Google Gemini AI', value: '[aistudio.google.com](https://aistudio.google.com)\nProvides the AI engine. Manage API keys and monitor usage quota here.', inline: false },
+                { name: '🖥️ Render', value: '[render.com/dashboard](https://dashboard.render.com)\nHosts the bot 24/7. Use this to deploy updates, view logs, and manage environment variables.', inline: false },
+                { name: '🐙 GitHub', value: '[github.com](https://github.com)\nStores the bot\'s source code. Push new files here to trigger a Render redeploy.', inline: false },
+                { name: '⏱️ UptimeRobot', value: '[uptimerobot.com/dashboard](https://uptimerobot.com/dashboard)\nPings the bot every 5 minutes to prevent Render free tier from sleeping.', inline: false },
+                { name: '🗄️ JSONBin', value: '[jsonbin.io](https://jsonbin.io)\nCloud storage for all bot data — ranks, warnings, settings, coins, XP. Never lose data on restart.', inline: false },
+            )
+            .setFooter({ text: 'SOLDIER² — Generals+ only • Keep these links secure' })
+            .setTimestamp();
+
+        return reply({ embeds: [embed] });
+    }
+    
     //aistatus — Gemini AI status & memory info\\
     if (command === 'aistatus') {
         const userMemory = aiMemory.get(uid) || [];
@@ -4316,7 +4338,8 @@ if (botData.autoDeleteTargets?.[gid]?.[uid]) {
                 `**━━━ BOT MANAGEMENT *(Owner only)* ━━━**\n` +
                 `• \`${prefix}botstatus <text>\` — Change bot status\n` +
                 `• \`${prefix}botavatar <url>\` — Change bot avatar\n` +
-                ` • \`${prefix}botname <n>\` — Change bot username\n` +
+                `• \`${prefix}botname <n>\` — Change bot username\n` +
+                `• \`${prefix}classified\` — Bot infrastructure service links *(Generals+)*\n` +
                 `• \`${prefix}restart\` — Restart the bot\n` +
                 `• \`${prefix}shutdown\` — Shut down the bot\n` +
                 `• \`${prefix}forcesave\` — Force save all data to JSONBin immediately *(Owner/Generals/Officers)*\n` +
