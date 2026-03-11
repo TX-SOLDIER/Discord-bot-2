@@ -1376,15 +1376,7 @@ client.on('messageCreate', async message => {
         if (updated.length > AI_MEMORY_LIMIT * 2) updated.splice(0, 2);
         aiMemory.set(uid, updated);
 
-        const embed = new EmbedBuilder()
-            .setColor(0x4285F4)
-            .setAuthor({ name: 'SOLDIER² AI', iconURL: client.user.displayAvatarURL() })
-            .setDescription(response)
-            .setFooter({ text: `Memory: ${Math.floor(updated.length / 2)}/${AI_MEMORY_LIMIT} exchanges • Powered by Gemini` })
-            .setTimestamp();
-
-        return message.reply({ embeds: [embed] });
-
+        return message.reply(response);
     } catch (err) {
         const errMsg = err?.message || '';
         let reason = `❌ **AI Error** — Something went wrong. \`${errMsg.slice(0, 100)}\``;
