@@ -1266,7 +1266,6 @@ client.on('messageDelete', async message => {
         if (entry && message.author && entry.target?.id === message.author.id) {
             executor = `<@${entry.executor.id}> (${entry.executor.id})`;
         }
-        }
     } catch {}
 
     const attachments = message.attachments.map(a => a.url);
