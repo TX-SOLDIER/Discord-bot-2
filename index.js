@@ -1400,9 +1400,8 @@ client.on('messageCreate', async message => {
             reason = '❌ **AI Unavailable** — Gemini servers are currently overloaded. Try again shortly.';
         else if (errMsg.includes('RECITATION'))
             reason = '❌ **AI Error** — Gemini refused to answer due to recitation policy.';
-        else if (errMsg.includes('network') || errMsg.includes('ENOTFOUND'))
-            reason = '❌ **AI Unavailable** — Network error reaching Gemini servers.';
-
+        else if (errMsg.includes('network') || errMsg.includes('ENOTFOUND') || errMsg.includes('Error fetching'))
+            reason = '❌ **AI Unavailable** — Render cannot reach Google\'s servers. This is a free tier network restriction.';
         return message.reply(reason);
     }
 });
