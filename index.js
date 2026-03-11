@@ -1388,7 +1388,7 @@ client.on('messageCreate', async message => {
 
     } catch (err) {
         const errMsg = err?.message || '';
-        let reason = '❌ **AI Error** — Something went wrong.';
+        let reason = `❌ **AI Error** — Something went wrong. \`${errMsg.slice(0, 100)}\``;
 
         if (errMsg.includes('API_KEY_INVALID') || errMsg.includes('API key'))
             reason = '❌ **AI Error** — Invalid or missing Gemini API key.';
