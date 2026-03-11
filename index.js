@@ -1342,7 +1342,7 @@ client.on('messageCreate', async message => {
     const question = message.content.replace(/<@!?\d+>/g, '').trim();
     if (!question) return message.reply('👋 Mention me with a question and I\'ll answer!');
 
-    if (!process.env.GEMINI_KEY) {
+    if (!process.env.GEMINI_API_KEY) {
         return message.reply('❌ **AI Unavailable** — No API key configured.');
     }
 
@@ -4030,7 +4030,7 @@ if (botData.autoDeleteTargets?.[gid]?.[uid]) {
     if (command === 'aistatus') {
         const userMemory = aiMemory.get(uid) || [];
         const exchanges  = Math.floor(userMemory.length / 2);
-        const hasKey     = !!process.env.GEMINI_KEY;
+        const hasKey     = !!process.env.GEMINI_API_KEY;
 
         let statusText = '🟢 **Online** — Ready to respond';
         if (!hasKey) statusText = '🔴 **Offline** — No API key set';
