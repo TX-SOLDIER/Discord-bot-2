@@ -1729,7 +1729,7 @@ if (botData.autoDeleteTargets?.[gid]?.[uid]) {
                     const chObj = client.channels.cache.get(ch);
                     if (chObj) {
                         const xpData = getUserXPData(gid, uid);
-                        chObj.send(`${PRESTIGE_SYMBOL}✨ <@${uid}> reached **Level ${result.newLevel}**${result.newLevel === MAX_LEVEL && xpData.prestige < MAX_PRESTIGE ? ' in ' + message.guild.name + ' — Ready to prestige!' : '!'}`)
+                        chObj.send(`${PRESTIGE_SYMBOL}☠ <@${uid}> reached **Level ${result.newLevel}**${result.newLevel === MAX_LEVEL && xpData.prestige < MAX_PRESTIGE ? ' in ' + message.guild.name + ' — Ready to prestige!' : '!'}`)
                             .catch(() => {});
     }
     }
