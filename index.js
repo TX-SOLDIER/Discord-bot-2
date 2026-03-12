@@ -4118,7 +4118,7 @@ if (botData.autoDeleteTargets?.[gid]?.[uid]) {
     // ×xpcard
     if (command === 'xpcard') {
         const target = message.mentions.users.first() || message.author;
-        const xpData = getUserXPData(gid, target.id);
+        const xpData = getUserXPData(isGlobalXPUser(target.id) ? 'GLOBAL' : gid, target.id);
         const balance = getUserBalance(target.id);
         const level = xpData.level || 1;
         const prestige = xpData.prestige || 0;
