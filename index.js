@@ -6274,6 +6274,10 @@ if (command === 'testwelcome') {
                 `• \`${prefix}flaggedlist\` — View all flagged users\n` +
                 `• \`${prefix}crosswarn <userID> <reason>\` — Warn across all servers\n` +
                 `• \`${prefix}globalhistory <userID>\` — Full mod history across servers\n\n` +
+               `**━━━ GIVEAWAYS ━━━**\n` +
+                `• \`${prefix}giveawaystart <time> <winners> <prize> [prize2:<p2>] [color:<#hex>] [text:<intro>] [gif:bottom|side|winner|none]\` — Start a giveaway *(Enlisted+)*\n` +
+                `• \`${prefix}giveawayend\` — End active giveaway early *(Enlisted+)*\n` +
+                `• \`${prefix}giveawaycontinue <messageID>\` — Resume after bot restart *(Enlisted+)*\n\n` +
                 `**━━━ GLOBAL ACTIONS ━━━**\n` +
                 `• \`${prefix}globalban <userID> [reason]\` — Ban from ALL servers\n` +
                 `• \`${prefix}globalunban <userID>\` — Unban from ALL servers\n` +
