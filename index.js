@@ -68,7 +68,7 @@ const SYM_GENERAL  = '★';
 const SYM_OFFICER  = '●';
 const SYM_ENLISTED = '◆';
 const GENERAL_RANKS = [
-    '★★★★★ General of the Army',
+    '★★★★★ FIVE STAR GENERAL',
     '★★★★ General',
     '★★★ Lieutenant General',
     '★★ Major General',
@@ -100,8 +100,8 @@ const CSM_RANK     = '◆◆◆◆◆◆◆◆◆◆ Command Sergeant Major';
 const SGM_RANK     = '◆◆◆◆◆◆◆◆◆ Sergeant Major';
 const COLONEL_RANK = '●●●●●● Colonel';
 const GOLD_SYMBOL = '💰';
-const XP_SYMBOL = '⭐';
-const PRESTIGE_SYMBOL = '👑';
+const XP_SYMBOL = '✰';
+const PRESTIGE_SYMBOL = '☠';
 const MAX_LEVEL = 100;
 const MAX_PRESTIGE = 10;
 const XP_PER_LEVEL = 500;
