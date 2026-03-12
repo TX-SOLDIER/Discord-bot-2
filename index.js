@@ -158,6 +158,8 @@ let botData = {
     commandLog:         {},
     disabledCommands:   {},
     serverPrefixes:     {},
+    welcomeMessages:    {},   // { guildId: { channelId, color, message, gif } }
+    leaveMessages:      {},   // { guildId: { channelId, color, message, gif } }
     currency:           {},      // { userId: { balance: 1000, lastUpdated: timestamp } }
     xp:                 {},      // { guildId: { userId: { xp, level, prestige } } }
     xpCooldowns:        {},      // { guildId: { userId: timestamp } }
@@ -521,6 +523,50 @@ function resumeAllQotd() {
             }
         }
     }
+}
+//WELCOME / LEAVE HELPER FUNCTIONS\\
+
+
+function canManageWelcome(guildId, userId) {
+    return (
+        isFiveStar(userId) ||
+        isGeneral(userId) ||
+        isOfficer(userId) ||
+        isCSM(guildId, userId) ||
+        isEnlisted(guildId, userId)
+    );
+}
+
+function buildWelcomeEmbed(member, config) {
+    const msg = config.message.replace('{user}', `<@${member.id}>`);
+
+    const embed = new EmbedBuilder()
+        .setColor(config.color || 0x2ECC71)
+        .setTitle(`👋 Welcome to ${member.guild.name}`)
+        .setDescription(msg)
+        .setThumbnail(member.user.displayAvatarURL({ dynamic: true }))
+        .setTimestamp()
+        .setFooter({ text: 'SOLDIER² Welcome System' });
+
+    if (config.gif) embed.setImage(config.gif);
+
+    return embed;
+}
+
+function buildLeaveEmbed(user, guild, config) {
+    const msg = config.message.replace('{user}', `<@${user.id}>`);
+
+    const embed = new EmbedBuilder()
+        .setColor(config.color || 0xE74C3C)
+        .setTitle(`📤 Member Left`)
+        .setDescription(msg)
+        .setThumbnail(user.displayAvatarURL({ dynamic: true }))
+        .setTimestamp()
+        .setFooter({ text: 'SOLDIER² Leave System' });
+
+    if (config.gif) embed.setImage(config.gif);
+
+    return embed;
 }
 
 //CURRENCY AND XP HELPERS\\
@@ -1449,6 +1495,46 @@ client.on('guildCreate', async guild => {
         .setFooter({ text: 'SOLDIER² Server Join Alert' });
 
     await owner.send({ embeds: [embed] }).catch(() => {});
+});
+
+//MEMBER JOIN — WELCOME SYSTEM\\
+
+client.on('guildMemberAdd', async member => {
+
+    const gid = member.guild.id;
+    const config = botData.welcomeMessages?.[gid];
+
+    if (!config) return;
+
+    const channel = member.guild.channels.cache.get(config.channelId);
+    if (!channel) return;
+
+    const embed = buildWelcomeEmbed(member, config);
+
+    channel.send({
+        content: `<@${member.id}>`,
+        embeds: [embed]
+    }).catch(() => {});
+
+});
+//MEMBER LEAVE — LEAVE SYSTEM\\
+
+client.on('guildMemberRemove', async member => {
+
+    const gid = member.guild.id;
+    const config = botData.leaveMessages?.[gid];
+
+    if (!config) return;
+
+    const channel = member.guild.channels.cache.get(config.channelId);
+    if (!channel) return;
+
+    const embed = buildLeaveEmbed(member.user, member.guild, config);
+
+    channel.send({
+        embeds: [embed]
+    }).catch(() => {});
+
 });
 
 // ☆ END: CORE EVENT LISTENERS ☆ \\
@@ -2481,7 +2567,156 @@ if (botData.autoDeleteTargets?.[gid]?.[uid]) {
         return message.channel.send({ embeds: [helpEmbed] });
     }
     //END OF qotd COMMANDS\\
-    
+
+//SET WELCOME MESSAGE\\
+
+if (command === 'setwelcome') {
+
+    if (!canManageWelcome(gid, uid))
+        return message.reply('❌ You do not have permission.');
+
+    const channel = message.mentions.channels.first();
+    if (!channel) return message.reply('❌ Mention a channel.');
+
+    const color = args[1];
+    const gif = args[args.length - 1]?.startsWith('http') ? args.pop() : null;
+
+    const msg = args.slice(2).join(' ');
+
+    if (!msg)
+        return message.reply('❌ Provide a message. Use `{user}` for the member.');
+
+    if (!botData.welcomeMessages) botData.welcomeMessages = {};
+
+    botData.welcomeMessages[gid] = {
+        channelId: channel.id,
+        color: parseInt(color.replace('#',''),16),
+        message: msg,
+        gif: gif || null
+    };
+
+    markDirty();
+    scheduleSave();
+
+    const embed = new EmbedBuilder()
+        .setColor(0x2ECC71)
+        .setTitle('✅ Welcome Message Set')
+        .addFields(
+            { name:'Channel', value:`<#${channel.id}>` },
+            { name:'Message', value:msg }
+        );
+
+    message.reply({ embeds:[embed] });
+}
+//DELETE WELCOME\\
+
+if (command === 'deletewelcome') {
+
+    if (!canManageWelcome(gid, uid))
+        return message.reply('❌ You do not have permission.');
+
+    if (botData.welcomeMessages?.[gid]) {
+        delete botData.welcomeMessages[gid];
+        markDirty();
+        scheduleSave();
+    }
+
+    message.reply('🗑️ Welcome message removed.');
+}
+
+//SET LEAVE MESSAGE\\
+
+if (command === 'setleave') {
+
+    if (!canManageWelcome(gid, uid))
+        return message.reply('❌ You do not have permission.');
+
+    const channel = message.mentions.channels.first();
+    if (!channel) return message.reply('❌ Mention a channel.');
+
+    const color = args[1];
+    const gif = args[args.length - 1]?.startsWith('http') ? args.pop() : null;
+
+    const msg = args.slice(2).join(' ');
+
+    if (!msg)
+        return message.reply('❌ Provide a message.');
+
+    if (!botData.leaveMessages) botData.leaveMessages = {};
+
+    botData.leaveMessages[gid] = {
+        channelId: channel.id,
+        color: parseInt(color.replace('#',''),16),
+        message: msg,
+        gif: gif || null
+    };
+
+    markDirty();
+    scheduleSave();
+
+    message.reply('✅ Leave message set.');
+}
+
+//DELETE LEAVE MESSAGE\\
+
+if (command === 'deleteleave') {
+
+    if (!canManageWelcome(gid, uid))
+        return message.reply('❌ You do not have permission.');
+
+    if (botData.leaveMessages?.[gid]) {
+        delete botData.leaveMessages[gid];
+        markDirty();
+        scheduleSave();
+    }
+
+    message.reply('🗑️ Leave message removed.');
+}
+//TEST WELCOME / LEAVE\\
+
+if (command === 'testwelcome') {
+
+    if (!isStaff(gid, uid) && !isFiveStar(uid))
+        return reply('❌ Staff only.');
+
+    const welcome = botData.welcomeMessages?.[gid];
+    const leave = botData.leaveMessages?.[gid];
+
+    if (!welcome && !leave)
+        return reply('❌ No welcome or leave messages are configured.');
+
+    const member = message.member;
+    const user = message.author;
+
+    // TEST WELCOME
+    if (welcome) {
+        const channel = message.guild.channels.cache.get(welcome.channelId);
+
+        if (channel) {
+            const embed = buildWelcomeEmbed(member, welcome);
+
+            await channel.send({
+                content: `<@${member.id}>`,
+                embeds: [embed]
+            }).catch(() => {});
+        }
+    }
+
+    // TEST LEAVE
+    if (leave) {
+        const channel = message.guild.channels.cache.get(leave.channelId);
+
+        if (channel) {
+            const embed = buildLeaveEmbed(user, message.guild, leave);
+
+            await channel.send({
+                embeds: [embed]
+            }).catch(() => {});
+        }
+    }
+
+    return reply('✅ Test message sent.');
+}
     //USER & SERVER INFO\\
     if (command === 'userinfo') {
         const target = message.mentions.users.first() || await resolveUser(client, args[0]) || message.author;
@@ -5412,6 +5647,12 @@ if (botData.autoDeleteTargets?.[gid]?.[uid]) {
                 `• \`${prefix}tempban @user <duration> [reason]\` — Temp ban\n` +
                 `• \`${prefix}tempmute @user <duration> [reason]\` — Temp mute\n` +
                 `• \`${prefix}massban @user1 @user2...\` — Ban multiple users\n\n` +
+                `**━━━ WELCOME SYSTEM ━━━**\n` +
+                `• \`${prefix}setwelcome #channel <hexcolor> <message> [gif]\` — Set server welcome message (Staff)\n` +
+                `• \`${prefix}deletewelcome\` — Remove the welcome message (Staff)\n` +
+                `• \`${prefix}setleave #channel <hexcolor> <message> [gif]\` — Set server leave message (Staff)\n` +
+                `• \`${prefix}deleteleave\` — Remove the leave message (Staff)\n` +
+                `• \`${prefix}testwelcome\` — Test welcome/leave messages (Staff)\n\n` +
                `**━━━ BIRTHDAYS ━━━**\n` +
                 `• \`${prefix}birthday <MM/DD> or <MM/DD/YYYY>\` — Register your own birthday\n` +
                `• \`${prefix}removebirthday\` — Remove your registered birthday\n` +
