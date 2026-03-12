@@ -4318,7 +4318,7 @@ if (botData.autoDeleteTargets?.[gid]?.[uid]) {
 
         // Balance
         ctx.fillStyle = '#FFD700'; ctx.font = '14px sans-serif';
-        ctx.fillText(`💰 ${balance.toLocaleString()} coins`, 175, 135);
+        ctx.fillText(`🜚 ${balance.toLocaleString()} coins`, 175, 135);
 
         // XP bar background
         ctx.fillStyle = '#333333';
