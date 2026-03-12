@@ -99,7 +99,7 @@ const ENLISTED_RANKS = [
 const CSM_RANK     = '◆◆◆◆◆◆◆◆◆◆ Command Sergeant Major';
 const SGM_RANK     = '◆◆◆◆◆◆◆◆◆ Sergeant Major';
 const COLONEL_RANK = '●●●●●● Colonel';
-const GOLD_SYMBOL = '🜚';
+const GOLD_SYMBOL = '​☉';
 const XP_SYMBOL = '✰';
 const PRESTIGE_SYMBOL = '☠';
 const MAX_LEVEL = 100;
@@ -4318,7 +4318,7 @@ if (botData.autoDeleteTargets?.[gid]?.[uid]) {
 
         // Balance
         ctx.fillStyle = '#FFD700'; ctx.font = '14px sans-serif';
-        ctx.fillText(`🜚 ${balance.toLocaleString()} coins`, 175, 135);
+        ctx.fillText(`​☉ ${balance.toLocaleString()} coins`, 175, 135);
 
         // XP bar background
         ctx.fillStyle = '#333333';
@@ -4452,14 +4452,14 @@ if (botData.autoDeleteTargets?.[gid]?.[uid]) {
             ctx.fillStyle='#ffffff';ctx.font='bold 11px sans-serif';ctx.textAlign='left';
             ctx.fillText(`${b.emoji} ${b.name}${isActive?' ✓':''}`,x+6,y+CARD_H-10);
             ctx.fillStyle=isOwned?'#00cc44':'#ffaa00';ctx.font='11px sans-serif';ctx.textAlign='right';
-            ctx.fillText(isOwned?'owned':`${b.price.toLocaleString()}🪙`,x+CARD_W-6,y+CARD_H-10);
+            ctx.fillText(isOwned?'owned':`${b.price.toLocaleString()}​☉`,x+CARD_W-6,y+CARD_H-10);
         }
         const att = new AttachmentBuilder(canvas.toBuffer('image/png'),{name:'backgrounds.png'});
         return message.channel.send({ embeds:[new EmbedBuilder()
             .setColor(0x5865F2).setTitle('🎨 XP Card Backgrounds')
             .setDescription(`✅ green border = owned  |  🔒 = locked  |  ✓ = active\n\n\`×buybg <name>\` — Purchase\n\`×setbg <name>\` — Equip\n\`×setaccent <#hex>\` — Change accent color`)
             .setImage('attachment://backgrounds.png')
-            .setFooter({text:`Your balance: ${balance.toLocaleString()} 🪙`})
+            .setFooter({text:`Your balance: ${balance.toLocaleString()} ​☉`})
         ], files:[att] });
     }
 
