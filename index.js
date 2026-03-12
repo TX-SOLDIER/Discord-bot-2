@@ -4880,6 +4880,287 @@ if (command === 'testwelcome') {
             .setDescription(`Your card accent is now **${hex}**.\nUse \`×xpcard\` to preview.`)
         ]});
                                 }
+    //GIVEAWAY COMMANDS\\
+    if (command === 'giveawaystart') {
+        if (!canManageGiveaways(gid, uid))
+            return message.reply('❌ You need a rank to start giveaways.');
+
+        if (botData.giveaways?.[gid] && !botData.giveaways[gid].ended)
+            return message.reply('❌ There is already an active giveaway in this server. Use `×giveawayend` to end it first.');
+
+        const raw = args.join(' ');
+
+        const durationStr = args[0];
+        const duration    = parseDuration(durationStr);
+        if (!duration)
+            return message.reply('❌ Invalid duration. Use format: `30m`, `2h`, `1d`');
+
+        const winnerCount = parseInt(args[1]);
+        if (isNaN(winnerCount) || winnerCount < 1 || winnerCount > 20)
+            return message.reply('❌ Winner count must be a number between 1 and 20.');
+
+        const rest = args.slice(2).join(' ');
+
+        function extractParam(str, key) {
+            const re = new RegExp(`\\|?\\s*${key}:([^|]+)`, 'i');
+            const m  = str.match(re);
+            return m ? m[1].trim() : null;
+        }
+
+        const prize2Param = extractParam(rest, 'prize2');
+        const colorParam  = extractParam(rest, 'color');
+        const textParam   = extractParam(rest, 'text');
+        const gifParam    = extractParam(rest, 'gif');
+
+        const basePrize = rest
+            .replace(/\|?\s*prize2:[^|]+/i, '')
+            .replace(/\|?\s*color:[^|]+/i,  '')
+            .replace(/\|?\s*text:[^|]+/i,   '')
+            .replace(/\|?\s*gif:[^|]+/i,    '')
+            .replace(/^\s*\|?\s*/, '')
+            .trim();
+
+        if (!basePrize)
+            return message.reply('❌ Please provide a prize.\nUsage: `×giveawaystart <time> <winners> <prize>`');
+
+        const prizeDisplay = prize2Param
+            ? `🥇 ${basePrize}\n🥈 ${prize2Param}`
+            : `🎁 ${basePrize}`;
+
+        let embedColor = 0xFF69B4;
+        if (colorParam) {
+            const cleaned = colorParam.replace('#', '');
+            const parsed  = parseInt(cleaned, 16);
+            if (!isNaN(parsed)) embedColor = parsed;
+        }
+
+        const introText = textParam || '🎊 A giveaway has started! React below to enter.';
+
+        let gifBottom = GIVEAWAY_GIF_BOTTOM;
+        let gifSide   = GIVEAWAY_GIF_SIDE;
+        let winnerGif = GIVEAWAY_WINNER_GIF;
+
+        if (gifParam) {
+            const gf = gifParam.toLowerCase();
+            if (gf === 'none')   { gifBottom = null; gifSide = null; }
+            if (gf === 'bottom') { gifSide   = null; }
+            if (gf === 'side')   { gifBottom = null; }
+            if (gf === 'winner') { gifBottom = null; gifSide = null; }
+        }
+
+        const endTime = Date.now() + duration;
+
+        const gData = {
+            channelId: message.channel.id,
+            messageId: null,
+            prize:     prizeDisplay,
+            text:      introText,
+            color:     embedColor,
+            winners:   winnerCount,
+            endTime,
+            gifBottom,
+            gifSide,
+            winnerGif,
+            ended:     false,
+            startedBy: uid,
+        };
+
+        const remaining   = duration;
+        const activeEmbed = buildGiveawayEmbed(gData, remaining);
+        const gMsg        = await message.channel.send({ embeds: [activeEmbed] });
+
+        await gMsg.react('🎉').catch(() => {});
+
+        gData.messageId = gMsg.id;
+
+        if (!botData.giveaways) botData.giveaways = {};
+        botData.giveaways[gid] = gData;
+        markDirty(); scheduleSave();
+
+        setTimeout(() => endGiveaway(client, gid), duration);
+
+        const confirmEmbed = new EmbedBuilder()
+            .setColor(embedColor)
+            .setTitle('✅ Giveaway Started!')
+            .addFields(
+                { name: '🎁 Prize',    value: prizeDisplay,                          inline: false },
+                { name: '⏱️ Duration', value: formatDuration(duration),              inline: true  },
+                { name: '🏆 Winners',  value: `${winnerCount}`,                      inline: true  },
+                { name: '📍 Channel',  value: `<#${message.channel.id}>`,            inline: true  },
+                { name: '🔗 Message',  value: `[Jump to Giveaway](${gMsg.url})`,     inline: false }
+            )
+            .setFooter({ text: 'SOLDIER² Giveaway System' })
+            .setTimestamp();
+
+        return message.reply({ embeds: [confirmEmbed] });
+    }
+    if (command === 'giveawayend') {
+        if (!canManageGiveaways(gid, uid))
+            return message.reply('❌ You need a rank to end giveaways.');
+
+        const gData = botData.giveaways?.[gid];
+        if (!gData || gData.ended)
+            return message.reply('❌ There is no active giveaway in this server.');
+
+        const channel = message.guild.channels.cache.get(gData.channelId);
+        if (!channel)
+            return message.reply('❌ Giveaway channel not found.');
+
+        const gMsg = await channel.messages.fetch(gData.messageId).catch(() => null);
+        if (!gMsg)
+            return message.reply('❌ Giveaway message not found. It may have been deleted.');
+
+        const reaction = gMsg.reactions.cache.get('🎉');
+        const users    = reaction ? await reaction.users.fetch() : new Map();
+        const entries  = [...users.values()].filter(u => !u.bot).map(u => u.id);
+
+        if (entries.length === 0) {
+            gData.ended = true;
+            markDirty(); scheduleSave();
+
+            const noEntryEmbed = new EmbedBuilder()
+                .setColor(gData.color)
+                .setTitle('🎉 GIVEAWAY ENDED')
+                .setDescription(`**Prize**\n${gData.prize}\n\n😔 **No valid entries — no winner this time.**`)
+                .setFooter({ text: 'SOLDIER² Giveaway System' })
+                .setTimestamp();
+
+            if (gData.winnerGif) noEntryEmbed.setImage(gData.winnerGif);
+            await gMsg.edit({ embeds: [noEntryEmbed] });
+            return message.reply('✅ Giveaway ended. No entries were found.');
+        }
+
+        const winnerMentions = [];
+        const pool = [...entries];
+        const picks = Math.min(gData.winners, pool.length);
+        for (let i = 0; i < picks; i++) {
+            const idx = Math.floor(Math.random() * pool.length);
+            winnerMentions.push(`<@${pool.splice(idx, 1)[0]}>`);
+        }
+
+        const winnerStr   = winnerMentions.join(', ');
+        const winnerEmbed = buildWinnerEmbed(gData, winnerStr);
+        await gMsg.edit({ embeds: [winnerEmbed] });
+
+        gData.ended = true;
+        markDirty(); scheduleSave();
+
+        const announceEmbed = new EmbedBuilder()
+            .setColor(gData.color)
+            .setTitle('🎊 Giveaway Winner(s) Announced!')
+            .setDescription(`Congratulations ${winnerStr}!\nYou won: **${gData.prize}**\n\n🔗 [Jump to Giveaway](${gMsg.url})`)
+            .setFooter({ text: 'SOLDIER² Giveaway System' })
+            .setTimestamp();
+
+        if (gData.winnerGif) announceEmbed.setImage(gData.winnerGif);
+
+        return message.channel.send({ embeds: [announceEmbed] });
+    }
+    if (command === 'giveawaycontinue') {
+        if (!canManageGiveaways(gid, uid))
+            return message.reply('❌ You need a rank to continue giveaways.');
+
+        const targetMsgId = args[0];
+        if (!targetMsgId)
+            return message.reply('❌ Please provide the giveaway message ID.\nUsage: `×giveawaycontinue <messageID>`');
+
+        const existing = botData.giveaways?.[gid];
+        if (existing && !existing.ended)
+            return message.reply(`❌ There is already an active giveaway in this server. End it first with \`×giveawayend\`.`);
+
+        let foundMsg     = null;
+        let foundChannel = null;
+
+        for (const ch of message.guild.channels.cache.values()) {
+            if (!ch.isTextBased()) continue;
+            const m = await ch.messages.fetch(targetMsgId).catch(() => null);
+            if (m) { foundMsg = m; foundChannel = ch; break; }
+        }
+
+        if (!foundMsg)
+            return message.reply('❌ Could not find that message ID in any channel. Make sure the message still exists.');
+
+        const embed = foundMsg.embeds?.[0];
+        if (!embed || !embed.title?.includes('GIVEAWAY'))
+            return message.reply('❌ That message does not appear to be a SOLDIER² giveaway embed.');
+
+        const promptEmbed = new EmbedBuilder()
+            .setColor(0x3498DB)
+            .setTitle('⏱️ Giveaway Continue — Set Remaining Time')
+            .setDescription(
+                `Found the giveaway message in <#${foundChannel.id}>.\n\n` +
+                `**Reply with the remaining time** (e.g. \`30m\`, \`2h\`, \`1d\`) ` +
+                `to resume the countdown from now.\n\nYou have 30 seconds to respond.`
+            )
+            .setFooter({ text: 'SOLDIER² Giveaway System' });
+
+        await message.reply({ embeds: [promptEmbed] });
+
+        const filter    = m => m.author.id === uid;
+        const collected = await message.channel.awaitMessages({ filter, max: 1, time: 30000, errors: ['time'] })
+            .catch(() => null);
+
+        if (!collected || collected.size === 0)
+            return message.channel.send('⏱️ Timed out. Giveaway continue cancelled.');
+
+        const timeInput   = collected.first().content.trim();
+        const newDuration = parseDuration(timeInput);
+        if (!newDuration)
+            return message.channel.send('❌ Invalid duration. Giveaway continue cancelled.');
+
+        const oldDescription = embed.description || '';
+
+        const prizeMatch  = oldDescription.match(/\*\*Prize\*\*\s*\n([^\n]+(?:\n[^\n]+)?)/);
+        const savedPrize  = prizeMatch ? prizeMatch[1].trim() : '*(prize not recovered — check original embed)*';
+
+        const winnerMatch  = oldDescription.match(/\*\*Winners\*\*\s*\n(\d+)/);
+        const savedWinners = winnerMatch ? parseInt(winnerMatch[1]) : 1;
+
+        const newEndTime = Date.now() + newDuration;
+
+        const resumedData = {
+            channelId: foundChannel.id,
+            messageId: targetMsgId,
+            prize:     savedPrize,
+            text:      '🔄 Giveaway resumed after bot restart!',
+            color:     embed.color ?? 0xFF69B4,
+            winners:   savedWinners,
+            endTime:   newEndTime,
+            gifBottom: GIVEAWAY_GIF_BOTTOM,
+            gifSide:   GIVEAWAY_GIF_SIDE,
+            winnerGif: GIVEAWAY_WINNER_GIF,
+            ended:     false,
+            startedBy: uid,
+            resumed:   true,
+        };
+
+        if (!botData.giveaways) botData.giveaways = {};
+        botData.giveaways[gid] = resumedData;
+        markDirty(); scheduleSave();
+
+        const updatedEmbed = buildGiveawayEmbed(resumedData, newDuration);
+        await foundMsg.edit({ embeds: [updatedEmbed] }).catch(() => {});
+
+        const existingReaction = foundMsg.reactions.cache.get('🎉');
+        if (!existingReaction) await foundMsg.react('🎉').catch(() => {});
+
+        setTimeout(() => endGiveaway(client, gid), newDuration);
+
+        const successEmbed = new EmbedBuilder()
+            .setColor(0x00FF7F)
+            .setTitle('✅ Giveaway Resumed!')
+            .addFields(
+                { name: '🎁 Prize',        value: savedPrize,                              inline: false },
+                { name: '⏱️ New Duration', value: formatDuration(newDuration),             inline: true  },
+                { name: '🏆 Winners',      value: `${savedWinners}`,                       inline: true  },
+                { name: '📍 Channel',      value: `<#${foundChannel.id}>`,                 inline: true  },
+                { name: '🔗 Message',      value: `[Jump to Giveaway](${foundMsg.url})`,   inline: false }
+            )
+            .setFooter({ text: 'SOLDIER² Giveaway System' })
+            .setTimestamp();
+
+        return message.channel.send({ embeds: [successEmbed] });
+    }
     // ============================================================
     // ━━━ GAMES ━━━
     // ============================================================
