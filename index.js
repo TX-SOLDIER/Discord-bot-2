@@ -1193,7 +1193,7 @@ client.on('messageUpdate', async (oldMsg, newMsg) => {
         try { await newMsg.fetch(); } catch { return; }
     }
 
-    if (!oldMsg.guild || oldMsg.author?.bot) return;
+    if (!oldMsg.guild || !oldMsg.author || oldMsg.author.bot) return;
     if (oldMsg.content === newMsg.content) return;
     //Counting — edit detection\\
     {
