@@ -4876,6 +4876,20 @@ if (command === 'testwelcome') {
         if (!canManageGiveaways(gid, uid))
             return message.reply('❌ You need a rank to start giveaways.');
 
+        if (!args.length)
+            return message.reply(
+                '❌ Missing arguments.\n\n' +
+                '**Usage:** `×giveawaystart <time> <winners> <prize>`\n\n' +
+                '**Optional add-ons** *(separate with `|`)*\n' +
+                '`prize2:<second prize>` — Add a second prize\n' +
+                '`color:<#hex>` — Custom embed color\n' +
+                '`text:<intro>` — Custom intro text\n' +
+                '`gif:bottom|side|winner|none` — GIF placement\n\n' +
+                '**Examples:**\n' +
+                '`×giveawaystart 1h 1 Nitro Classic`\n' +
+                '`×giveawaystart 30m 2 Steam Key | prize2:Discord Sticker | color:#FFD700`'
+            );
+
         if (botData.giveaways?.[gid] && !botData.giveaways[gid].ended)
             return message.reply('❌ There is already an active giveaway in this server. Use `×giveawayend` to end it first.');
 
