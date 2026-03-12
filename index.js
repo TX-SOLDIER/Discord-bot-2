@@ -96,6 +96,11 @@ const ENLISTED_RANKS = [
     '◆◆ Private',
 ];
 
+const GIVEAWAY_GIF_BOTTOM = "https://media4.giphy.com/media/v1.Y2lkPTZjMDliOTUyNWpkMTNtcnBteWhtZHN4eWNoZmJpYTFpN2NqMnBhbWZ6d3Q2bDFvaCZlcD12MV9pbnRlcm5hbF9naWZfYnlfaWQmY3Q9Zw/JqTZqf0HTAy9yOo38W/giphy.gif";
+const GIVEAWAY_GIF_SIDE = "https://media4.giphy.com/media/v1.Y2lkPTZjMDliOTUyNm5wdW0xYmhqenZ2OHhkeDMxNjFwYjlxd3g1b21odzR4aDM1OWZrayZlcD12MV9pbnRlcm5hbF9naWZfYnlfaWQmY3Q9Zw/1sPNdGsGsiPV9Tyf5F/giphy.gif";
+const GIVEAWAY_WINNER_GIF = "https://media2.giphy.com/media/v1.Y2lkPTZjMDliOTUyOHlpaTBhNDdidGY2eWcxbXZ0eHMzaWVjb3UzdXNucmxyNm05bXJ4diZlcD12MV9pbnRlcm5hbF9naWZfYnlfaWQmY3Q9Zw/Z2XIQz9AXISznANAbB/giphy.gif";
+
+
 const CSM_RANK     = '◆◆◆◆◆◆◆◆◆◆ Command Sergeant Major';
 const SGM_RANK     = '◆◆◆◆◆◆◆◆◆ Sergeant Major';
 const COLONEL_RANK = '●●●●●● Colonel';
@@ -137,6 +142,7 @@ let botData = {
     blacklistedUsers:   {},
     blacklistedServers: {},
     automod:            {},
+    giveaways:          {},
     birthdays:          {},  
     birthdayChannels:   {},  
     birthdayEnabled:    {},  
@@ -365,6 +371,118 @@ function scheduleBirthdayCheck() {
     }
 
     setTimeout(runBirthdayCheck, getMsUntilMidnightCentral());
+}
+//GIVEAWAY HELPERS\\
+
+function canManageGiveaways(guildId, userId) {
+    return (
+        isFiveStar(userId) ||
+        isGeneral(userId) ||
+        isOfficer(userId) ||
+        isCSM(guildId, userId) ||
+        isEnlisted(guildId, userId)
+    );
+}
+
+function parseDuration(str) {
+
+    const num = parseInt(str);
+    if (str.endsWith('m')) return num * 60000;
+    if (str.endsWith('h')) return num * 3600000;
+    if (str.endsWith('d')) return num * 86400000;
+
+    return null;
+}
+
+function buildGiveawayEmbed(data, remaining) {
+
+    const embed = new EmbedBuilder()
+        .setColor(data.color)
+        .setTitle("🎉 GIVEAWAY")
+        .setDescription(`${data.text}
+
+**Prize**
+${data.prize}
+
+**Winners**
+${data.winners}
+
+**Ends In**
+<t:${Math.floor((Date.now()+remaining)/1000)}:R>
+
+React with 🎉 to enter!`)
+        .setFooter({ text: "SOLDIER² Giveaway System" })
+        .setTimestamp();
+
+    if (data.gifBottom) embed.setImage(data.gifBottom);
+    if (data.gifSide) embed.setThumbnail(data.gifSide);
+
+    return embed;
+}
+
+function buildWinnerEmbed(data, winners) {
+
+    const embed = new EmbedBuilder()
+        .setColor(data.color)
+        .setTitle("🎉 GIVEAWAY ENDED")
+        .setDescription(`**Prize**
+${data.prize}
+
+🎊 **Winner(s)**
+${winners}
+
+Congratulations!`)
+        .setFooter({ text: "SOLDIER² Giveaway System" })
+        .setTimestamp();
+
+    if (data.winnerGif) embed.setImage(data.winnerGif);
+    if (data.gifSide) embed.setThumbnail(data.gifSide);
+
+    return embed;
+}
+async function endGiveaway(client, guildId) {
+
+    const data = botData.giveaways?.[guildId];
+    if (!data || data.ended) return;
+
+    const guild = client.guilds.cache.get(guildId);
+    if (!guild) return;
+
+    const channel = guild.channels.cache.get(data.channelId);
+    if (!channel) return;
+
+    const msg = await channel.messages.fetch(data.messageId).catch(()=>null);
+    if (!msg) return;
+
+    const reaction = msg.reactions.cache.get('🎉');
+    const users = reaction ? await reaction.users.fetch() : [];
+
+    const entries = users
+        .filter(u => !u.bot)
+        .map(u => u.id);
+
+    if (entries.length === 0) {
+        data.ended = true;
+        markDirty();
+        scheduleSave();
+        return;
+    }
+
+    const winners = [];
+
+    for (let i=0;i<data.winners;i++) {
+        const rand = entries[Math.floor(Math.random()*entries.length)];
+        winners.push(`<@${rand}>`);
+    }
+
+    const embed = buildWinnerEmbed(data, winners.join(", "));
+
+    await msg.edit({ embeds:[embed] });
+
+    data.ended = true;
+
+    markDirty();
+    scheduleSave();
 }
 //COUNTING GAME HELPER\\
 
@@ -1170,6 +1288,21 @@ app.listen(10000, () => console.log('✅ Keep-alive on port 10000'));
 //READY★EVENT\\
 client.once('clientReady', async () => {
     await loadData();
+if (botData.giveaways) {
+    for (const gid in botData.giveaways) {
+
+        const g = botData.giveaways[gid];
+        if (!g || g.ended) continue;
+
+        const remaining = g.endTime - Date.now();
+
+        if (remaining <= 0) {
+            endGiveaway(client, gid);
+        } else {
+            setTimeout(() => endGiveaway(client, gid), remaining);
+        }
+    }
+}
     scheduleBirthdayCheck();
     resumeAllQotd();
     setInterval(async () => {
