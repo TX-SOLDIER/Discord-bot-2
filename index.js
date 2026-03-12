@@ -99,7 +99,7 @@ const ENLISTED_RANKS = [
 const CSM_RANK     = '◆◆◆◆◆◆◆◆◆◆ Command Sergeant Major';
 const SGM_RANK     = '◆◆◆◆◆◆◆◆◆ Sergeant Major';
 const COLONEL_RANK = '●●●●●● Colonel';
-const GOLD_SYMBOL = '✦';
+const GOLD_SYMBOL = '🜚';
 const XP_SYMBOL = '✰';
 const PRESTIGE_SYMBOL = '☠';
 const MAX_LEVEL = 100;
@@ -1759,7 +1759,7 @@ if (botData.autoDeleteTargets?.[gid]?.[uid]) {
         return handleCSMTransfer(target, message.guild, uid, reply);
     }
     if (command === 'myrank') {
-        if (isFiveStar(uid)) return reply('★★★★★ You are the **GENERAL** — absolute authority.');
+        if (isFiveStar(uid)) return reply('★★★★★ You are the **FIVE STAR GENERAL** — absolute authority.');
         const rank = getHighestRank(gid, uid);
         if (!rank) return reply('❌ You have no rank. You are a **Civilian**.');
         return reply({ embeds: [new EmbedBuilder().setColor(0x00CED1).setTitle('🎖️ Your Rank')
