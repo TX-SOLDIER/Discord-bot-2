@@ -384,15 +384,6 @@ function canManageGiveaways(guildId, userId) {
     );
 }
 
-function parseDuration(str) {
-
-    const num = parseInt(str);
-    if (str.endsWith('m')) return num * 60000;
-    if (str.endsWith('h')) return num * 3600000;
-    if (str.endsWith('d')) return num * 86400000;
-
-    return null;
-}
 
 function buildGiveawayEmbed(data, remaining) {
 
