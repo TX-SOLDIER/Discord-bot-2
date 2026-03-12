@@ -5182,6 +5182,7 @@ if (botData.autoDeleteTargets?.[gid]?.[uid]) {
         await message.channel.send({ embeds: [embed3] });
         await message.channel.send({ embeds: [embed4] });
         return;
+    }
 
     // --------------------------------------------------
     // ×staffhelp — Staff help Generals/Officers/Owner only
