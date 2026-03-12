@@ -4360,13 +4360,13 @@ if (botData.autoDeleteTargets?.[gid]?.[uid]) {
             { name:'gold',        price:5000,  emoji:'✨', desc:'Golden dark' },
             { name:'arctic',      price:5000,  emoji:'❄️', desc:'Icy blue' },
             { name:'void',        price:8000,  emoji:'⚫', desc:'Pure void' },
-            { name:'cod',         price:6000,  emoji:'🔫', desc:'COD MW2 camo' },
+            { name:'warrior,         price:6000,  emoji:'🔫', desc:'COD MW2 camo' },
             { name:'fallout',     price:6000,  emoji:'☢️', desc:'Fallout wasteland' },
-            { name:'battlefield', price:6000,  emoji:'💥', desc:'Battlefield smoke' },
+            { name:'battle', price:6000,  emoji:'💥', desc:'Battlefield smoke' },
             { name:'pokemon',     price:5000,  emoji:'⚡', desc:'Pokémon trainer' },
             { name:'neon',        price:7000,  emoji:'🌈', desc:'Neon city' },
             { name:'hacker',      price:7000,  emoji:'💻', desc:'Matrix hacker' },
-            { name:'kawaii',      price:5000,  emoji:'🌸', desc:'Cute kawaii' },
+            { name:'Kawaii',      price:5000,  emoji:'🌸', desc:'Cute kawaii' },
         ];
         const owned = botData.cardSettings?.[uid]?.ownedBgs || ['default'];
         const current = botData.cardSettings?.[uid]?.bg || 'default';
