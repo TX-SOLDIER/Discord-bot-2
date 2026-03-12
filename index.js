@@ -4878,16 +4878,8 @@ if (command === 'testwelcome') {
 
         if (!args.length)
             return message.reply(
-                '❌ Missing arguments.\n\n' +
-                '**Usage:** `×giveawaystart <time> <winners> <prize>`\n\n' +
-                '**Optional add-ons** *(separate with `|`)*\n' +
-                '`prize2:<second prize>` — Add a second prize\n' +
-                '`color:<#hex>` — Custom embed color\n' +
-                '`text:<intro>` — Custom intro text\n' +
-                '`gif:bottom|side|winner|none` — GIF placement\n\n' +
-                '**Examples:**\n' +
-                '`×giveawaystart 1h 1 Nitro Classic`\n' +
-                '`×giveawaystart 30m 2 Steam Key | prize2:Discord Sticker | color:#FFD700`'
+                '❌ **Usage:** `×giveawaystart <time> <winners> <prize>`\n' +
+                '**Example:** `×giveawaystart 1h 1 test | prize2:also test | color:#FFD700 | text:Good luck!`'
             );
 
         if (botData.giveaways?.[gid] && !botData.giveaways[gid].ended)
