@@ -4976,20 +4976,7 @@ if (command === 'testwelcome') {
 
         setTimeout(() => endGiveaway(client, gid), duration);
 
-        const confirmEmbed = new EmbedBuilder()
-            .setColor(embedColor)
-            .setTitle('✅ Giveaway Started!')
-            .addFields(
-                { name: '🎁 Prize',    value: prizeDisplay,                          inline: false },
-                { name: '⏱️ Duration', value: formatDuration(duration),              inline: true  },
-                { name: '🏆 Winners',  value: `${winnerCount}`,                      inline: true  },
-                { name: '📍 Channel',  value: `<#${message.channel.id}>`,            inline: true  },
-                { name: '🔗 Message',  value: `[Jump to Giveaway](${gMsg.url})`,     inline: false }
-            )
-            .setFooter({ text: 'SOLDIER² Giveaway System' })
-            .setTimestamp();
-
-        return message.reply({ embeds: [confirmEmbed] });
+        return;
     }
     if (command === 'giveawayend') {
         if (!canManageGiveaways(gid, uid))
