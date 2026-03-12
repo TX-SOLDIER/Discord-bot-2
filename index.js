@@ -5173,8 +5173,7 @@ if (botData.autoDeleteTargets?.[gid]?.[uid]) {
                 `• \`${prefix}pp [@user]\` — PP size meter\n` +
                 `• \`${prefix}ship @user1 @user2\` — Compatibility meter`
             )
-            .setFooter({ text: 'SOLDIER² — Bot developer: TX-SOLDIER' });
-        .setImage('https://media.giphy.com/media/3o7TKSjRrfIPjeiVyM/giphy.gif')
+            .setImage('https://media.giphy.com/media/3o7TKSjRrfIPjeiVyM/giphy.gif')
             .setFooter({ text: 'SOLDIER² — Bot developer: TX-SOLDIER' });
 
 
