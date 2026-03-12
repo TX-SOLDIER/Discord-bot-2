@@ -4127,7 +4127,7 @@ if (botData.autoDeleteTargets?.[gid]?.[uid]) {
         const progress = Math.min(currentXP / xpNeeded, 1);
 
         let rankTitle = 'Civilian';
-        if (target.id === OWNER_ID) rankTitle = 'FIVE STAR GENERAL;
+        if (target.id === OWNER_ID) rankTitle = 'FIVE STAR GENERAL';
         else if (getGeneralRank(target.id)) rankTitle = getGeneralRank(target.id);
         else if (getOfficerRank(target.id)) rankTitle = getOfficerRank(target.id);
         else if (getEnlistedRank(gid, target.id)) rankTitle = getEnlistedRank(gid, target.id);
