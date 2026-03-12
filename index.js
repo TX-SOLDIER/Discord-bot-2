@@ -154,6 +154,7 @@ let botData = {
     counting:           {},
     timedBans:          [],
     timedMutes:         [],
+    cardSettings:       {},
     commandLog:         {},
     disabledCommands:   {},
     serverPrefixes:     {},
@@ -4114,6 +4115,403 @@ if (botData.autoDeleteTargets?.[gid]?.[uid]) {
 
         return sent.edit({ embeds: [resultEmbed] });
     }
+    // ×xpcard
+    if (command === 'xpcard') {
+        const target = message.mentions.users.first() || message.author;
+        const xpData = getUserXPData(gid, target.id);
+        const balance = getUserBalance(target.id);
+        const level = xpData.level || 1;
+        const prestige = xpData.prestige || 0;
+        const currentXP = xpData.xp || 0;
+        const xpNeeded = XP_PER_LEVEL;
+        const progress = Math.min(currentXP / xpNeeded, 1);
+
+        let rankTitle = 'Civilian';
+        if (target.id === OWNER_ID) rankTitle = '★★★★★ General of the Army';
+        else if (getGeneralRank(target.id)) rankTitle = getGeneralRank(target.id);
+        else if (getOfficerRank(target.id)) rankTitle = getOfficerRank(target.id);
+        else if (getEnlistedRank(gid, target.id)) rankTitle = getEnlistedRank(gid, target.id);
+
+        const cardCfg = botData.cardSettings?.[target.id] || {};
+        const accent = cardCfg.accent || '#5865F2';
+        const bgName = cardCfg.bg || 'default';
+
+        const BG_COLORS = {
+            default:['#1a1a2e','#16213e'], military:['#2d4a1e','#1a2e0f'],
+            midnight:['#0a0a0a','#1a1a3e'], sunset:['#3d1c02','#6b2d00'],
+            ocean:['#001a33','#003366'], crimson:['#2e0000','#5c0000'],
+            forest:['#0d2e0d','#1a4a1a'], gold:['#2e2200','#5c4400'],
+            arctic:['#0d1f2e','#1a3a4a'], void:['#050505','#0f0f0f'],
+            cod:['#0a0a0a','#1a0f00'], fallout:['#1a1200','#2e2000'],
+            battlefield:['#0a0f1a','#1a2030'], pokemon:['#1a0000','#2e0000'],
+            neon:['#0a0a1a','#000a1a'], hacker:['#000a00','#001400'],
+            kawaii:['#2e0a2e','#1a0a2e'],
+        };
+
+        const colors = BG_COLORS[bgName] || BG_COLORS.default;
+        const W = 700, H = 220;
+        const canvas = createCanvas(W, H);
+        const ctx = canvas.getContext('2d');
+
+        // Base gradient
+        const bgGrad = ctx.createLinearGradient(0, 0, W, H);
+        bgGrad.addColorStop(0, colors[0]);
+        bgGrad.addColorStop(1, colors[1]);
+        ctx.fillStyle = bgGrad;
+        ctx.beginPath(); ctx.roundRect(0, 0, W, H, 20); ctx.fill();
+
+        // Theme overlays
+        if (bgName === 'cod') {
+            ctx.globalAlpha = 0.18;
+            for (let i = 0; i < 60; i++) {
+                ctx.fillStyle = ['#3a2a00','#2a1a00','#4a3a10','#1a1000'][i%4];
+                ctx.beginPath();
+                ctx.ellipse(Math.random()*W, Math.random()*H, 20+Math.random()*30, 10+Math.random()*15, Math.random()*Math.PI, 0, Math.PI*2);
+                ctx.fill();
+            }
+            ctx.globalAlpha = 1;
+            ctx.strokeStyle = 'rgba(255,80,0,0.25)'; ctx.lineWidth = 1;
+            ctx.beginPath(); ctx.moveTo(W*0.75, H*0.1); ctx.lineTo(W*0.75, H*0.9); ctx.stroke();
+            ctx.beginPath(); ctx.moveTo(W*0.6, H*0.5); ctx.lineTo(W*0.9, H*0.5); ctx.stroke();
+            ctx.beginPath(); ctx.arc(W*0.75, H*0.5, 30, 0, Math.PI*2); ctx.stroke();
+            ctx.globalAlpha = 0.06; ctx.fillStyle = '#ff6600'; ctx.font = 'bold 80px sans-serif'; ctx.textAlign = 'right';
+            ctx.fillText('MW2', W-20, H-10); ctx.globalAlpha = 1;
+        }
+        if (bgName === 'fallout') {
+            ctx.globalAlpha = 0.08;
+            for (let y = 0; y < H; y += 4) { ctx.fillStyle = '#aaff00'; ctx.fillRect(0, y, W, 2); }
+            ctx.globalAlpha = 1;
+            ctx.globalAlpha = 0.12; ctx.fillStyle = '#aaff00';
+            ctx.font = 'bold 120px sans-serif'; ctx.textAlign = 'right';
+            ctx.fillText('☢', W-10, H+10); ctx.globalAlpha = 1;
+            const vg = ctx.createRadialGradient(W/2, H/2, H*0.3, W/2, H/2, H*1.2);
+            vg.addColorStop(0, 'transparent'); vg.addColorStop(1, 'rgba(0,80,0,0.5)');
+            ctx.fillStyle = vg; ctx.fillRect(0, 0, W, H);
+        }
+        if (bgName === 'battlefield') {
+            const sg = ctx.createRadialGradient(W*0.3, H*0.4, 10, W*0.3, H*0.4, 200);
+            sg.addColorStop(0, 'rgba(180,120,60,0.25)'); sg.addColorStop(1, 'transparent');
+            ctx.fillStyle = sg; ctx.fillRect(0, 0, W, H);
+            const sg2 = ctx.createRadialGradient(W*0.75, H*0.6, 5, W*0.75, H*0.6, 150);
+            sg2.addColorStop(0, 'rgba(200,100,30,0.2)'); sg2.addColorStop(1, 'transparent');
+            ctx.fillStyle = sg2; ctx.fillRect(0, 0, W, H);
+            ctx.strokeStyle = 'rgba(100,150,200,0.08)'; ctx.lineWidth = 1;
+            for (let hx = 0; hx < W; hx += 40) {
+                for (let hy = 0; hy < H; hy += 35) {
+                    const ox = (hy/35)%2===0?0:20;
+                    ctx.beginPath();
+                    for (let a = 0; a < 6; a++) {
+                        const ax = hx+ox+18*Math.cos(a*Math.PI/3), ay = hy+18*Math.sin(a*Math.PI/3);
+                        a===0?ctx.moveTo(ax,ay):ctx.lineTo(ax,ay);
+                    }
+                    ctx.closePath(); ctx.stroke();
+                }
+            }
+            ctx.globalAlpha = 0.05; ctx.fillStyle = '#ffffff';
+            ctx.font = 'bold 70px sans-serif'; ctx.textAlign = 'right';
+            ctx.fillText('BF', W-15, H-10); ctx.globalAlpha = 1;
+        }
+        if (bgName === 'pokemon') {
+            ctx.globalAlpha = 0.15;
+            ctx.fillStyle = '#cc0000'; ctx.beginPath(); ctx.arc(W-80, H/2, 90, Math.PI, 0); ctx.fill();
+            ctx.fillStyle = '#ffffff'; ctx.beginPath(); ctx.arc(W-80, H/2, 90, 0, Math.PI); ctx.fill();
+            ctx.strokeStyle = '#000000'; ctx.lineWidth = 6;
+            ctx.beginPath(); ctx.arc(W-80, H/2, 90, 0, Math.PI*2); ctx.stroke();
+            ctx.beginPath(); ctx.moveTo(W-170, H/2); ctx.lineTo(W+10, H/2); ctx.stroke();
+            ctx.fillStyle = '#ffffff'; ctx.beginPath(); ctx.arc(W-80, H/2, 22, 0, Math.PI*2); ctx.fill();
+            ctx.strokeStyle = '#000000'; ctx.lineWidth = 4;
+            ctx.beginPath(); ctx.arc(W-80, H/2, 22, 0, Math.PI*2); ctx.stroke();
+            ctx.globalAlpha = 1;
+            ctx.fillStyle = 'rgba(255,220,0,0.6)';
+            for (let i = 0; i < 15; i++) {
+                const sx = 30+Math.random()*400, sy = Math.random()*H;
+                ctx.beginPath(); ctx.arc(sx, sy, 1+Math.random()*3, 0, Math.PI*2); ctx.fill();
+            }
+        }
+        if (bgName === 'neon') {
+            ctx.strokeStyle = 'rgba(0,255,255,0.08)'; ctx.lineWidth = 1;
+            for (let gx = 0; gx < W; gx += 40) { ctx.beginPath(); ctx.moveTo(gx,0); ctx.lineTo(gx,H); ctx.stroke(); }
+            for (let gy = 0; gy < H; gy += 40) { ctx.beginPath(); ctx.moveTo(0,gy); ctx.lineTo(W,gy); ctx.stroke(); }
+            const neonColors = ['#ff00ff','#00ffff','#ff0099','#00ff99'];
+            for (let i = 0; i < 6; i++) {
+                const nc = neonColors[i%4];
+                const nx = 100+Math.random()*500, ny = Math.random()*H, nr = 15+Math.random()*40;
+                const ng = ctx.createRadialGradient(nx,ny,0,nx,ny,nr);
+                ng.addColorStop(0, nc+'55'); ng.addColorStop(1, 'transparent');
+                ctx.fillStyle = ng; ctx.fillRect(0,0,W,H);
+                ctx.strokeStyle = nc+'44'; ctx.lineWidth = 1.5;
+                ctx.beginPath(); ctx.arc(nx,ny,nr,0,Math.PI*2); ctx.stroke();
+            }
+            ctx.shadowColor = '#ff00ff'; ctx.shadowBlur = 20;
+            ctx.globalAlpha = 0.1; ctx.fillStyle = '#ff00ff';
+            ctx.font = 'bold 60px sans-serif'; ctx.textAlign = 'right';
+            ctx.fillText('NEON', W-15, H-10);
+            ctx.shadowBlur = 0; ctx.globalAlpha = 1;
+        }
+        if (bgName === 'hacker') {
+            ctx.fillStyle = '#00ff00'; ctx.font = '11px monospace'; ctx.textAlign = 'left';
+            const chars = '01アイウエオカキクケコ';
+            for (let col = 0; col < W; col += 14) {
+                const colLen = 3+Math.floor(Math.random()*8);
+                for (let row = 0; row < colLen; row++) {
+                    ctx.globalAlpha = (colLen-row)/colLen*0.35;
+                    ctx.fillText(chars[Math.floor(Math.random()*chars.length)], col, (row*14)+Math.floor(Math.random()*H));
+                }
+            }
+            ctx.globalAlpha = 1;
+            ctx.fillStyle = 'rgba(0,255,0,0.04)';
+            for (let y = 0; y < H; y += 3) ctx.fillRect(0, y, W, 1);
+            ctx.shadowColor = '#00ff00'; ctx.shadowBlur = 15;
+            ctx.globalAlpha = 0.07; ctx.fillStyle = '#00ff00';
+            ctx.font = 'bold 55px monospace'; ctx.textAlign = 'right';
+            ctx.fillText('</>', W-15, H-10);
+            ctx.shadowBlur = 0; ctx.globalAlpha = 1;
+        }
+        if (bgName === 'kawaii') {
+            const kawaiiColors = ['#ff99cc','#ffccee','#cc99ff','#99ccff','#ffff99'];
+            for (let i = 0; i < 25; i++) {
+                ctx.globalAlpha = 0.25+Math.random()*0.3;
+                ctx.fillStyle = kawaiiColors[i%5];
+                ctx.font = `${14+Math.floor(Math.random()*22)}px sans-serif`;
+                ctx.textAlign = 'left';
+                ctx.fillText(['⭐','💖','✨','🌸','💕','🎀','🌙'][i%7], Math.random()*W, Math.random()*H);
+            }
+            ctx.globalAlpha = 1;
+            const kg = ctx.createRadialGradient(W*0.5, H*0.5, 20, W*0.5, H*0.5, H);
+            kg.addColorStop(0, 'rgba(255,150,200,0.15)'); kg.addColorStop(1, 'transparent');
+            ctx.fillStyle = kg; ctx.fillRect(0, 0, W, H);
+        }
+
+        // Accent border
+        ctx.strokeStyle = accent; ctx.lineWidth = 3;
+        ctx.beginPath(); ctx.roundRect(1, 1, W-2, H-2, 20); ctx.stroke();
+
+        // Avatar
+        try {
+            const avatarURL = target.displayAvatarURL({ extension: 'png', size: 128 });
+            const avatar = await loadImage(avatarURL);
+            ctx.save();
+            ctx.beginPath(); ctx.arc(90, H/2, 65, 0, Math.PI*2); ctx.clip();
+            ctx.drawImage(avatar, 25, H/2-65, 130, 130);
+            ctx.restore();
+            ctx.strokeStyle = accent; ctx.lineWidth = 4;
+            ctx.beginPath(); ctx.arc(90, H/2, 67, 0, Math.PI*2); ctx.stroke();
+        } catch {}
+
+        if (prestige > 0) {
+            ctx.fillStyle = '#FFD700'; ctx.font = 'bold 13px sans-serif'; ctx.textAlign = 'center';
+            ctx.fillText(`${PRESTIGE_SYMBOL} Prestige ${prestige}`, 90, H/2+85);
+        }
+
+        // Username
+        ctx.fillStyle = '#ffffff'; ctx.font = 'bold 26px sans-serif'; ctx.textAlign = 'left';
+        ctx.fillText(target.username, 175, 60);
+
+        // Rank
+        const cleanRank = rankTitle.replace(/[★◆●]/g, '').trim();
+        ctx.fillStyle = accent; ctx.font = '15px sans-serif';
+        ctx.fillText(cleanRank, 175, 85);
+
+        // Level & XP
+        ctx.fillStyle = '#cccccc'; ctx.font = '14px sans-serif';
+        ctx.fillText(`Level ${level}   •   ${currentXP.toLocaleString()} / ${xpNeeded.toLocaleString()} XP`, 175, 112);
+
+        // Balance
+        ctx.fillStyle = '#FFD700'; ctx.font = '14px sans-serif';
+        ctx.fillText(`💰 ${balance.toLocaleString()} coins`, 175, 135);
+
+        // XP bar background
+        ctx.fillStyle = '#333333';
+        ctx.beginPath(); ctx.roundRect(175, 150, 480, 22, 11); ctx.fill();
+
+        // XP bar fill
+        const barFill = Math.max(10, Math.floor(480*progress));
+        const barGrad = ctx.createLinearGradient(175, 0, 175+barFill, 0);
+        barGrad.addColorStop(0, accent); barGrad.addColorStop(1, '#ffffff');
+        ctx.fillStyle = barGrad;
+        ctx.beginPath(); ctx.roundRect(175, 150, barFill, 22, 11); ctx.fill();
+
+        ctx.fillStyle = '#ffffff'; ctx.font = 'bold 12px sans-serif'; ctx.textAlign = 'center';
+        ctx.fillText(`${Math.floor(progress*100)}%`, 175+barFill/2, 166);
+
+        // Server rank
+        const allXP = Object.entries(botData.xp?.[gid] || {}).sort((a,b)=>(b[1].xp||0)-(a[1].xp||0));
+        const serverRank = allXP.findIndex(([id])=>id===target.id)+1;
+        ctx.fillStyle = '#aaaaaa'; ctx.font = '13px sans-serif'; ctx.textAlign = 'right';
+        ctx.fillText(`Server Rank #${serverRank||'?'}`, W-20, H-15);
+
+        ctx.fillStyle = '#555555'; ctx.font = '11px sans-serif'; ctx.textAlign = 'left';
+        ctx.fillText(`bg: ${bgName}`, 175, H-15);
+
+        const att = new AttachmentBuilder(canvas.toBuffer('image/png'), { name: 'xpcard.png' });
+        return message.channel.send({ files: [att] });
+    }
+
+    // ×backgrounds
+    if (command === 'backgrounds') {
+        const ALL_BGS = [
+            { name:'default',     price:0,     emoji:'🌌', desc:'Dark navy' },
+            { name:'military',    price:2000,  emoji:'🪖', desc:'Tactical green' },
+            { name:'midnight',    price:2000,  emoji:'🌑', desc:'Pure black' },
+            { name:'sunset',      price:3000,  emoji:'🌅', desc:'Burnt orange' },
+            { name:'ocean',       price:3000,  emoji:'🌊', desc:'Deep blue' },
+            { name:'crimson',     price:4000,  emoji:'🔴', desc:'Dark red' },
+            { name:'forest',      price:4000,  emoji:'🌲', desc:'Deep green' },
+            { name:'gold',        price:5000,  emoji:'✨', desc:'Golden dark' },
+            { name:'arctic',      price:5000,  emoji:'❄️', desc:'Icy blue' },
+            { name:'void',        price:8000,  emoji:'⚫', desc:'Pure void' },
+            { name:'cod',         price:6000,  emoji:'🔫', desc:'COD MW2 camo' },
+            { name:'fallout',     price:6000,  emoji:'☢️', desc:'Fallout wasteland' },
+            { name:'battlefield', price:6000,  emoji:'💥', desc:'Battlefield smoke' },
+            { name:'pokemon',     price:5000,  emoji:'⚡', desc:'Pokémon trainer' },
+            { name:'neon',        price:7000,  emoji:'🌈', desc:'Neon city' },
+            { name:'hacker',      price:7000,  emoji:'💻', desc:'Matrix hacker' },
+            { name:'kawaii',      price:5000,  emoji:'🌸', desc:'Cute kawaii' },
+        ];
+        const owned = botData.cardSettings?.[uid]?.ownedBgs || ['default'];
+        const current = botData.cardSettings?.[uid]?.bg || 'default';
+        const balance = getUserBalance(uid);
+        const COLS = 3, CARD_W = 200, CARD_H = 100, PAD = 12;
+        const ROWS = Math.ceil(ALL_BGS.length / COLS);
+        const CW = COLS*CARD_W+(COLS+1)*PAD;
+        const CH = ROWS*CARD_H+(ROWS+1)*PAD+40;
+        const canvas = createCanvas(CW, CH);
+        const ctx = canvas.getContext('2d');
+        ctx.fillStyle = '#0d0d0d'; ctx.fillRect(0, 0, CW, CH);
+        ctx.fillStyle = '#ffffff'; ctx.font = 'bold 18px sans-serif'; ctx.textAlign = 'center';
+        ctx.fillText('🎨 XP Card Backgrounds', CW/2, 28);
+        const BG_COLORS = {
+            default:['#1a1a2e','#16213e'], military:['#2d4a1e','#1a2e0f'],
+            midnight:['#0a0a0a','#1a1a3e'], sunset:['#3d1c02','#6b2d00'],
+            ocean:['#001a33','#003366'], crimson:['#2e0000','#5c0000'],
+            forest:['#0d2e0d','#1a4a1a'], gold:['#2e2200','#5c4400'],
+            arctic:['#0d1f2e','#1a3a4a'], void:['#050505','#0f0f0f'],
+            cod:['#0a0a0a','#1a0f00'], fallout:['#1a1200','#2e2000'],
+            battlefield:['#0a0f1a','#1a2030'], pokemon:['#1a0000','#2e0000'],
+            neon:['#0a0a1a','#000a1a'], hacker:['#000a00','#001400'],
+            kawaii:['#2e0a2e','#1a0a2e'],
+        };
+        for (let i = 0; i < ALL_BGS.length; i++) {
+            const b = ALL_BGS[i];
+            const col = i%COLS, row = Math.floor(i/COLS);
+            const x = PAD+col*(CARD_W+PAD), y = 40+PAD+row*(CARD_H+PAD);
+            const isOwned = owned.includes(b.name), isActive = current===b.name;
+            const colors = BG_COLORS[b.name]||BG_COLORS.default;
+            const g = ctx.createLinearGradient(x,y,x+CARD_W,y+CARD_H);
+            g.addColorStop(0,colors[0]); g.addColorStop(1,colors[1]);
+            ctx.fillStyle=g; ctx.beginPath(); ctx.roundRect(x,y,CARD_W,CARD_H,8); ctx.fill();
+            if (b.name==='cod') {
+                ctx.globalAlpha=0.2;
+                for(let ci=0;ci<12;ci++){ctx.fillStyle=['#3a2a00','#4a3a10'][ci%2];ctx.beginPath();ctx.ellipse(x+Math.random()*CARD_W,y+Math.random()*CARD_H,15,7,Math.random()*Math.PI,0,Math.PI*2);ctx.fill();}
+                ctx.globalAlpha=1;
+            }
+            if (b.name==='fallout') {
+                ctx.globalAlpha=0.12;
+                for(let fi=0;fi<CARD_H;fi+=4){ctx.fillStyle='#aaff00';ctx.fillRect(x,y+fi,CARD_W,1);}
+                ctx.globalAlpha=0.15;ctx.fillStyle='#aaff00';ctx.font='40px sans-serif';ctx.textAlign='center';
+                ctx.fillText('☢',x+CARD_W-25,y+CARD_H-5);ctx.globalAlpha=1;
+            }
+            if (b.name==='battlefield') {
+                const sg=ctx.createRadialGradient(x+CARD_W*0.4,y+CARD_H*0.5,5,x+CARD_W*0.4,y+CARD_H*0.5,60);
+                sg.addColorStop(0,'rgba(180,120,60,0.3)');sg.addColorStop(1,'transparent');
+                ctx.fillStyle=sg;ctx.fillRect(x,y,CARD_W,CARD_H);
+            }
+            if (b.name==='pokemon') {
+                ctx.globalAlpha=0.2;
+                ctx.fillStyle='#cc0000';ctx.beginPath();ctx.arc(x+CARD_W-25,y+CARD_H/2,28,Math.PI,0);ctx.fill();
+                ctx.fillStyle='#ffffff';ctx.beginPath();ctx.arc(x+CARD_W-25,y+CARD_H/2,28,0,Math.PI);ctx.fill();
+                ctx.strokeStyle='#000';ctx.lineWidth=3;ctx.beginPath();ctx.arc(x+CARD_W-25,y+CARD_H/2,28,0,Math.PI*2);ctx.stroke();
+                ctx.beginPath();ctx.moveTo(x+CARD_W-53,y+CARD_H/2);ctx.lineTo(x+CARD_W+3,y+CARD_H/2);ctx.stroke();
+                ctx.globalAlpha=1;
+            }
+            if (b.name==='neon') {
+                const nc=['#ff00ff','#00ffff','#ff0099'];
+                for(let ni=0;ni<3;ni++){const ng=ctx.createRadialGradient(x+40+ni*50,y+CARD_H/2,3,x+40+ni*50,y+CARD_H/2,25);ng.addColorStop(0,nc[ni]+'66');ng.addColorStop(1,'transparent');ctx.fillStyle=ng;ctx.fillRect(x,y,CARD_W,CARD_H);}
+            }
+            if (b.name==='hacker') {
+                ctx.fillStyle='#00ff00';ctx.font='9px monospace';ctx.textAlign='left';ctx.globalAlpha=0.3;
+                const ch='01アイウ';
+                for(let hi=0;hi<8;hi++){ctx.fillText(ch[Math.floor(Math.random()*ch.length)],x+hi*24,y+20+Math.random()*60);}
+                ctx.globalAlpha=1;
+            }
+            if (b.name==='kawaii') {
+                ctx.globalAlpha=0.3;ctx.font='16px sans-serif';ctx.textAlign='left';
+                ['💖','🌸','✨','⭐','🎀'].forEach((e,ei)=>{ctx.fillText(e,x+10+ei*35,y+30+Math.random()*40);});
+                ctx.globalAlpha=1;
+            }
+            if (isActive) { ctx.strokeStyle='#FFD700';ctx.lineWidth=3; }
+            else if (isOwned) { ctx.strokeStyle='#00cc44';ctx.lineWidth=2; }
+            else { ctx.strokeStyle='#444444';ctx.lineWidth=1; }
+            ctx.beginPath();ctx.roundRect(x,y,CARD_W,CARD_H,8);ctx.stroke();
+            if (!isOwned) {
+                ctx.fillStyle='rgba(0,0,0,0.45)';ctx.beginPath();ctx.roundRect(x,y,CARD_W,CARD_H,8);ctx.fill();
+                ctx.fillStyle='rgba(255,255,255,0.5)';ctx.font='22px sans-serif';ctx.textAlign='center';
+                ctx.fillText('🔒',x+CARD_W/2,y+CARD_H/2+8);
+            }
+            ctx.fillStyle='rgba(0,0,0,0.65)';ctx.beginPath();ctx.roundRect(x,y+CARD_H-28,CARD_W,28,[0,0,8,8]);ctx.fill();
+            ctx.fillStyle='#ffffff';ctx.font='bold 11px sans-serif';ctx.textAlign='left';
+            ctx.fillText(`${b.emoji} ${b.name}${isActive?' ✓':''}`,x+6,y+CARD_H-10);
+            ctx.fillStyle=isOwned?'#00cc44':'#ffaa00';ctx.font='11px sans-serif';ctx.textAlign='right';
+            ctx.fillText(isOwned?'owned':`${b.price.toLocaleString()}🪙`,x+CARD_W-6,y+CARD_H-10);
+        }
+        const att = new AttachmentBuilder(canvas.toBuffer('image/png'),{name:'backgrounds.png'});
+        return message.channel.send({ embeds:[new EmbedBuilder()
+            .setColor(0x5865F2).setTitle('🎨 XP Card Backgrounds')
+            .setDescription(`✅ green border = owned  |  🔒 = locked  |  ✓ = active\n\n\`×buybg <name>\` — Purchase\n\`×setbg <name>\` — Equip\n\`×setaccent <#hex>\` — Change accent color`)
+            .setImage('attachment://backgrounds.png')
+            .setFooter({text:`Your balance: ${balance.toLocaleString()} 🪙`})
+        ], files:[att] });
+    }
+
+    // ×buybg
+    if (command === 'buybg') {
+        const bgName = args[0]?.toLowerCase();
+        const PRICES = { default:0, military:2000, midnight:2000, sunset:3000, ocean:3000, crimson:4000, forest:4000, gold:5000, arctic:5000, void:8000, cod:6000, fallout:6000, battlefield:6000, pokemon:5000, neon:7000, hacker:7000, kawaii:5000 };
+        if (!bgName || !(bgName in PRICES)) return reply('❌ Invalid background. Use `×backgrounds` to see all options.');
+        if (!botData.cardSettings) botData.cardSettings = {};
+        if (!botData.cardSettings[uid]) botData.cardSettings[uid] = { bg:'default', accent:'#5865F2', ownedBgs:['default'] };
+        const owned = botData.cardSettings[uid].ownedBgs || ['default'];
+        if (owned.includes(bgName)) return reply(`❌ You already own \`${bgName}\`.`);
+        const price = PRICES[bgName];
+        if (getUserBalance(uid) < price) return reply(`❌ Not enough coins. Need **${price.toLocaleString()} 🪙**, you have **${getUserBalance(uid).toLocaleString()} 🪙**.`);
+        addCoins(uid, -price);
+        botData.cardSettings[uid].ownedBgs.push(bgName);
+        markDirty(); scheduleSave();
+        return reply({ embeds:[new EmbedBuilder()
+            .setColor(0x00cc44).setTitle('✅ Background Purchased!')
+            .setDescription(`You bought the **${bgName}** background for **${price.toLocaleString()} 🪙**!\nUse \`×setbg ${bgName}\` to equip it.`)
+            .setFooter({text:`Balance: ${getUserBalance(uid).toLocaleString()} 🪙`})
+        ]});
+    }
+
+    // ×setbg
+    if (command === 'setbg') {
+        const bgName = args[0]?.toLowerCase();
+        const VALID = ['default','military','midnight','sunset','ocean','crimson','forest','gold','arctic','void','cod','fallout','battlefield','pokemon','neon','hacker','kawaii'];
+        if (!bgName || !VALID.includes(bgName)) return reply('❌ Invalid background. Use `×backgrounds` to see all options.');
+        if (!botData.cardSettings) botData.cardSettings = {};
+        if (!botData.cardSettings[uid]) botData.cardSettings[uid] = { bg:'default', accent:'#5865F2', ownedBgs:['default'] };
+        const owned = botData.cardSettings[uid].ownedBgs || ['default'];
+        if (!owned.includes(bgName)) return reply(`❌ You don't own \`${bgName}\`. Buy it with \`×buybg ${bgName}\`.`);
+        botData.cardSettings[uid].bg = bgName;
+        markDirty(); scheduleSave();
+        return reply(`✅ Background set to **${bgName}**! Use \`×xpcard\` to see your card.`);
+    }
+
+    // ×setaccent
+    if (command === 'setaccent') {
+        const hex = args[0];
+        if (!hex || !/^#[0-9A-Fa-f]{6}$/.test(hex)) return reply('❌ Invalid hex color. Example: `×setaccent #FF5733`');
+        if (!botData.cardSettings) botData.cardSettings = {};
+        if (!botData.cardSettings[uid]) botData.cardSettings[uid] = { bg:'default', accent:'#5865F2', ownedBgs:['default'] };
+        botData.cardSettings[uid].accent = hex;
+        markDirty(); scheduleSave();
+        return reply({ embeds:[new EmbedBuilder()
+            .setColor(parseInt(hex.replace('#',''),16))
+            .setTitle('✅ Accent Color Updated!')
+            .setDescription(`Your card accent is now **${hex}**.\nUse \`×xpcard\` to preview.`)
+        ]});
+                                }
     // ============================================================
     // ━━━ GAMES ━━━
     // ============================================================
@@ -5143,6 +5541,11 @@ if (botData.autoDeleteTargets?.[gid]?.[uid]) {
             .setTitle('📖 SOLDIER² — Commands (4/4)')
             .setDescription(
                 `**━━━ GAMES ━━━**\n` +
+                `• \`${prefix}xpcard [@user]\` — View XP card\n` +
+                `• \`${prefix}backgrounds\` — Browse & buy card backgrounds\n` +
+                `• \`${prefix}buybg <name>\` — Purchase a background\n` +
+                `• \`${prefix}setbg <name>\` — Equip a background\n` +
+                `• \`${prefix}setaccent <#hex>\` — Set card accent color\n` +
                 `• \`${prefix}8ball <question>\` — Magic 8 Ball\n` +
                 `• \`${prefix}dice\` — Roll a dice\n` +
                 `• \`${prefix}flip\` — Coin flip\n` +
