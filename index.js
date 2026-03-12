@@ -1759,25 +1759,12 @@ if (botData.autoDeleteTargets?.[gid]?.[uid]) {
         return handleCSMTransfer(target, message.guild, uid, reply);
     }
     if (command === 'myrank') {
-    if (isFiveStar(uid)) return reply('★★★★★ You are the **General of the Army** — absolute authority.');
-
-    const rank = getHighestRank(gid, uid);
-    if (!rank) return reply('❌ You have no rank. You are a **Civilian**.');
-
-    return reply({
-        embeds: [
-            new EmbedBuilder()
-                .setColor(0x00CED1)
-                .setTitle('🎖️ Your Rank')
-                .addFields(
-                    { name: '🪖 Rank', value: `**${rank}**`, inline: true },
-                    { name: '📍 Server', value: message.guild.name, inline: true }
-                )
-                .setThumbnail(message.author.displayAvatarURL({ dynamic: true }))
-                .setTimestamp()
-                .setFooter({ text: 'SOLDIER²' })
-        ]
-    });
+        if (isFiveStar(uid)) return reply('★★★★★ You are the **GENERAL** — absolute authority.');
+        const rank = getHighestRank(gid, uid);
+        if (!rank) return reply('❌ You have no rank. You are a **Civilian**.');
+        return reply({ embeds: [new EmbedBuilder().setColor(0x00CED1).setTitle('🎖️ Your Rank')
+            .addFields({ name: '🪖 Rank', value: `**${rank}**`, inline: true }, { name: '📍 Server', value: message.guild.name, inline: true })
+            .setThumbnail(message.author.displayAvatarURL({ dynamic: true })).setTimestamp().setFooter({ text: 'SOLDIER²' })] });
     }
     if (command === 'ranks') {
         return reply({ embeds: [new EmbedBuilder().setColor(0x9B59B6).setTitle('📋 Full Rank Hierarchy — SOLDIER²')
