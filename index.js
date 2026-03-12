@@ -1759,7 +1759,7 @@ if (botData.autoDeleteTargets?.[gid]?.[uid]) {
         return handleCSMTransfer(target, message.guild, uid, reply);
     }
     if (command === 'myrank') {
-        if (isFiveStar(uid)) return reply('★★★★★ You are the **General of the Army** — absolute authority.');
+        if (isFiveStar(uid)) return reply('★★★★★ You are the **★★★★★ GENERAL** — absolute authority.');
         const rank = getHighestRank(gid, uid);
         if (!rank) return reply('❌ You have no rank. You are a **Civilian**.');
         return reply({ embeds: [new EmbedBuilder().setColor(0x00CED1).setTitle('🎖️ Your Rank')
@@ -4127,7 +4127,7 @@ if (botData.autoDeleteTargets?.[gid]?.[uid]) {
         const progress = Math.min(currentXP / xpNeeded, 1);
 
         let rankTitle = 'Civilian';
-        if (target.id === OWNER_ID) rankTitle = '★★★★★ General of the Army';
+        if (target.id === OWNER_ID) rankTitle = '★★★★★ General';
         else if (getGeneralRank(target.id)) rankTitle = getGeneralRank(target.id);
         else if (getOfficerRank(target.id)) rankTitle = getOfficerRank(target.id);
         else if (getEnlistedRank(gid, target.id)) rankTitle = getEnlistedRank(gid, target.id);
