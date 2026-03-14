@@ -5451,7 +5451,7 @@ if (command === 'testwelcome') {
                     ? outcome === 'win'  ? `+**${bet.toLocaleString()} 🪙**`
                     : outcome === 'lose' ? `-**${bet.toLocaleString()} 🪙**`
                     : '🤝 No coins exchanged.'
-                    : ''
+                    : null
             )
             .setFooter({ text: 'SOLDIER² Games' }).setTimestamp()
         ]});
