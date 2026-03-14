@@ -1282,6 +1282,8 @@ app.listen(10000, () => console.log('✅ Keep-alive on port 10000'));
 //READY★EVENT\\
 client.once('clientReady', async () => {
     await loadData();
+    // Clear any stale active games from previous session
+if (botData.activeGames) botData.activeGames = {};
 if (botData.giveaways) {
     for (const gid in botData.giveaways) {
 
@@ -5501,16 +5503,18 @@ if (command === 'testwelcome') {
         if (!botData.activeGames) botData.activeGames = {};
         const rrKey = `rr_${gid}_${uid}`;
         if (botData.activeGames[rrKey]) return reply('❌ You already have a Russian Roulette game active!');
+
         const bulletPos = Math.floor(Math.random() * 6);
-        botData.activeGames[rrKey] = { shots: 0, bulletPos };
+        let shots = 0;
+        botData.activeGames[rrKey] = true;
         const BASE = 500;
 
-        const buildRREmbed = (shots, status) => new EmbedBuilder()
+        const buildRREmbed = (s, status) => new EmbedBuilder()
             .setColor(0x000000).setTitle('🔫 Russian Roulette')
             .setDescription(
                 `<@${uid}> is playing Russian Roulette!\n\n` +
-                `🔫 **Shots fired:** ${shots}/6\n` +
-                `💰 **Current prize:** ${(BASE * shots).toLocaleString()} 🪙\n\n` +
+                `🔫 **Shots fired:** ${s}/6\n` +
+                `💰 **Current prize:** ${(BASE * s).toLocaleString()} 🪙\n\n` +
                 `React 🔫 to pull the trigger | 🏃 to run away`
             )
             .setImage('https://media.giphy.com/media/l0HlBO7eyXzSZkJri/giphy.gif')
@@ -5520,35 +5524,33 @@ if (command === 'testwelcome') {
         await msg.react('🔫');
         await msg.react('🏃');
 
-        const game = botData.activeGames[rrKey];
-
         const collector = msg.createReactionCollector({
-            filter: (r, u) => ['🔫', '🏃'].includes(r.emoji.name) && u.id === uid,
-            time: 300000
+            filter: (r, u) => ['🔫', '🏃'].includes(r.emoji.name) && u.id === uid && !u.bot,
+            time: 300000,
+            dispose: true
         });
 
         collector.on('collect', async (r) => {
-            collector.stop();
             try { await r.users.remove(uid); } catch {}
-
             const choice = r.emoji.name;
 
             if (choice === '🏃') {
-                const prize = BASE * game.shots;
+                collector.stop('done');
+                const prize = BASE * shots;
                 addCoins(uid, prize);
                 addXP(gid, uid, 100);
                 delete botData.activeGames[rrKey];
                 await msg.edit({ embeds: [new EmbedBuilder()
                     .setColor(0x00cc00).setTitle('🏃 Smart Move!')
-                    .setDescription(`<@${uid}> ran after **${game.shots}** shot(s)!\nWon **${prize.toLocaleString()} 🪙**!`)
+                    .setDescription(`<@${uid}> ran after **${shots}** shot(s)!\nWon **${prize.toLocaleString()} 🪙**!`)
                     .setImage('https://media.giphy.com/media/5GoVLqeAOo6PK/giphy.gif')
                     .setFooter({ text: 'Wise choice.' }).setTimestamp()] });
                 return;
             }
 
-            game.shots++;
-
-            if (game.shots - 1 === game.bulletPos) {
+            // Pull trigger
+            if (shots === bulletPos) {
+                collector.stop('done');
                 delete botData.activeGames[rrKey];
                 addXP(gid, uid, 10);
                 const member = message.guild.members.cache.get(uid);
@@ -5561,8 +5563,11 @@ if (command === 'testwelcome') {
                 return;
             }
 
-            if (game.shots >= 6) {
-                const prize = BASE * game.shots;
+            shots++;
+
+            if (shots >= 6) {
+                collector.stop('done');
+                const prize = BASE * shots;
                 addCoins(uid, prize);
                 addXP(gid, uid, 500);
                 delete botData.activeGames[rrKey];
@@ -5574,26 +5579,11 @@ if (command === 'testwelcome') {
                 return;
             }
 
-            await msg.edit({ embeds: [buildRREmbed(game.shots, `Click... ${game.shots} down, ${6 - game.shots} left.`)] });
-
-            // Re-open collector for next round
-            const nextCollector = msg.createReactionCollector({
-                filter: (r, u) => ['🔫', '🏃'].includes(r.emoji.name) && u.id === uid,
-                time: 300000
-            });
-            nextCollector.on('collect', collector.listeners('collect')[0]);
-            nextCollector.on('end', (_, reason) => {
-                if (reason === 'time') {
-                    delete botData.activeGames[rrKey];
-                    msg.edit({ embeds: [new EmbedBuilder()
-                        .setColor(0x888888).setTitle('🔫 Russian Roulette')
-                        .setDescription('⏰ Game timed out.')] }).catch(() => {});
-                }
-            });
+            await msg.edit({ embeds: [buildRREmbed(shots, `Click... ${shots} down, ${6 - shots} left.`)] });
         });
 
         collector.on('end', (_, reason) => {
-            if (reason === 'time') {
+            if (reason !== 'done') {
                 delete botData.activeGames[rrKey];
                 msg.edit({ embeds: [new EmbedBuilder()
                     .setColor(0x888888).setTitle('🔫 Russian Roulette')
@@ -5603,6 +5593,7 @@ if (command === 'testwelcome') {
 
         return;
     }
+
 
     // ×slots
     if (command === 'slots') {
@@ -5745,7 +5736,7 @@ if (command === 'testwelcome') {
         if (!bet || bet < 1) return reply('❌ Usage: `×blackjack <bet>`');
         if (getUserBalance(uid) < bet) return reply(`❌ Not enough coins. Balance: **${getUserBalance(uid).toLocaleString()} 🪙**`);
 
-        const SUITS = ['♠️', '♥️', '♦️', '♣️'];
+        const SUITS = ['♠️','♥️','♦️','♣️'];
         const VALS  = ['A','2','3','4','5','6','7','8','9','10','J','Q','K'];
 
         function deck()  { return [...SUITS.flatMap(s => VALS.map(v => ({ s, v })))].sort(() => Math.random() - 0.5); }
@@ -5756,6 +5747,7 @@ if (command === 'testwelcome') {
         const d      = deck();
         const player = [d.pop(), d.pop()];
         const dealer = [d.pop(), d.pop()];
+        let gameOver = false;
 
         const bldEmbed = (status, hide = true) => new EmbedBuilder()
             .setColor(0x000000).setTitle('🃏 Blackjack')
@@ -5777,59 +5769,62 @@ if (command === 'testwelcome') {
         await msg.react('👊');
         await msg.react('✋');
 
-        const endGame = async (status) => {
-            await msg.edit({ embeds: [bldEmbed(status, false)] });
-        };
+        const collector = msg.createReactionCollector({
+            filter: (r, u) => ['👊','✋'].includes(r.emoji.name) && u.id === uid && !u.bot,
+            time: 60000,
+            dispose: true
+        });
 
-        const playRound = () => {
-            const collector = msg.createReactionCollector({
-                filter: (r, u) => ['👊', '✋'].includes(r.emoji.name) && u.id === uid,
-                max: 1,
-                time: 60000
-            });
+        collector.on('collect', async (r) => {
+            if (gameOver) return;
+            try { await r.users.remove(uid); } catch {}
+            const choice = r.emoji.name;
 
-            collector.on('collect', async (r) => {
-                try { await r.users.remove(uid); } catch {}
-                const choice = r.emoji.name;
-
-                if (choice === '👊') {
-                    player.push(d.pop());
-                    if (total(player) > 21) {
-                        addCoins(uid, -bet); addXP(gid, uid, 10);
-                        return endGame(`💥 **Bust!** -**${bet.toLocaleString()} 🪙**`);
-                    }
-                    await msg.edit({ embeds: [bldEmbed('Your move!')] });
-                    return playRound();
+            if (choice === '👊') {
+                player.push(d.pop());
+                if (total(player) > 21) {
+                    gameOver = true;
+                    collector.stop('done');
+                    addCoins(uid, -bet); addXP(gid, uid, 10);
+                    return msg.edit({ embeds: [bldEmbed(`💥 **Bust!** -**${bet.toLocaleString()} 🪙**`, false)] });
                 }
+                await msg.edit({ embeds: [bldEmbed('Your move!')] });
+                return;
+            }
 
-                // Stand
-                while (total(dealer) < 17) dealer.push(d.pop());
-                const pt = total(player), dt = total(dealer);
-                let res, coins;
-                if (dt > 21 || pt > dt)  { res = '🏆 You win!';                    coins =  bet; }
-                else if (pt === dt)       { res = '🤝 Push! Your bet is returned.'; coins =  0;   }
-                else                      { res = `💸 Dealer wins with ${dt}.`;     coins = -bet; }
-                addCoins(uid, coins); addXP(gid, uid, coins > 0 ? 100 : 10);
-                endGame(`${res}\nBalance: **${getUserBalance(uid).toLocaleString()} 🪙**`);
-            });
+            // Stand
+            gameOver = true;
+            collector.stop('done');
+            while (total(dealer) < 17) dealer.push(d.pop());
+            const pt = total(player), dt = total(dealer);
+            let res, coins;
+            if (dt > 21 || pt > dt)  { res = '🏆 You win!';                    coins =  bet; }
+            else if (pt === dt)       { res = '🤝 Push! Your bet is returned.'; coins =  0;   }
+            else                      { res = `💸 Dealer wins with ${dt}.`;     coins = -bet; }
+            addCoins(uid, coins); addXP(gid, uid, coins > 0 ? 100 : 10);
+            msg.edit({ embeds: [bldEmbed(`${res}\nBalance: **${getUserBalance(uid).toLocaleString()} 🪙**`, false)] });
+        });
 
-            collector.on('end', (_, reason) => {
-                if (reason === 'time') endGame('⏰ Timed out.');
-            });
-        };
+        collector.on('end', (_, reason) => {
+            if (reason !== 'done' && !gameOver) {
+                gameOver = true;
+                msg.edit({ embeds: [bldEmbed('⏰ Timed out.', false)] }).catch(() => {});
+            }
+        });
 
-        playRound();
         return;
     }
 
+            
     // ×gtn
     if (command==='gtn') {
         const bet = parseInt(args[0]) || 0;
         if (bet > 0 && getUserBalance(uid) < bet) return reply('❌ Not enough coins.');
 
-        const secret = Math.floor(Math.random() * 11);
-        let tries    = 0;
-        const nums   = ['0️⃣','1️⃣','2️⃣','3️⃣','4️⃣','5️⃣','6️⃣','7️⃣','8️⃣','9️⃣','🔟'];
+        const secret  = Math.floor(Math.random() * 11);
+        let tries     = 0;
+        let gameOver  = false;
+        const nums    = ['0️⃣','1️⃣','2️⃣','3️⃣','4️⃣','5️⃣','6️⃣','7️⃣','8️⃣','9️⃣','🔟'];
 
         const msg = await message.channel.send({ embeds: [new EmbedBuilder()
             .setColor(0xffffff).setTitle('🔢 Guess the Number!')
@@ -5842,52 +5837,55 @@ if (command === 'testwelcome') {
 
         for (const e of nums) await msg.react(e).catch(() => {});
 
-        const doGuess = () => {
-            const collector = msg.createReactionCollector({
-                filter: (r, u) => nums.includes(r.emoji.name) && u.id === uid,
-                max: 1,
-                time: 30000
-            });
+        const collector = msg.createReactionCollector({
+            filter: (r, u) => nums.includes(r.emoji.name) && u.id === uid && !u.bot,
+            time: 60000,
+            dispose: true
+        });
 
-            collector.on('collect', async (r) => {
-                try { await r.users.remove(uid); } catch {}
-                const guess = nums.indexOf(r.emoji.name);
-                tries++;
+        collector.on('collect', async (r) => {
+            if (gameOver) return;
+            try { await r.users.remove(uid); } catch {}
+            const guess = nums.indexOf(r.emoji.name);
+            tries++;
 
-                if (guess === secret) {
-                    if (bet > 0) addCoins(uid, bet);
-                    addXP(gid, uid, 100);
-                    return msg.edit({ embeds: [new EmbedBuilder()
-                        .setColor(0x00ff88).setTitle('✅ Correct!')
-                        .setDescription(`You guessed **${secret}** in ${tries} tr${tries === 1 ? 'y' : 'ies'}!${bet > 0 ? `\n+**${bet.toLocaleString()} 🪙**` : ''}`)
-                        .setFooter({ text: 'SOLDIER² Games' }).setTimestamp()] });
-                }
-
-                if (tries >= 2) {
-                    if (bet > 0) addCoins(uid, -bet);
-                    addXP(gid, uid, 10);
-                    return msg.edit({ embeds: [new EmbedBuilder()
-                        .setColor(0xe74c3c).setTitle('❌ Wrong!')
-                        .setDescription(`The number was **${secret}**.${bet > 0 ? `\n-**${bet.toLocaleString()} 🪙**` : ''}`)
-                        .setFooter({ text: 'SOLDIER² Games' }).setTimestamp()] });
-                }
-
-                await msg.edit({ embeds: [new EmbedBuilder()
-                    .setColor(0xffcc00).setTitle('❌ Wrong! One try left.')
-                    .setDescription(`Not **${guess}**. One more guess!\n${bet > 0 ? `Bet: **${bet.toLocaleString()} 🪙**` : ''}`)
+            if (guess === secret) {
+                gameOver = true;
+                collector.stop('done');
+                if (bet > 0) addCoins(uid, bet);
+                addXP(gid, uid, 100);
+                return msg.edit({ embeds: [new EmbedBuilder()
+                    .setColor(0x00ff88).setTitle('✅ Correct!')
+                    .setDescription(`You guessed **${secret}** in ${tries} tr${tries === 1 ? 'y' : 'ies'}!${bet > 0 ? `\n+**${bet.toLocaleString()} 🪙**` : ''}`)
                     .setFooter({ text: 'SOLDIER² Games' }).setTimestamp()] });
+            }
 
-                doGuess();
-            });
+            if (tries >= 2) {
+                gameOver = true;
+                collector.stop('done');
+                if (bet > 0) addCoins(uid, -bet);
+                addXP(gid, uid, 10);
+                return msg.edit({ embeds: [new EmbedBuilder()
+                    .setColor(0xe74c3c).setTitle('❌ Wrong!')
+                    .setDescription(`The number was **${secret}**.${bet > 0 ? `\n-**${bet.toLocaleString()} 🪙**` : ''}`)
+                    .setFooter({ text: 'SOLDIER² Games' }).setTimestamp()] });
+            }
 
-            collector.on('end', (_, reason) => {
-                if (reason === 'time') msg.edit({ embeds: [new EmbedBuilder()
+            await msg.edit({ embeds: [new EmbedBuilder()
+                .setColor(0xffcc00).setTitle('❌ Wrong! One try left.')
+                .setDescription(`Not **${guess}**. One more guess!\n${bet > 0 ? `Bet: **${bet.toLocaleString()} 🪙**` : ''}`)
+                .setFooter({ text: 'SOLDIER² Games' }).setTimestamp()] });
+        });
+
+        collector.on('end', (_, reason) => {
+            if (reason !== 'done' && !gameOver) {
+                gameOver = true;
+                msg.edit({ embeds: [new EmbedBuilder()
                     .setColor(0x888888).setTitle('⏰ Timed out!')
                     .setDescription(`The number was **${secret}**.`)] }).catch(() => {});
-            });
-        };
+            }
+        });
 
-        doGuess();
         return;
     }
 
@@ -6007,22 +6005,20 @@ if (command === 'testwelcome') {
         await msg.react('📉');
 
         const collector = msg.createReactionCollector({
-            filter: (r, u) => ['📈','📉'].includes(r.emoji.name) && u.id === uid,
+            filter: (r, u) => ['📈','📉'].includes(r.emoji.name) && u.id === uid && !u.bot,
             max: 1,
-            time: 30000
+            time: 30000,
+            dispose: true
         });
 
         collector.on('collect', async (r) => {
             try { await r.users.remove(uid); } catch {}
-
             const pick  = r.emoji.name === '📈' ? 'higher' : 'lower';
             const next  = VALS[Math.floor(Math.random() * 13)];
             const suit2 = SUITS[Math.floor(Math.random() * 4)];
             const won   = (pick === 'higher' && cardVal(next) > cardVal(first)) || (pick === 'lower' && cardVal(next) < cardVal(first));
             const tie   = cardVal(next) === cardVal(first);
-
             if (!tie) { addCoins(uid, won ? bet : -bet); addXP(gid, uid, won ? 100 : 10); }
-
             msg.edit({ embeds: [new EmbedBuilder()
                 .setColor(tie ? 0xFFD700 : won ? 0x00cc00 : 0xe74c3c)
                 .setTitle(`🃏 High or Low — ${tie ? 'Tie!' : won ? 'Correct! 🏆' : 'Wrong!'}`)
@@ -6045,7 +6041,7 @@ if (command === 'testwelcome') {
     }
 
     // ×scratch
-    if (command==='scratch') {
+if (command==='scratch') {
         const bet = parseInt(args[0]);
         if (!bet || bet < 1) return reply('❌ Usage: `×scratch <bet>`');
         if (getUserBalance(uid) < bet) return reply(`❌ Not enough coins. Balance: **${getUserBalance(uid).toLocaleString()} 🪙**`);
@@ -6058,6 +6054,7 @@ if (command === 'testwelcome') {
         const revealed = new Array(9).fill(false);
         const nums     = ['1️⃣','2️⃣','3️⃣','4️⃣','5️⃣','6️⃣','7️⃣','8️⃣','9️⃣'];
         let scratched  = 0;
+        let gameOver   = false;
 
         const buildBoard = () => {
             let board = '';
@@ -6067,7 +6064,16 @@ if (command === 'testwelcome') {
             return board;
         };
 
-        const finish = async (msg) => {
+        const msg = await message.channel.send({ embeds: [new EmbedBuilder()
+            .setColor(0x00cc44).setTitle('🎟️ Scratch Card')
+            .setDescription(`React with a number to scratch a tile! Pick **3**.\n\n${buildBoard()}`)
+            .setFooter({ text: `Bet: ${bet.toLocaleString()} 🪙 | Match 3 to win!` }).setTimestamp()
+        ]});
+
+        for (const n of nums) await msg.react(n).catch(() => {});
+
+        const finish = async () => {
+            gameOver = true;
             revealed.fill(true);
             const counts = {};
             for (const t of tiles) counts[t] = (counts[t] || 0) + 1;
@@ -6086,55 +6092,46 @@ if (command === 'testwelcome') {
             ]});
         };
 
-        const msg = await message.channel.send({ embeds: [new EmbedBuilder()
-            .setColor(0x00cc44).setTitle('🎟️ Scratch Card')
-            .setDescription(`React with a number to scratch a tile! Pick **3**.\n\n${buildBoard()}`)
-            .setFooter({ text: `Bet: ${bet.toLocaleString()} 🪙 | Match 3 to win!` }).setTimestamp()
-        ]});
+        const collector = msg.createReactionCollector({
+            filter: (r, u) => nums.includes(r.emoji.name) && u.id === uid && !u.bot,
+            time: 60000,
+            dispose: true
+        });
 
-        for (const n of nums) await msg.react(n).catch(() => {});
+        collector.on('collect', async (r) => {
+            if (gameOver) return;
+            try { await r.users.remove(uid); } catch {}
+            const idx = nums.indexOf(r.emoji.name);
 
-        const doScratch = () => {
-            if (scratched >= 3) return finish(msg);
-
-            const collector = msg.createReactionCollector({
-                filter: (r, u) => nums.includes(r.emoji.name) && u.id === uid,
-                max: 1,
-                time: 30000
-            });
-
-            collector.on('collect', async (r) => {
-                try { await r.users.remove(uid); } catch {}
-                const idx = nums.indexOf(r.emoji.name);
-
-                if (revealed[idx]) {
-                    await msg.edit({ embeds: [new EmbedBuilder()
-                        .setColor(0x00cc44).setTitle('🎟️ Scratch Card')
-                        .setDescription(`Already scratched! Pick another.\n\n${buildBoard()}`)
-                        .setFooter({ text: `${3 - scratched} scratches left` })] });
-                    return doScratch();
-                }
-
-                revealed[idx] = true;
-                scratched++;
-
+            if (revealed[idx]) {
                 await msg.edit({ embeds: [new EmbedBuilder()
                     .setColor(0x00cc44).setTitle('🎟️ Scratch Card')
-                    .setDescription(`${buildBoard()}`)
+                    .setDescription(`Already scratched! Pick another.\n\n${buildBoard()}`)
                     .setFooter({ text: `${3 - scratched} scratches left` })] });
+                return;
+            }
 
-                if (scratched >= 3) return finish(msg);
-                doScratch();
-            });
+            revealed[idx] = true;
+            scratched++;
 
-            collector.on('end', (_, reason) => {
-                if (reason === 'time') finish(msg);
-            });
-        };
+            if (scratched >= 3) {
+                collector.stop('done');
+                return finish();
+            }
 
-        doScratch();
+            await msg.edit({ embeds: [new EmbedBuilder()
+                .setColor(0x00cc44).setTitle('🎟️ Scratch Card')
+                .setDescription(`${buildBoard()}`)
+                .setFooter({ text: `${3 - scratched} scratches left` })] });
+        });
+
+        collector.on('end', (_, reason) => {
+            if (!gameOver) finish();
+        });
+
         return;
-    }
+}
+                
         
     // ×crash
     if (command==='crash') {
@@ -6147,6 +6144,7 @@ if (command === 'testwelcome') {
         let mult      = 1.00;
         let cashedOut = false;
         let crashed   = false;
+        let interval  = null;
 
         const msg = await message.channel.send({ embeds: [new EmbedBuilder()
             .setColor(0x00cc44).setTitle('📈 CRASH')
@@ -6158,14 +6156,15 @@ if (command === 'testwelcome') {
 
         const collector = msg.createReactionCollector({
             filter: (r, u) => r.emoji.name === '💰' && u.id === uid && !u.bot,
-            time: 120000
+            time: 120000,
+            dispose: true
         });
 
         collector.on('collect', async () => {
             if (cashedOut || crashed) return;
             cashedOut = true;
-            clearInterval(interval);
-            collector.stop();
+            if (interval) clearInterval(interval);
+            collector.stop('done');
 
             const winnings = Math.floor(bet * mult);
             addCoins(uid, winnings);
@@ -6182,7 +6181,7 @@ if (command === 'testwelcome') {
             ]});
         });
 
-        const interval = setInterval(async () => {
+        interval = setInterval(async () => {
             if (cashedOut || crashed) { clearInterval(interval); return; }
 
             mult = +(mult + 0.1).toFixed(2);
@@ -6190,7 +6189,7 @@ if (command === 'testwelcome') {
             if (mult >= crashAt) {
                 crashed = true;
                 clearInterval(interval);
-                collector.stop();
+                collector.stop('done');
                 addXP(gid, uid, 10);
                 await msg.edit({ embeds: [new EmbedBuilder()
                     .setColor(0xe74c3c).setTitle('💥 CRASHED!')
@@ -6234,31 +6233,25 @@ if (command === 'testwelcome') {
         const finalIdx = Math.floor(Math.random() * SEGMENTS.length);
 
         function buildWheel(highlightIdx) {
-            const canvas = createCanvas(400, 400);
+            const canvas = createCanvas(440, 440);
             const ctx    = canvas.getContext('2d');
-            const cx = 200, cy = 200, r = 180;
+            const cx = 220, cy = 220, r = 180;
             const slice = Math.PI * 2 / SEGMENTS.length;
 
-            // Dark background
             ctx.fillStyle = '#1a1a2e';
-            ctx.fillRect(0, 0, 400, 400);
+            ctx.fillRect(0, 0, 440, 440);
 
             for (let i = 0; i < SEGMENTS.length; i++) {
                 ctx.beginPath();
                 ctx.moveTo(cx, cy);
                 ctx.arc(cx, cy, r, i * slice, (i + 1) * slice);
                 ctx.closePath();
-
-                // Highlight the current segment
-                ctx.fillStyle = i === highlightIdx
-                    ? '#ffffff'
-                    : SEGMENTS[i].color;
+                ctx.fillStyle = i === highlightIdx ? '#ffffff' : SEGMENTS[i].color;
                 ctx.fill();
                 ctx.strokeStyle = '#ffffff';
                 ctx.lineWidth   = 2;
                 ctx.stroke();
 
-                // Label
                 ctx.save();
                 ctx.translate(cx, cy);
                 ctx.rotate(i * slice + slice / 2);
@@ -6269,17 +6262,26 @@ if (command === 'testwelcome') {
                 ctx.restore();
             }
 
-            // Arrow on right side pointing left toward winning segment
-            ctx.fillStyle = '#FFD700';
+            // Arrow points at the highlighted segment from outside the wheel
+            const arrowAngle = highlightIdx * slice + slice / 2;
+            const arrowDist  = r + 30;
+            const ax = cx + Math.cos(arrowAngle) * arrowDist;
+            const ay = cy + Math.sin(arrowAngle) * arrowDist;
+
+            ctx.save();
+            ctx.translate(ax, ay);
+            ctx.rotate(arrowAngle + Math.PI); // point inward toward center
+            ctx.fillStyle   = '#FFD700';
+            ctx.strokeStyle = '#ffffff';
+            ctx.lineWidth   = 2;
             ctx.beginPath();
-            ctx.moveTo(390, 200);
-            ctx.lineTo(365, 188);
-            ctx.lineTo(365, 212);
+            ctx.moveTo(0, -14);
+            ctx.lineTo(10, 10);
+            ctx.lineTo(-10, 10);
             ctx.closePath();
             ctx.fill();
-            ctx.strokeStyle = '#ffffff';
-            ctx.lineWidth = 2;
             ctx.stroke();
+            ctx.restore();
 
             // Center cap
             ctx.fillStyle   = '#1a1a2e';
