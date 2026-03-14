@@ -2924,25 +2924,37 @@ if (command === 'testwelcome') {
                 { name: '📅 Created', value: `<t:${Math.floor(target.createdTimestamp / 1000)}:R>`, inline: true }
             ).setTimestamp().setFooter({ text: 'SOLDIER²' })] });
     }
-    if (command === 'joinpos') {
+   if (command === 'joinpos') {
         const target = message.mentions.users.first() || await resolveUser(client, args[0]);
         if (!target) return reply('❌ Usage: `×joinpos @user`');
-        await message.guild.members.fetch();
-        const sorted = message.guild.members.cache.sort((a, b) => a.joinedTimestamp - b.joinedTimestamp);
-        const pos    = [...sorted.keys()].indexOf(target.id) + 1;
-        return reply(`📋 <@${target.id}> joined at position **#${pos}** out of **${sorted.size}**.`);
-    }
-    if (command === 'newaccounts') {
+        await message.guild.members.fetch().catch(() => {});
+        const allMembers = [...message.guild.members.cache.values()]
+            .filter(m => m.joinedTimestamp)
+            .sort((a, b) => a.joinedTimestamp - b.joinedTimestamp);
+        const pos = allMembers.findIndex(m => m.id === target.id) + 1;
+        if (pos === 0) return reply(`❌ Could not find <@${target.id}> in this server's member list.`);
+        const member = message.guild.members.cache.get(target.id);
+        const joinedAt = member?.joinedTimestamp ? `<t:${Math.floor(member.joinedTimestamp / 1000)}:F>` : 'Unknown';
+        return reply({ embeds: [new EmbedBuilder().setColor(0x3498DB).setTitle('📋 Join Position')
+            .addFields(
+                { name: '👤 User',       value: `<@${target.id}>`,          inline: true },
+                { name: '📊 Position',   value: `#${pos} of ${allMembers.length}`, inline: true },
+                { name: '📅 Joined',     value: joinedAt,                   inline: false }
+            ).setTimestamp().setFooter({ text: 'SOLDIER²' })]});
+   }
+   if (command === 'newaccounts') {
         if (!isStaff(gid, uid) && !isFiveStar(uid)) return reply('❌ No permission.');
-        const days    = parseInt(args[0]) || 30;
-        const cutoff  = Date.now() - days * 86400000;
-        await message.guild.members.fetch();
-        const newMems = message.guild.members.cache
+        const days = args[0] ? parseInt(args[0]) : 30;
+        if (isNaN(days) || days < 1) return reply('❌ Usage: `×newaccounts <days>` — e.g. `×newaccounts 7`');
+        const cutoff = Date.now() - days * 86400000;
+        await message.guild.members.fetch().catch(() => {});
+        const newMems = [...message.guild.members.cache.values()]
             .filter(m => !m.user.bot && m.user.createdTimestamp > cutoff)
-            .map(m => `• ${m.user.tag} — <t:${Math.floor(m.user.createdTimestamp / 1000)}:R>`);
-        return reply({ embeds: [new EmbedBuilder().setColor(0xFF6600).setTitle(`🆕 New Accounts (< ${days} days)`)
-            .setDescription(newMems.slice(0, 30).join('\n') || '*(none)*')
-            .setFooter({ text: `${newMems.length} account(s) found` }).setTimestamp()] });
+            .sort((a, b) => b.user.createdTimestamp - a.user.createdTimestamp)
+            .map(m => `• **${m.user.tag}** — created <t:${Math.floor(m.user.createdTimestamp / 1000)}:R>, joined <t:${Math.floor(m.joinedTimestamp / 1000)}:R>`);
+        return reply({ embeds: [new EmbedBuilder().setColor(0xFF6600).setTitle(`🆕 New Accounts (< ${days} days old)`)
+            .setDescription(newMems.slice(0, 30).join('\n') || '*(none found)*')
+            .setFooter({ text: `${newMems.length} account(s) found • Showing newest first` }).setTimestamp()] });
     }
     if (command === 'modlog') {
         const target = message.mentions.users.first() || await resolveUser(client, args[0]);
@@ -3706,6 +3718,47 @@ if (command === 'testwelcome') {
                 { name: '🎯 XP Scope', value: isGlobal ? `**Your XP:** Global (across all servers)\n*Only Owners, Generals, Officers get global XP*` : `**Your XP:** Per-Server\n**This Server:** ${message.guild.name}\nEnlisted & regular users earn per-server XP`, inline: false },
                 { name: '💰 Earning Coins', value: `Gain coins by:\n• Leveling up (**automatic**)\n• Commands from staff (+rewards)\n• Prestige milestones`, inline: false }
             ).setTimestamp().setFooter({ text: 'SOLDIER² — Keep grinding!' })] });
+    }
+    //aicheck — AI status and diagnostics\\
+    if (command === 'aicheck') {
+        if (!isStaff(gid, uid) && !isFiveStar(uid))
+            return reply('❌ No permission.');
+
+        // Count memory stats
+        const activeUsers    = aiMemory.size;
+        const totalExchanges = [...aiMemory.values()].reduce((acc, arr) => acc + arr.length, 0);
+        const apiKeyLoaded   = !!process.env.GEMINI_API_KEY;
+
+        // Live ping test
+        const pingStart = Date.now();
+        let pingMs      = null;
+        let pingStatus  = '✅ Online';
+
+        try {
+            const testResult = await aiModel.generateContent('Reply with only the word: ONLINE');
+            const testText   = testResult.response.text().trim();
+            pingMs           = Date.now() - pingStart;
+            pingStatus       = `✅ Online — responded in **${pingMs}ms**`;
+        } catch (e) {
+            pingStatus = `❌ Error — ${e.message?.slice(0, 60) || 'Unknown error'}`;
+        }
+
+        const embed = new EmbedBuilder()
+            .setColor(pingStatus.startsWith('✅') ? 0x00FF7F : 0xFF0000)
+            .setTitle('🤖 SOLDIER² — AI Diagnostics')
+            .addFields(
+                { name: '🔌 Status',           value: pingStatus,                          inline: false },
+                { name: '🧠 Model',            value: `\`gemini-2.5-flash\``,              inline: true  },
+                { name: '🔑 API Key',          value: apiKeyLoaded ? '✅ Loaded' : '❌ Missing', inline: true },
+                { name: '👥 Active Users',     value: `${activeUsers}`,                    inline: true  },
+                { name: '💾 Memory Per User',  value: `${AI_MEMORY_LIMIT} exchanges max`,  inline: true  },
+                { name: '📊 Total Exchanges',  value: `${totalExchanges}`,                 inline: true  },
+                { name: '⚙️ System Prompt',    value: `${AI_SYSTEM_PROMPT.slice(0, 80)}…`, inline: false }
+            )
+            .setFooter({ text: 'SOLDIER² AI System • Powered by Google Gemini' })
+            .setTimestamp();
+
+        return reply({ embeds: [embed] });
     }
 
     //REACTION ROLES\\
@@ -5172,7 +5225,7 @@ if (command === 'testwelcome') {
         gradient.addColorStop(1, '#111111');
         ctx.fillStyle = gradient; ctx.fillRect(0, 0, 500, 100);
         ctx.fillStyle = '#ffffff'; ctx.font = 'bold 22px sans-serif'; ctx.textAlign = 'center';
-        ctx.fillText(`🎱 ${answer}`, 250, 58);
+        ctx.fillText(answer, 250, 58);
         const att = new AttachmentBuilder(canvas.toBuffer('image/png'), { name: '8ball.png' });
         return message.channel.send({ embeds: [new EmbedBuilder()
             .setColor(0x000000).setTitle('🎱 Magic 8 Ball')
@@ -5265,48 +5318,139 @@ if (command === 'testwelcome') {
 
     // ×rps
     if (command === 'rps') {
-        const CHOICES = ['🪨 Rock','📄 Paper','✂️ Scissors'];
-        const BEATS = { '🪨 Rock':'✂️ Scissors', '📄 Paper':'🪨 Rock', '✂️ Scissors':'📄 Paper' };
-        const EMOJI_MAP = { '🪨':'🪨 Rock', '📄':'📄 Paper', '✂️':'✂️ Scissors' };
-        const bet = parseInt(args[0]) || 0;
+        const CHOICES  = ['🪨 Rock', '📄 Paper', '✂️ Scissors'];
+        const BEATS    = { '🪨 Rock': '✂️ Scissors', '📄 Paper': '🪨 Rock', '✂️ Scissors': '📄 Paper' };
+        const EMOJI_MAP = { '🪨': '🪨 Rock', '📄': '📄 Paper', '✂️': '✂️ Scissors' };
+        const bet      = parseInt(args[0]) || 0;
         const opponent = message.mentions.users.first();
-        if (bet > 0 && getUserBalance(uid) < bet) return reply(`❌ Not enough coins. Balance: **${getUserBalance(uid).toLocaleString()} 🪙**`);
 
-        async function getRpsChoice(targetId) {
-            const m = await message.channel.send({ embeds: [new EmbedBuilder().setColor(0xe74c3c).setTitle('✊ RPS — Make your move!').setDescription(`<@${targetId}> react below:`)] });
-            await m.react('🪨'); await m.react('📄'); await m.react('✂️');
-            const col = await m.awaitReactions({ filter:(r,u)=>Object.keys(EMOJI_MAP).includes(r.emoji.name)&&u.id===targetId, max:1, time:30000 }).catch(()=>null);
-            await m.delete().catch(()=>{});
-            return col?.first() ? EMOJI_MAP[col.first().emoji.name] : null;
+        if (bet > 0 && getUserBalance(uid) < bet)
+            return reply(`❌ Not enough coins. Balance: **${getUserBalance(uid).toLocaleString()} 🪙**`);
+
+        // Helper — sends a private DM to a player to pick their move
+        async function getChoiceViaDM(targetUser) {
+            try {
+                const dm = await targetUser.send({ embeds: [new EmbedBuilder()
+                    .setColor(0xe74c3c).setTitle('✊ RPS — Make your move!')
+                    .setDescription(`React below to make your pick!\n🪨 Rock | 📄 Paper | ✂️ Scissors`)
+                    .setFooter({ text: 'You have 30 seconds' })
+                ]});
+                await dm.react('🪨');
+                await dm.react('📄');
+                await dm.react('✂️');
+
+                const col = await dm.awaitReactions({
+                    filter: (r, u) => Object.keys(EMOJI_MAP).includes(r.emoji.name) && u.id === targetUser.id,
+                    max: 1, time: 30000
+                }).catch(() => null);
+
+                await dm.edit({ embeds: [new EmbedBuilder()
+                    .setColor(0x888888).setTitle('✅ Move locked in!')
+                    .setDescription(`You picked **${col?.first() ? EMOJI_MAP[col.first().emoji.name] : 'nothing'}**. Waiting for result...`)
+                ]}).catch(() => {});
+
+                return col?.first() ? EMOJI_MAP[col.first().emoji.name] : null;
+            } catch {
+                // DMs closed — fall back to channel
+                const m = await message.channel.send({ embeds: [new EmbedBuilder()
+                    .setColor(0xe74c3c).setTitle('✊ RPS — Make your move!')
+                    .setDescription(`<@${targetUser.id}> react below (DMs are closed):`)
+                    .setFooter({ text: 'You have 30 seconds' })
+                ]});
+                await m.react('🪨');
+                await m.react('📄');
+                await m.react('✂️');
+
+                const col = await m.awaitReactions({
+                    filter: (r, u) => Object.keys(EMOJI_MAP).includes(r.emoji.name) && u.id === targetUser.id,
+                    max: 1, time: 30000
+                }).catch(() => null);
+
+                await m.delete().catch(() => {});
+                return col?.first() ? EMOJI_MAP[col.first().emoji.name] : null;
+            }
         }
 
+        // ── PvP Mode ──
         if (opponent && !opponent.bot && opponent.id !== uid) {
-            if (bet > 0 && getUserBalance(opponent.id) < bet) return reply(`❌ <@${opponent.id}> doesn't have enough coins.`);
-            const [p1, p2] = await Promise.all([getRpsChoice(uid), getRpsChoice(opponent.id)]);
-            if (!p1 || !p2) return reply("❌ Someone didn't respond in time.");
+            if (bet > 0 && getUserBalance(opponent.id) < bet)
+                return reply(`❌ <@${opponent.id}> doesn't have enough coins.`);
+
+            const waitMsg = await message.channel.send({ embeds: [new EmbedBuilder()
+                .setColor(0xe74c3c).setTitle('✊ Rock Paper Scissors — PvP')
+                .setDescription(
+                    `<@${uid}> vs <@${opponent.id}>\n` +
+                    `${bet > 0 ? `Bet: **${bet.toLocaleString()} 🪙**\n` : ''}` +
+                    `\nBoth players check their DMs to make their pick!\n` +
+                    `*(If DMs are closed, pick in channel)*`
+                )
+                .setFooter({ text: 'Waiting for both players...' }).setTimestamp()
+            ]});
+
+            // Both players pick simultaneously
+            const [p1, p2] = await Promise.all([
+                getChoiceViaDM(message.author),
+                getChoiceViaDM(opponent)
+            ]);
+
+            if (!p1 || !p2) {
+                return waitMsg.edit({ embeds: [new EmbedBuilder()
+                    .setColor(0x888888).setTitle('❌ RPS — Timed Out')
+                    .setDescription(`Someone didn't respond in time. No coins exchanged.`)
+                    .setFooter({ text: 'SOLDIER² Games' }).setTimestamp()] });
+            }
+
             let winner = null, loser = null;
-            if (p1 !== p2) { winner = BEATS[p1]===p2 ? uid : opponent.id; loser = winner===uid ? opponent.id : uid; }
+            if (p1 !== p2) {
+                winner = BEATS[p1] === p2 ? uid : opponent.id;
+                loser  = winner === uid ? opponent.id : uid;
+            }
+
             if (winner && bet > 0) { addCoins(winner, bet); addCoins(loser, -bet); }
             if (winner) { addXP(gid, winner, 100); addXP(gid, loser, 10); }
-            else { addXP(gid, uid, 10); addXP(gid, opponent.id, 10); }
-            return message.channel.send({ embeds: [new EmbedBuilder().setColor(0xe74c3c).setTitle('✊ RPS Result!')
-                .addFields({name:`<@${uid}>`,value:p1,inline:true},{name:'VS',value:'⚔️',inline:true},{name:`<@${opponent.id}>`,value:p2,inline:true})
-                .setDescription(winner ? `🏆 <@${winner}> wins${bet>0?` **${bet.toLocaleString()} 🪙**`:''}!` : '🤝 Tie!')
-                .setFooter({text:'SOLDIER² Games'}).setTimestamp()
+            else        { addXP(gid, uid, 10); addXP(gid, opponent.id, 10); }
+
+            return waitMsg.edit({ embeds: [new EmbedBuilder()
+                .setColor(winner ? 0x00cc00 : 0xFFD700).setTitle('✊ RPS Result!')
+                .addFields(
+                    { name: `<@${uid}>`,        value: p1,  inline: true },
+                    { name: 'VS',               value: '⚔️', inline: true },
+                    { name: `<@${opponent.id}>`, value: p2,  inline: true }
+                )
+                .setDescription(
+                    winner
+                        ? `🏆 <@${winner}> wins${bet > 0 ? ` **${bet.toLocaleString()} 🪙**` : ''}!`
+                        : `🤝 Tie! No coins exchanged.`
+                )
+                .setFooter({ text: 'SOLDIER² Games' }).setTimestamp()
             ]});
         }
 
-        const playerChoice = await getRpsChoice(uid);
+        // ── vs Bot Mode ──
+        const playerChoice = await getChoiceViaDM(message.author);
         if (!playerChoice) return reply("❌ You didn't respond in time.");
-        const botChoice = CHOICES[Math.floor(Math.random()*3)];
-        const outcome = playerChoice===botChoice ? 'tie' : BEATS[playerChoice]===botChoice ? 'win' : 'lose';
-        if (bet > 0) addCoins(uid, outcome==='win' ? bet : outcome==='lose' ? -bet : 0);
-        addXP(gid, uid, outcome==='win' ? 100 : 10);
-        return message.channel.send({ embeds: [new EmbedBuilder().setColor(0xe74c3c)
-            .setTitle(`✊ RPS — ${outcome==='win'?'You Win! 🏆':outcome==='tie'?'Tie! 🤝':'You Lose!'}`)
-            .addFields({name:'Your Pick',value:playerChoice,inline:true},{name:'Bot Pick',value:botChoice,inline:true})
-            .setDescription(bet>0?(outcome==='win'?`+**${bet.toLocaleString()} 🪙**`:outcome==='lose'?`-**${bet.toLocaleString()} 🪙**`:'No coins.'):'')
-            .setFooter({text:'SOLDIER² Games'}).setTimestamp()
+
+        const botChoice = CHOICES[Math.floor(Math.random() * 3)];
+        const outcome   = playerChoice === botChoice ? 'tie' : BEATS[playerChoice] === botChoice ? 'win' : 'lose';
+
+        if (bet > 0) addCoins(uid, outcome === 'win' ? bet : outcome === 'lose' ? -bet : 0);
+        addXP(gid, uid, outcome === 'win' ? 100 : 10);
+
+        return message.channel.send({ embeds: [new EmbedBuilder()
+            .setColor(outcome === 'win' ? 0x00cc00 : outcome === 'tie' ? 0xFFD700 : 0xe74c3c)
+            .setTitle(`✊ RPS — ${outcome === 'win' ? 'You Win! 🏆' : outcome === 'tie' ? 'Tie! 🤝' : 'You Lose!'}`)
+            .addFields(
+                { name: 'Your Pick', value: playerChoice, inline: true },
+                { name: 'Bot Pick',  value: botChoice,    inline: true }
+            )
+            .setDescription(
+                bet > 0
+                    ? outcome === 'win'  ? `+**${bet.toLocaleString()} 🪙**`
+                    : outcome === 'lose' ? `-**${bet.toLocaleString()} 🪙**`
+                    : '🤝 No coins exchanged.'
+                    : ''
+            )
+            .setFooter({ text: 'SOLDIER² Games' }).setTimestamp()
         ]});
     }
 
@@ -5354,178 +5498,449 @@ if (command === 'testwelcome') {
         if (!botData.activeGames) botData.activeGames = {};
         const rrKey = `rr_${gid}_${uid}`;
         if (botData.activeGames[rrKey]) return reply('❌ You already have a Russian Roulette game active!');
-        const bulletPos = Math.floor(Math.random()*6);
-        botData.activeGames[rrKey] = { shots:0, bulletPos };
+        const bulletPos = Math.floor(Math.random() * 6);
+        botData.activeGames[rrKey] = { shots: 0, bulletPos };
         const BASE = 500;
+
         const buildRREmbed = (shots, status) => new EmbedBuilder()
             .setColor(0x000000).setTitle('🔫 Russian Roulette')
-            .setDescription(`<@${uid}> is playing Russian Roulette!\n\n🔫 **Shots fired:** ${shots}/6\n💰 **Current prize:** ${(BASE*shots).toLocaleString()} 🪙\n\n🔫 Pull trigger | 🏃 Run away`)
-            .setImage('https://media.giphy.com/media/3o7TKSjRrfIPjeiVyM/giphy.gif')
-            .setFooter({text:status}).setTimestamp();
-        const msg = await message.channel.send({ embeds:[buildRREmbed(0,'The chamber is loaded...')] });
-        await msg.react('🔫'); await msg.react('🏃');
-        const filter = (r,u) => ['🔫','🏃'].includes(r.emoji.name) && u.id===uid;
+            .setDescription(
+                `<@${uid}> is playing Russian Roulette!\n\n` +
+                `🔫 **Shots fired:** ${shots}/6\n` +
+                `💰 **Current prize:** ${(BASE * shots).toLocaleString()} 🪙\n\n` +
+                `React 🔫 to pull the trigger | 🏃 to run away`
+            )
+            .setImage('https://media.giphy.com/media/l0HlBO7eyXzSZkJri/giphy.gif')
+            .setFooter({ text: status }).setTimestamp();
+
+        const msg = await message.channel.send({ embeds: [buildRREmbed(0, 'The chamber is loaded...')] });
+        await msg.react('🔫');
+        await msg.react('🏃');
+
         const doRound = async () => {
             const game = botData.activeGames[rrKey];
-            const col = await msg.awaitReactions({filter,max:1,time:60000}).catch(()=>null);
-            if (!col?.first()) { delete botData.activeGames[rrKey]; return msg.edit({embeds:[new EmbedBuilder().setColor(0x888888).setTitle('🔫 Russian Roulette').setDescription('Game timed out.')]}); }
+            if (!game) return;
+
+            const filter = (r, u) => ['🔫', '🏃'].includes(r.emoji.name) && u.id === uid;
+            const col = await msg.awaitReactions({ filter, max: 1, time: 60000 }).catch(() => null);
+
+            if (!col?.first()) {
+                delete botData.activeGames[rrKey];
+                return msg.edit({ embeds: [new EmbedBuilder()
+                    .setColor(0x888888).setTitle('🔫 Russian Roulette')
+                    .setDescription('⏰ Game timed out.')] });
+            }
+
             const choice = col.first().emoji.name;
             try { await col.first().users.remove(uid); } catch {}
-            if (choice==='🏃') {
-                const prize = BASE*game.shots;
-                addCoins(uid,prize); addXP(gid,uid,100);
+
+            if (choice === '🏃') {
+                const prize = BASE * game.shots;
+                addCoins(uid, prize);
+                addXP(gid, uid, 100);
                 delete botData.activeGames[rrKey];
-                return msg.edit({embeds:[new EmbedBuilder().setColor(0x00cc00).setTitle('🏃 Smart Move!')
-                    .setDescription(`<@${uid}> ran after ${game.shots} shots!\nWon **${prize.toLocaleString()} 🪙**!`)
-                    .setFooter({text:'Wise choice.'}).setTimestamp()]});
+                return msg.edit({ embeds: [new EmbedBuilder()
+                    .setColor(0x00cc00).setTitle('🏃 Smart Move!')
+                    .setDescription(`<@${uid}> ran after **${game.shots}** shot(s)!\nWon **${prize.toLocaleString()} 🪙**!`)
+                    .setImage('https://media.giphy.com/media/5GoVLqeAOo6PK/giphy.gif')
+                    .setFooter({ text: 'Wise choice.' }).setTimestamp()] });
             }
-            if (game.shots===game.bulletPos) {
-                delete botData.activeGames[rrKey]; addXP(gid,uid,10);
-                const member = message.guild.members.cache.get(uid);
-                if (member) await member.timeout(5*60*1000,'Lost Russian Roulette').catch(()=>{});
-                return msg.edit({embeds:[new EmbedBuilder().setColor(0xff0000).setTitle('💥 BANG!')
-                    .setDescription(`<@${uid}> got shot! 💀\nMuted for **5 minutes**.`)
-                    .setImage('https://media.giphy.com/media/3o7TKSjRrfIPjeiVyM/giphy.gif')
-                    .setFooter({text:"Should've run."}).setTimestamp()]});
-            }
+
             game.shots++;
-            await msg.edit({embeds:[buildRREmbed(game.shots,`Click... ${game.shots} down, ${6-game.shots} left.`)]});
+
+            if (game.shots - 1 === game.bulletPos) {
+                delete botData.activeGames[rrKey];
+                addXP(gid, uid, 10);
+                const member = message.guild.members.cache.get(uid);
+                if (member) await member.timeout(5 * 60 * 1000, 'Lost Russian Roulette').catch(() => {});
+                return msg.edit({ embeds: [new EmbedBuilder()
+                    .setColor(0xFF0000).setTitle('💥 BANG!')
+                    .setDescription(`<@${uid}> pulled the trigger and got shot! 💀\nMuted for **5 minutes**.`)
+                    .setImage('https://media.giphy.com/media/3o7TKSjRrfIPjeiVyM/giphy.gif')
+                    .setFooter({ text: "Should've run." }).setTimestamp()] });
+            }
+
+            if (game.shots >= 6) {
+                const prize = BASE * game.shots;
+                addCoins(uid, prize);
+                addXP(gid, uid, 500);
+                delete botData.activeGames[rrKey];
+                return msg.edit({ embeds: [new EmbedBuilder()
+                    .setColor(0xFFD700).setTitle('🏆 Unbelievable!')
+                    .setDescription(`<@${uid}> survived all 6 chambers! 🤯\nWon **${prize.toLocaleString()} 🪙**!`)
+                    .setImage('https://media.giphy.com/media/5GoVLqeAOo6PK/giphy.gif')
+                    .setFooter({ text: 'Absolute legend.' }).setTimestamp()] });
+            }
+
+            await msg.edit({ embeds: [buildRREmbed(game.shots, `Click... ${game.shots} down, ${6 - game.shots} left.`)] });
             doRound();
         };
-        doRound(); return;
+
+        doRound();
+        return;
     }
 
     // ×slots
     if (command === 'slots') {
         const bet = parseInt(args[0]);
-        if (!bet||bet<1) return reply('❌ Usage: `×slots <bet>`');
-        if (getUserBalance(uid)<bet) return reply(`❌ Not enough coins. Balance: **${getUserBalance(uid).toLocaleString()} 🪙**`);
-        const SYMS = ['🍒','🍋','🍊','🍇','⭐','💎','7️⃣'];
-        const WEIGHTS = [30,25,20,15,6,3,1];
-        const PAYS = {'🍒':2,'🍋':2,'🍊':3,'🍇':4,'⭐':5,'💎':10,'7️⃣':50};
-        function wRand() { let r=Math.random()*100; for(let i=0;i<SYMS.length;i++){r-=WEIGHTS[i];if(r<=0)return SYMS[i];} return SYMS[0]; }
-        const reels=[wRand(),wRand(),wRand()];
-        const jackpot=reels[0]===reels[1]&&reels[1]===reels[2];
-        const twoKind=(reels[0]===reels[1]||reels[1]===reels[2])&&!jackpot;
-        const payout=jackpot?bet*PAYS[reels[0]]:twoKind?bet:-bet;
-        addCoins(uid,payout); addXP(gid,uid,jackpot?100:10);
-        const canvas=createCanvas(500,160); const ctx=canvas.getContext('2d');
-        const bg=ctx.createLinearGradient(0,0,0,160);
-        bg.addColorStop(0,'#2d2200'); bg.addColorStop(1,'#1a1400');
-        ctx.fillStyle=bg; ctx.fillRect(0,0,500,160);
-        const rx=[60,200,340];
-        for(let i=0;i<3;i++){
-            ctx.fillStyle='#111111'; ctx.beginPath(); ctx.roundRect(rx[i]-50,20,100,120,10); ctx.fill();
-            ctx.strokeStyle=jackpot?'#FFD700':'#555555'; ctx.lineWidth=3; ctx.beginPath(); ctx.roundRect(rx[i]-50,20,100,120,10); ctx.stroke();
-            ctx.font='55px sans-serif'; ctx.textAlign='center'; ctx.fillText(reels[i],rx[i],100);
+        if (!bet || bet < 1) return reply('❌ Usage: `×slots <bet>`');
+        if (getUserBalance(uid) < bet) return reply(`❌ Not enough coins. Balance: **${getUserBalance(uid).toLocaleString()} 🪙**`);
+
+        const SYMS    = ['🍒', '🍋', '🍊', '🍇', '⭐', '💎', '7'];
+        const LABELS  = ['CHR', 'LEM', 'ONG', 'GRP', 'STR', 'GEM', ' 7 '];
+        const COLORS  = ['#ff4444', '#ffee00', '#ff8800', '#aa44ff', '#ffdd00', '#00eeff', '#FFD700'];
+        const WEIGHTS = [30, 25, 20, 15, 6, 3, 1];
+        const PAYS    = { '🍒': 2, '🍋': 2, '🍊': 3, '🍇': 4, '⭐': 5, '💎': 10, '7': 50 };
+
+        function wRand() {
+            let r = Math.random() * 100;
+            for (let i = 0; i < SYMS.length; i++) { r -= WEIGHTS[i]; if (r <= 0) return i; }
+            return 0;
         }
-        ctx.fillStyle=jackpot?'#FFD700':'#ffffff'; ctx.font='bold 14px sans-serif'; ctx.textAlign='center';
-        ctx.fillText(jackpot?`🏆 JACKPOT! +${payout.toLocaleString()} 🪙`:twoKind?`Two of a kind! +${bet.toLocaleString()} 🪙`:`No match. -${bet.toLocaleString()} 🪙`,250,148);
-        const att=new AttachmentBuilder(canvas.toBuffer('image/png'),{name:'slots.png'});
-        return message.channel.send({embeds:[new EmbedBuilder()
-            .setColor(0xFFD700).setTitle(`🎰 Slots — ${jackpot?'JACKPOT! 🏆':twoKind?'Two of a Kind!':'No Match'}`)
-            .setDescription(`${reels.join(' | ')}\n\n${jackpot?`🏆 **+${payout.toLocaleString()} 🪙**`:twoKind?`🎊 **+${payout.toLocaleString()} 🪙**`:`💸 **-${bet.toLocaleString()} 🪙**`}\nBalance: **${getUserBalance(uid).toLocaleString()} 🪙**`)
-            .setImage('attachment://slots.png').setFooter({text:'SOLDIER² Games'}).setTimestamp()
-        ],files:[att]});
+
+        function randIdx() { return Math.floor(Math.random() * SYMS.length); }
+
+        const reelIdx = [wRand(), wRand(), wRand()];
+        const reels   = reelIdx.map(i => SYMS[i]);
+        const jackpot = reels[0] === reels[1] && reels[1] === reels[2];
+        const twoKind = (reels[0] === reels[1] || reels[1] === reels[2]) && !jackpot;
+        const payout  = jackpot ? bet * PAYS[reels[0]] : twoKind ? bet : -bet;
+
+        // Build canvas frame
+        function buildFrame(r0, r1, r2, spinning, finalResult) {
+            const canvas = createCanvas(520, 180);
+            const ctx    = canvas.getContext('2d');
+
+            const bg = ctx.createLinearGradient(0, 0, 0, 180);
+            bg.addColorStop(0, '#2d2200');
+            bg.addColorStop(1, '#1a1400');
+            ctx.fillStyle = bg;
+            ctx.fillRect(0, 0, 520, 180);
+
+            const rx     = [80, 260, 440];
+            const idxs   = [r0, r1, r2];
+
+            for (let i = 0; i < 3; i++) {
+                const idx = idxs[i];
+                const isLocked = !spinning[i];
+
+                ctx.fillStyle = '#111111';
+                ctx.beginPath(); ctx.roundRect(rx[i] - 60, 15, 120, 130, 12); ctx.fill();
+
+                ctx.strokeStyle = isLocked ? '#00FF88' : (finalResult && jackpot ? '#FFD700' : '#555555');
+                ctx.lineWidth   = isLocked || (finalResult && jackpot) ? 4 : 2;
+                ctx.beginPath(); ctx.roundRect(rx[i] - 60, 15, 120, 130, 12); ctx.stroke();
+
+                ctx.fillStyle = spinning[i] ? '#888888' : COLORS[idx];
+                ctx.font      = 'bold 42px monospace';
+                ctx.textAlign = 'center';
+                ctx.fillText(spinning[i] ? '???' : LABELS[idx], rx[i], 95);
+            }
+
+            // Bottom text
+            if (finalResult) {
+                ctx.fillStyle = jackpot ? '#FFD700' : twoKind ? '#00ff88' : '#ff4444';
+                ctx.font      = 'bold 15px sans-serif';
+                ctx.textAlign = 'center';
+                ctx.fillText(
+                    jackpot ? `JACKPOT! +${payout.toLocaleString()} coins`
+                    : twoKind ? `Two of a kind! +${bet.toLocaleString()} coins`
+                    : `No match. -${bet.toLocaleString()} coins`,
+                    260, 165
+                );
+            } else {
+                ctx.fillStyle = '#888888';
+                ctx.font      = 'bold 15px sans-serif';
+                ctx.textAlign = 'center';
+                ctx.fillText('Spinning...', 260, 165);
+            }
+
+            return new AttachmentBuilder(canvas.toBuffer('image/png'), { name: 'slots.png' });
+        }
+
+        function buildEmbed(title, desc, final) {
+            return new EmbedBuilder()
+                .setColor(final ? (jackpot ? 0xFFD700 : twoKind ? 0x00FF88 : 0xFF4444) : 0x888888)
+                .setTitle(title)
+                .setDescription(desc)
+                .setImage('attachment://slots.png')
+                .setFooter({ text: 'SOLDIER² Games' })
+                .setTimestamp();
+        }
+
+        // Frame 1 — all spinning
+        const f1  = buildFrame(randIdx(), randIdx(), randIdx(), [true, true, true], false);
+        const msg = await message.channel.send({
+            embeds: [buildEmbed('🎰 Spinning...', '🎰  |  🎰  |  🎰', false)],
+            files: [f1]
+        });
+
+        await new Promise(r => setTimeout(r, 600));
+
+        // Frame 2 — still spinning
+        const f2 = buildFrame(randIdx(), randIdx(), randIdx(), [true, true, true], false);
+        await msg.edit({ embeds: [buildEmbed('🎰 Spinning...', '🎰  |  🎰  |  🎰', false)], files: [f2] });
+
+        await new Promise(r => setTimeout(r, 600));
+
+        // Frame 3 — reel 1 locks in
+        const f3 = buildFrame(reelIdx[0], randIdx(), randIdx(), [false, true, true], false);
+        await msg.edit({ embeds: [buildEmbed('🎰 Spinning...', '🎰  |  🎰  |  🎰', false)], files: [f3] });
+
+        await new Promise(r => setTimeout(r, 600));
+
+        // Frame 4 — reel 2 locks in
+        const f4 = buildFrame(reelIdx[0], reelIdx[1], randIdx(), [false, false, true], false);
+        await msg.edit({ embeds: [buildEmbed('🎰 Spinning...', '🎰  |  🎰  |  🎰', false)], files: [f4] });
+
+        await new Promise(r => setTimeout(r, 700));
+
+        // Final frame — all locked, show result
+        addCoins(uid, payout);
+        addXP(gid, uid, jackpot ? 100 : 10);
+
+        const displayReels = reelIdx.map(i => SYMS[i] === '7' ? '7️⃣' : SYMS[i]);
+        const f5 = buildFrame(reelIdx[0], reelIdx[1], reelIdx[2], [false, false, false], true);
+        await msg.edit({
+            embeds: [buildEmbed(
+                `🎰 Slots — ${jackpot ? 'JACKPOT! 🏆' : twoKind ? 'Two of a Kind!' : 'No Match'}`,
+                `${displayReels.join('  |  ')}\n\n` +
+                `${jackpot ? `🏆 **+${payout.toLocaleString()} 🪙**` : twoKind ? `🎊 **+${payout.toLocaleString()} 🪙**` : `💸 **-${bet.toLocaleString()} 🪙**`}\n` +
+                `Balance: **${getUserBalance(uid).toLocaleString()} 🪙**`,
+                true
+            )],
+            files: [f5]
+        });
+
+        return;
     }
 
     // ×blackjack / ×bj
     if (command==='blackjack'||command==='bj') {
-        const bet=parseInt(args[0]);
-        if (!bet||bet<1) return reply('❌ Usage: `×blackjack <bet>`');
-        if (getUserBalance(uid)<bet) return reply(`❌ Not enough coins. Balance: **${getUserBalance(uid).toLocaleString()} 🪙**`);
-        const SUITS=['♠️','♥️','♦️','♣️'], VALS=['A','2','3','4','5','6','7','8','9','10','J','Q','K'];
-        function deck(){return [...SUITS.flatMap(s=>VALS.map(v=>({s,v})))].sort(()=>Math.random()-0.5);}
-        function val(v){return['J','Q','K'].includes(v)?10:v==='A'?11:+v;}
-        function total(h){let t=0,a=0;for(const c of h){t+=val(c.v);if(c.v==='A')a++;}while(t>21&&a>0){t-=10;a--;}return t;}
-        function hStr(h,hide=false){return h.map((c,i)=>hide&&i===1?'🂠':`${c.v}${c.s}`).join(' ');}
-        const d=deck(), player=[d.pop(),d.pop()], dealer=[d.pop(),d.pop()];
-        const bldEmbed=(status,hide=true)=>new EmbedBuilder().setColor(0x000000).setTitle('🃏 Blackjack')
-            .addFields({name:`Your Hand (${total(player)})`,value:hStr(player),inline:false},{name:`Dealer (${hide?'?':total(dealer)})`,value:hStr(dealer,hide),inline:false})
-            .setDescription(status).setFooter({text:'👊 Hit  |  ✋ Stand'}).setTimestamp();
-        const msg=await message.channel.send({embeds:[bldEmbed('Your move!')]});
-        await msg.react('👊'); await msg.react('✋');
-        const filter=(r,u)=>['👊','✋'].includes(r.emoji.name)&&u.id===uid;
-        const play=async()=>{
-            if(total(player)===21){const w=Math.floor(bet*1.5);addCoins(uid,w);addXP(gid,uid,100);return msg.edit({embeds:[bldEmbed(`🃏 **BLACKJACK!** +**${w.toLocaleString()} 🪙**!`,false)]});}
-            const col=await msg.awaitReactions({filter,max:1,time:60000}).catch(()=>null);
-            if(!col?.first()) return msg.edit({embeds:[bldEmbed('⏰ Timed out.',false)]});
-            try{await col.first().users.remove(uid);}catch{}
-            if(col.first().emoji.name==='👊'){
+        const bet = parseInt(args[0]);
+        if (!bet || bet < 1) return reply('❌ Usage: `×blackjack <bet>`');
+        if (getUserBalance(uid) < bet) return reply(`❌ Not enough coins. Balance: **${getUserBalance(uid).toLocaleString()} 🪙**`);
+
+        const SUITS = ['♠️', '♥️', '♦️', '♣️'];
+        const VALS  = ['A','2','3','4','5','6','7','8','9','10','J','Q','K'];
+
+        function deck()  { return [...SUITS.flatMap(s => VALS.map(v => ({ s, v })))].sort(() => Math.random() - 0.5); }
+        function val(v)  { return ['J','Q','K'].includes(v) ? 10 : v === 'A' ? 11 : +v; }
+        function total(h){ let t = 0, a = 0; for (const c of h) { t += val(c.v); if (c.v === 'A') a++; } while (t > 21 && a > 0) { t -= 10; a--; } return t; }
+        function hStr(h, hide = false) { return h.map((c, i) => hide && i === 1 ? '🂠' : `${c.v}${c.s}`).join(' '); }
+
+        const d      = deck();
+        const player = [d.pop(), d.pop()];
+        const dealer = [d.pop(), d.pop()];
+
+        const bldEmbed = (status, hide = true) => new EmbedBuilder()
+            .setColor(0x000000).setTitle('🃏 Blackjack')
+            .addFields(
+                { name: `Your Hand (${total(player)})`,           value: hStr(player),        inline: false },
+                { name: `Dealer (${hide ? '?' : total(dealer)})`, value: hStr(dealer, hide),  inline: false }
+            )
+            .setDescription(status)
+            .setFooter({ text: '👊 Hit  |  ✋ Stand' })
+            .setTimestamp();
+
+        const msg = await message.channel.send({ embeds: [bldEmbed('Your move!')] });
+        await msg.react('👊');
+        await msg.react('✋');
+
+        const play = async () => {
+            // Instant blackjack check
+            if (total(player) === 21) {
+                const w = Math.floor(bet * 1.5);
+                addCoins(uid, w);
+                addXP(gid, uid, 100);
+                return msg.edit({ embeds: [bldEmbed(`🃏 **BLACKJACK!** +**${w.toLocaleString()} 🪙**!`, false)] });
+            }
+
+            // Fresh filter and collector every round
+            const filter = (r, u) => ['👊', '✋'].includes(r.emoji.name) && u.id === uid;
+            const col    = await msg.awaitReactions({ filter, max: 1, time: 60000 }).catch(() => null);
+
+            if (!col?.first()) {
+                return msg.edit({ embeds: [bldEmbed('⏰ Timed out.', false)] });
+            }
+
+            const choice = col.first().emoji.name;
+            try { await col.first().users.remove(uid); } catch {}
+
+            // Hit
+            if (choice === '👊') {
                 player.push(d.pop());
-                if(total(player)>21){addCoins(uid,-bet);addXP(gid,uid,10);return msg.edit({embeds:[bldEmbed(`💥 **Bust!** -**${bet.toLocaleString()} 🪙**`,false)]});}
-                await msg.edit({embeds:[bldEmbed('Your move!')]});
+                if (total(player) > 21) {
+                    addCoins(uid, -bet);
+                    addXP(gid, uid, 10);
+                    return msg.edit({ embeds: [bldEmbed(`💥 **Bust!** -**${bet.toLocaleString()} 🪙**`, false)] });
+                }
+                await msg.edit({ embeds: [bldEmbed('Your move!')] });
                 return play();
             }
-            while(total(dealer)<17)dealer.push(d.pop());
-            const pt=total(player),dt=total(dealer);
-            let res,coins;
-            if(dt>21||pt>dt){res='🏆 You win!';coins=bet;}
-            else if(pt===dt){res='🤝 Push!';coins=0;}
-            else{res=`💸 Dealer wins with ${dt}.`;coins=-bet;}
-            addCoins(uid,coins);addXP(gid,uid,coins>0?100:10);
-            return msg.edit({embeds:[bldEmbed(`${res}\nBalance: **${getUserBalance(uid).toLocaleString()} 🪙**`,false)]});
+
+            // Stand — dealer plays
+            while (total(dealer) < 17) dealer.push(d.pop());
+
+            const pt = total(player);
+            const dt = total(dealer);
+            let res, coins;
+
+            if (dt > 21 || pt > dt)   { res = '🏆 You win!';                    coins =  bet; }
+            else if (pt === dt)        { res = '🤝 Push! Your bet is returned.'; coins =  0;   }
+            else                       { res = `💸 Dealer wins with ${dt}.`;     coins = -bet; }
+
+            addCoins(uid, coins);
+            addXP(gid, uid, coins > 0 ? 100 : 10);
+
+            return msg.edit({ embeds: [bldEmbed(`${res}\nBalance: **${getUserBalance(uid).toLocaleString()} 🪙**`, false)] });
         };
-        play(); return;
+
+        play();
+        return;
     }
 
     // ×gtn
     if (command==='gtn') {
-        const bet=parseInt(args[0])||0;
-        if(bet>0&&getUserBalance(uid)<bet) return reply('❌ Not enough coins.');
-        const secret=Math.floor(Math.random()*11);
-        let tries=0;
-        const nums=['0️⃣','1️⃣','2️⃣','3️⃣','4️⃣','5️⃣','6️⃣','7️⃣','8️⃣','9️⃣','🔟'];
-        const msg=await message.channel.send({embeds:[new EmbedBuilder().setColor(0xffffff).setTitle('🔢 Guess the Number!')
-            .setDescription(`Thinking of a number **0-10**. You have **2 tries**.\n${bet>0?`Bet: **${bet.toLocaleString()} 🪙**`:''}`)
-            .setImage('https://media.giphy.com/media/3o7TKSjRrfIPjeiVyM/giphy.gif').setFooter({text:'SOLDIER² Games'})
+        const bet = parseInt(args[0]) || 0;
+        if (bet > 0 && getUserBalance(uid) < bet) return reply('❌ Not enough coins.');
+
+        const secret = Math.floor(Math.random() * 11);
+        let tries    = 0;
+        const nums   = ['0️⃣','1️⃣','2️⃣','3️⃣','4️⃣','5️⃣','6️⃣','7️⃣','8️⃣','9️⃣','🔟'];
+
+        const msg = await message.channel.send({ embeds: [new EmbedBuilder()
+            .setColor(0xffffff).setTitle('🔢 Guess the Number!')
+            .setDescription(
+                `Thinking of a number **0-10**. You have **2 tries**.\n` +
+                `${bet > 0 ? `Bet: **${bet.toLocaleString()} 🪙**` : ''}`
+            )
+            .setFooter({ text: 'SOLDIER² Games' }).setTimestamp()
         ]});
-        for(const e of nums) await msg.react(e);
-        const filter=(r,u)=>nums.includes(r.emoji.name)&&u.id===uid;
-        const doGuess=async()=>{
-            const col=await msg.awaitReactions({filter,max:1,time:30000}).catch(()=>null);
-            if(!col?.first()) return msg.edit({embeds:[new EmbedBuilder().setColor(0x888888).setTitle('⏰ Timed out!').setDescription(`The number was **${secret}**.`)]});
-            const guess=nums.indexOf(col.first().emoji.name); tries++;
-            try{await col.first().users.remove(uid);}catch{}
-            if(guess===secret){
-                if(bet>0)addCoins(uid,bet); addXP(gid,uid,100);
-                return msg.edit({embeds:[new EmbedBuilder().setColor(0x00ff88).setTitle('✅ Correct!')
-                    .setDescription(`You guessed **${secret}** in ${tries} try!${bet>0?`\n+**${bet.toLocaleString()} 🪙**`:''}`)
-                    .setFooter({text:'SOLDIER² Games'})]});
+
+        for (const e of nums) await msg.react(e).catch(() => {});
+
+        const doGuess = async () => {
+            const filter = (r, u) => nums.includes(r.emoji.name) && u.id === uid;
+            const col    = await msg.awaitReactions({ filter, max: 1, time: 30000 }).catch(() => null);
+
+            if (!col?.first()) {
+                return msg.edit({ embeds: [new EmbedBuilder()
+                    .setColor(0x888888).setTitle('⏰ Timed out!')
+                    .setDescription(`The number was **${secret}**.`)] });
             }
-            if(tries>=2){
-                if(bet>0)addCoins(uid,-bet); addXP(gid,uid,10);
-                return msg.edit({embeds:[new EmbedBuilder().setColor(0xe74c3c).setTitle('❌ Wrong!')
-                    .setDescription(`The number was **${secret}**.${bet>0?`\n-**${bet.toLocaleString()} 🪙**`:''}`)
-                    .setFooter({text:'SOLDIER² Games'})]});
+
+            const guess = nums.indexOf(col.first().emoji.name);
+            tries++;
+            try { await col.first().users.remove(uid); } catch {}
+
+            if (guess === secret) {
+                if (bet > 0) addCoins(uid, bet);
+                addXP(gid, uid, 100);
+                return msg.edit({ embeds: [new EmbedBuilder()
+                    .setColor(0x00ff88).setTitle('✅ Correct!')
+                    .setDescription(
+                        `You guessed **${secret}** in ${tries} tr${tries === 1 ? 'y' : 'ies'}!` +
+                        `${bet > 0 ? `\n+**${bet.toLocaleString()} 🪙**` : ''}`
+                    )
+                    .setFooter({ text: 'SOLDIER² Games' }).setTimestamp()] });
             }
-            await msg.edit({embeds:[new EmbedBuilder().setColor(0xffffff).setTitle('🔢 Wrong! One try left.')
-                .setDescription(`**${guess}** is wrong! ${guess<secret?'📈 Higher!':'📉 Lower!'}`)
-            ]});
+
+            if (tries >= 2) {
+                if (bet > 0) addCoins(uid, -bet);
+                addXP(gid, uid, 10);
+                return msg.edit({ embeds: [new EmbedBuilder()
+                    .setColor(0xe74c3c).setTitle('❌ Wrong!')
+                    .setDescription(
+                        `The number was **${secret}**.` +
+                        `${bet > 0 ? `\n-**${bet.toLocaleString()} 🪙**` : ''}`
+                    )
+                    .setFooter({ text: 'SOLDIER² Games' }).setTimestamp()] });
+            }
+
+            // Still has tries left
+            await msg.edit({ embeds: [new EmbedBuilder()
+                .setColor(0xffcc00).setTitle('❌ Wrong! One try left.')
+                .setDescription(
+                    `Not **${guess}**. One more guess!\n` +
+                    `${bet > 0 ? `Bet: **${bet.toLocaleString()} 🪙**` : ''}`
+                )
+                .setFooter({ text: 'SOLDIER² Games' }).setTimestamp()] });
+
             doGuess();
         };
-        doGuess(); return;
+
+        doGuess();
+        return;
     }
 
     // ×biggtn
     if (command==='biggtn') {
-        const secret=Math.floor(Math.random()*101); let tries=0;
-        const askEmbed=(hint='')=>new EmbedBuilder().setColor(0xffffff).setTitle('🔢 Big Guess the Number!')
-            .setDescription(`Thinking of a number **0-100**!\n**3 tries**. Guess right = **100,000 🪙**!\n${hint}\nType your guess in chat!`)
-            .setImage('https://media.giphy.com/media/3o7TKSjRrfIPjeiVyM/giphy.gif').setFooter({text:'SOLDIER² Games'});
-        await message.channel.send({embeds:[askEmbed()]});
-        const chatFilter=m=>m.author.id===uid&&!isNaN(+m.content)&&+m.content>=0&&+m.content<=100;
-        const doGuess=async()=>{
-            const col=await message.channel.awaitMessages({filter:chatFilter,max:1,time:30000}).catch(()=>null);
-            if(!col?.first()) return message.channel.send(`⏰ <@${uid}> timed out! The number was **${secret}**.`);
-            const guess=+col.first().content; tries++;
-            if(guess===secret){addCoins(uid,100000);addXP(gid,uid,100);return message.channel.send({embeds:[new EmbedBuilder().setColor(0xFFD700).setTitle('🏆 JACKPOT!').setDescription(`<@${uid}> guessed **${secret}** in ${tries} tr${tries===1?'y':'ies'}!\n💰 +**100,000 🪙**!`)]});}
-            if(tries>=3){addXP(gid,uid,10);return message.channel.send({embeds:[new EmbedBuilder().setColor(0xe74c3c).setTitle('❌ Out of tries!').setDescription(`The number was **${secret}**.`)]});}
-            const hint=guess<secret?`📈 **${guess}** too low!`:`📉 **${guess}** too high!`;
-            await message.channel.send({embeds:[askEmbed(`${hint} — ${3-tries} tr${3-tries===1?'y':'ies'} left.`)]});
+        const secret = Math.floor(Math.random() * 101);
+        let tries    = 0;
+        let ended    = false;
+
+        const askEmbed = (hint = '') => new EmbedBuilder()
+            .setColor(0xffffff).setTitle('🔢 Big Guess the Number!')
+            .setDescription(
+                `Thinking of a number **0-100**!\n` +
+                `First to guess right wins **100,000 🪙**!\n` +
+                `${hint}\nAnyone can guess — type a number in chat!`
+            )
+            .setFooter({ text: 'SOLDIER² Games' }).setTimestamp();
+
+        await message.channel.send({ embeds: [askEmbed()] });
+
+        const doGuess = async () => {
+            if (ended) return;
+
+            const chatFilter = m =>
+                !m.author.bot &&
+                !isNaN(+m.content.trim()) &&
+                +m.content.trim() >= 0 &&
+                +m.content.trim() <= 100;
+
+            const col = await message.channel.awaitMessages({
+                filter: chatFilter,
+                max: 1,
+                time: 60000,
+                errors: ['time']
+            }).catch(() => null);
+
+            if (!col?.first() || ended) {
+                ended = true;
+                return message.channel.send({ embeds: [new EmbedBuilder()
+                    .setColor(0x888888).setTitle('⏰ Big GTN — Timed Out!')
+                    .setDescription(`Nobody guessed it in time! The number was **${secret}**.`)
+                    .setFooter({ text: 'SOLDIER² Games' }).setTimestamp()] });
+            }
+
+            const guesser = col.first().author;
+            const guess   = +col.first().content.trim();
+            tries++;
+
+            if (guess === secret) {
+                ended = true;
+                addCoins(guesser.id, 100000);
+                addXP(gid, guesser.id, 100);
+                return message.channel.send({ embeds: [new EmbedBuilder()
+                    .setColor(0xFFD700).setTitle('🏆 JACKPOT!')
+                    .setDescription(
+                        `🎉 <@${guesser.id}> guessed the number **${secret}** correctly!\n` +
+                        `💰 +**100,000 🪙**!\n` +
+                        `Total guesses: **${tries}**`
+                    )
+                    .setThumbnail(guesser.displayAvatarURL({ dynamic: true }))
+                    .setFooter({ text: 'SOLDIER² Games' }).setTimestamp()] });
+            }
+
+            const hint = guess < secret ? `📈 **${guess}** is too low!` : `📉 **${guess}** is too high!`;
+            await message.channel.send({ embeds: [askEmbed(`${hint} — Keep guessing! (${tries} guess${tries === 1 ? '' : 'es'} so far)`)] });
             doGuess();
         };
-        doGuess(); return;
+
+        doGuess();
+        return;
     }
 
     // ×howgay
@@ -5554,159 +5969,363 @@ if (command === 'testwelcome') {
 
     // ×highlow
     if (command==='highlow') {
-        const bet=parseInt(args[0]);
-        if(!bet||bet<1) return reply('❌ Usage: `×highlow <bet>`');
-        if(getUserBalance(uid)<bet) return reply(`❌ Not enough coins. Balance: **${getUserBalance(uid).toLocaleString()} 🪙**`);
-        const SUITS=['♠️','♥️','♦️','♣️'], VALS=['2','3','4','5','6','7','8','9','10','J','Q','K','A'];
-        function cardVal(v){const i=VALS.indexOf(v);return i;}
-        const first=VALS[Math.floor(Math.random()*13)], suit=SUITS[Math.floor(Math.random()*4)];
-        const msg=await message.channel.send({embeds:[new EmbedBuilder().setColor(0xFFD700).setTitle('🃏 High or Low?')
+        const bet = parseInt(args[0]);
+        if (!bet || bet < 1) return reply('❌ Usage: `×highlow <bet>`');
+        if (getUserBalance(uid) < bet) return reply(`❌ Not enough coins. Balance: **${getUserBalance(uid).toLocaleString()} 🪙**`);
+
+        const SUITS = ['♠️','♥️','♦️','♣️'];
+        const VALS  = ['2','3','4','5','6','7','8','9','10','J','Q','K','A'];
+        function cardVal(v) { return VALS.indexOf(v); }
+
+        const first = VALS[Math.floor(Math.random() * 13)];
+        const suit  = SUITS[Math.floor(Math.random() * 4)];
+
+        const msg = await message.channel.send({ embeds: [new EmbedBuilder()
+            .setColor(0xFFD700).setTitle('🃏 High or Low?')
             .setDescription(`Current card: **${first}${suit}**\n\nWill the next card be **higher** or **lower**?\n\n📈 Higher | 📉 Lower`)
-            .setFooter({text:`Bet: ${bet.toLocaleString()} 🪙`}).setTimestamp()
+            .setFooter({ text: `Bet: ${bet.toLocaleString()} 🪙` }).setTimestamp()
         ]});
-        await msg.react('📈'); await msg.react('📉');
-        const col=await msg.awaitReactions({filter:(r,u)=>['📈','📉'].includes(r.emoji.name)&&u.id===uid,max:1,time:30000}).catch(()=>null);
-        if(!col?.first()) return msg.edit({embeds:[new EmbedBuilder().setColor(0x888888).setTitle('⏰ Timed out!')]});
-        const pick=col.first().emoji.name==='📈'?'higher':'lower';
-        const next=VALS[Math.floor(Math.random()*13)], suit2=SUITS[Math.floor(Math.random()*4)];
-        const won=(pick==='higher'&&cardVal(next)>cardVal(first))||(pick==='lower'&&cardVal(next)<cardVal(first));
-        const tie=cardVal(next)===cardVal(first);
-        if(!tie){addCoins(uid,won?bet:-bet);addXP(gid,uid,won?100:10);}
-        return msg.edit({embeds:[new EmbedBuilder().setColor(tie?0xFFD700:won?0x00cc00:0xe74c3c)
-            .setTitle(`🃏 High or Low — ${tie?'Tie!':won?'Correct! 🏆':'Wrong!'}`)
-            .setDescription(`First: **${first}${suit}** | Next: **${next}${suit2}**\n\nYou picked **${pick}**${tie?'\n🤝 Tie — no coins exchanged.':won?`\n🏆 +**${bet.toLocaleString()} 🪙**!`:`\n💸 -**${bet.toLocaleString()} 🪙**`}\nBalance: **${getUserBalance(uid).toLocaleString()} 🪙**`)
-            .setFooter({text:'SOLDIER² Games'}).setTimestamp()
+
+        await msg.react('📈');
+        await msg.react('📉');
+
+        const filter = (r, u) => ['📈','📉'].includes(r.emoji.name) && u.id === uid;
+        const col    = await msg.awaitReactions({ filter, max: 1, time: 30000 }).catch(() => null);
+
+        if (!col?.first()) return msg.edit({ embeds: [new EmbedBuilder()
+            .setColor(0x888888).setTitle('⏰ Timed out!')] });
+
+        const pick  = col.first().emoji.name === '📈' ? 'higher' : 'lower';
+        const next  = VALS[Math.floor(Math.random() * 13)];
+        const suit2 = SUITS[Math.floor(Math.random() * 4)];
+        const won   = (pick === 'higher' && cardVal(next) > cardVal(first)) || (pick === 'lower' && cardVal(next) < cardVal(first));
+        const tie   = cardVal(next) === cardVal(first);
+
+        if (!tie) { addCoins(uid, won ? bet : -bet); addXP(gid, uid, won ? 100 : 10); }
+
+        return msg.edit({ embeds: [new EmbedBuilder()
+            .setColor(tie ? 0xFFD700 : won ? 0x00cc00 : 0xe74c3c)
+            .setTitle(`🃏 High or Low — ${tie ? 'Tie!' : won ? 'Correct! 🏆' : 'Wrong!'}`)
+            .setDescription(
+                `First: **${first}${suit}** | Next: **${next}${suit2}**\n\n` +
+                `You picked **${pick}**` +
+                `${tie ? '\n🤝 Tie — no coins exchanged.' : won ? `\n🏆 +**${bet.toLocaleString()} 🪙**!` : `\n💸 -**${bet.toLocaleString()} 🪙**`}\n` +
+                `Balance: **${getUserBalance(uid).toLocaleString()} 🪙**`
+            )
+            .setFooter({ text: 'SOLDIER² Games' }).setTimestamp()
         ]});
     }
 
     // ×scratch
     if (command==='scratch') {
-        const bet=parseInt(args[0]);
-        if(!bet||bet<1) return reply('❌ Usage: `×scratch <bet>`');
-        if(getUserBalance(uid)<bet) return reply(`❌ Not enough coins. Balance: **${getUserBalance(uid).toLocaleString()} 🪙**`);
-        addCoins(uid,-bet);
-        const PRIZES=['💎','⭐','🍒','💰','🎯','❌'];
-        const PAYS={'💎':20,'⭐':10,'🍒':5,'💰':3,'🎯':2,'❌':0};
-        const tiles=Array.from({length:9},()=>PRIZES[Math.floor(Math.random()*PRIZES.length)]);
-        const revealed=new Array(9).fill(false);
-        const buildBoard=()=>{
-            let board='';
-            for(let i=0;i<9;i++){board+=(revealed[i]?tiles[i]:'🟦')+(( i+1)%3===0?'\n':' ');}
+        const bet = parseInt(args[0]);
+        if (!bet || bet < 1) return reply('❌ Usage: `×scratch <bet>`');
+        if (getUserBalance(uid) < bet) return reply(`❌ Not enough coins. Balance: **${getUserBalance(uid).toLocaleString()} 🪙**`);
+
+        addCoins(uid, -bet);
+
+        const PRIZES = ['💎','⭐','🍒','💰','🎯','❌'];
+        const PAYS   = { '💎': 20, '⭐': 10, '🍒': 5, '💰': 3, '🎯': 2, '❌': 0 };
+        const tiles  = Array.from({ length: 9 }, () => PRIZES[Math.floor(Math.random() * PRIZES.length)]);
+        const revealed = new Array(9).fill(false);
+        const nums   = ['1️⃣','2️⃣','3️⃣','4️⃣','5️⃣','6️⃣','7️⃣','8️⃣','9️⃣'];
+
+        const buildBoard = () => {
+            let board = '';
+            for (let i = 0; i < 9; i++) {
+                board += (revealed[i] ? tiles[i] : '🟦') + ((i + 1) % 3 === 0 ? '\n' : ' ');
+            }
             return board;
         };
-        const nums=['1️⃣','2️⃣','3️⃣','4️⃣','5️⃣','6️⃣','7️⃣','8️⃣','9️⃣'];
-        const msg=await message.channel.send({embeds:[new EmbedBuilder().setColor(0x00cc44).setTitle('🎟️ Scratch Card')
+
+        const msg = await message.channel.send({ embeds: [new EmbedBuilder()
+            .setColor(0x00cc44).setTitle('🎟️ Scratch Card')
             .setDescription(`React with a number to scratch a tile! Pick **3**.\n\n${buildBoard()}`)
-            .setFooter({text:`Bet: ${bet.toLocaleString()} 🪙 | Match 3 to win!`}).setTimestamp()
+            .setFooter({ text: `Bet: ${bet.toLocaleString()} 🪙 | Match 3 to win!` }).setTimestamp()
         ]});
-        for(const n of nums) await msg.react(n);
-        let scratched=0;
-        const filter=(r,u)=>nums.includes(r.emoji.name)&&u.id===uid;
-        const doScratch=async()=>{
-            const col=await msg.awaitReactions({filter,max:1,time:30000}).catch(()=>null);
-            if(!col?.first()||scratched>=3) return finish();
-            const idx=nums.indexOf(col.first().emoji.name);
-            try{await col.first().users.remove(uid);}catch{}
-            if(revealed[idx]){await msg.edit({embeds:[new EmbedBuilder().setColor(0x00cc44).setTitle('🎟️ Scratch Card').setDescription(`Already scratched! Pick another.\n\n${buildBoard()}`).setFooter({text:`${3-scratched} scratches left`})]});return doScratch();}
-            revealed[idx]=true; scratched++;
-            await msg.edit({embeds:[new EmbedBuilder().setColor(0x00cc44).setTitle('🎟️ Scratch Card').setDescription(`${buildBoard()}`).setFooter({text:`${3-scratched} scratches left`})]});
-            if(scratched<3) return doScratch();
-            finish();
-        };
-        const finish=async()=>{
+
+        for (const n of nums) await msg.react(n).catch(() => {});
+
+        let scratched = 0;
+
+        const finish = async () => {
             revealed.fill(true);
-            const counts={};
-            for(const t of tiles) counts[t]=(counts[t]||0)+1;
-            const match3=Object.entries(counts).find(([k,v])=>v>=3&&k!=='❌');
-            const won=match3?bet*PAYS[match3[0]]:0;
-            if(won>0){addCoins(uid,won);addXP(gid,uid,100);}else{addXP(gid,uid,10);}
-            await msg.edit({embeds:[new EmbedBuilder().setColor(won?0xFFD700:0xe74c3c).setTitle(`🎟️ Scratch Card — ${won?'Winner! 🏆':'No Match'}`)
-                .setDescription(`${buildBoard()}\n\n${won?`🏆 Matched 3x ${match3[0]}! +**${won.toLocaleString()} 🪙**`:'💸 No match this time.'}\nBalance: **${getUserBalance(uid).toLocaleString()} 🪙**`)
-                .setFooter({text:'SOLDIER² Games'}).setTimestamp()
+            const counts = {};
+            for (const t of tiles) counts[t] = (counts[t] || 0) + 1;
+            const match3 = Object.entries(counts).find(([k, v]) => v >= 3 && k !== '❌');
+            const won    = match3 ? bet * PAYS[match3[0]] : 0;
+            if (won > 0) { addCoins(uid, won); addXP(gid, uid, 100); } else { addXP(gid, uid, 10); }
+            await msg.edit({ embeds: [new EmbedBuilder()
+                .setColor(won ? 0xFFD700 : 0xe74c3c)
+                .setTitle(`🎟️ Scratch Card — ${won ? 'Winner! 🏆' : 'No Match'}`)
+                .setDescription(
+                    `${buildBoard()}\n\n` +
+                    `${won ? `🏆 Matched 3x ${match3[0]}! +**${won.toLocaleString()} 🪙**` : '💸 No match this time.'}\n` +
+                    `Balance: **${getUserBalance(uid).toLocaleString()} 🪙**`
+                )
+                .setFooter({ text: 'SOLDIER² Games' }).setTimestamp()
             ]});
         };
-        doScratch(); return;
+
+        const doScratch = async () => {
+            if (scratched >= 3) return finish();
+
+            // Fresh filter every scratch
+            const filter = (r, u) => nums.includes(r.emoji.name) && u.id === uid;
+            const col    = await msg.awaitReactions({ filter, max: 1, time: 30000 }).catch(() => null);
+
+            if (!col?.first()) return finish();
+
+            const idx = nums.indexOf(col.first().emoji.name);
+            try { await col.first().users.remove(uid); } catch {}
+
+            if (revealed[idx]) {
+                await msg.edit({ embeds: [new EmbedBuilder()
+                    .setColor(0x00cc44).setTitle('🎟️ Scratch Card')
+                    .setDescription(`Already scratched! Pick another.\n\n${buildBoard()}`)
+                    .setFooter({ text: `${3 - scratched} scratches left` })] });
+                return doScratch();
+            }
+
+            revealed[idx] = true;
+            scratched++;
+
+            await msg.edit({ embeds: [new EmbedBuilder()
+                .setColor(0x00cc44).setTitle('🎟️ Scratch Card')
+                .setDescription(`${buildBoard()}`)
+                .setFooter({ text: `${3 - scratched} scratches left` })] });
+
+            if (scratched >= 3) return finish();
+            doScratch();
+        };
+
+        doScratch();
+        return;
     }
 
     // ×crash
     if (command==='crash') {
-        const bet=parseInt(args[0]);
-        if(!bet||bet<1) return reply('❌ Usage: `×crash <bet>`');
-        if(getUserBalance(uid)<bet) return reply(`❌ Not enough coins. Balance: **${getUserBalance(uid).toLocaleString()} 🪙**`);
-        addCoins(uid,-bet);
-        const crashAt=+(1+Math.random()*9).toFixed(2);
-        let mult=1.00;
-        const msg=await message.channel.send({embeds:[new EmbedBuilder().setColor(0x00cc44).setTitle('📈 CRASH')
+        const bet = parseInt(args[0]);
+        if (!bet || bet < 1) return reply('❌ Usage: `×crash <bet>`');
+        if (getUserBalance(uid) < bet) return reply(`❌ Not enough coins. Balance: **${getUserBalance(uid).toLocaleString()} 🪙**`);
+
+        addCoins(uid, -bet);
+        const crashAt  = +(1 + Math.random() * 9).toFixed(2);
+        let mult       = 1.00;
+        let cashedOut  = false;
+        let crashed    = false;
+
+        const msg = await message.channel.send({ embeds: [new EmbedBuilder()
+            .setColor(0x00cc44).setTitle('📈 CRASH')
             .setDescription(`Multiplier: **${mult.toFixed(2)}×**\n\nReact 💰 to **cash out** before it crashes!\nBet: **${bet.toLocaleString()} 🪙**`)
-            .setFooter({text:'Cash out before it crashes!'}).setTimestamp()
+            .setFooter({ text: 'Cash out before it crashes!' }).setTimestamp()
         ]});
+
         await msg.react('💰');
-        let cashedOut=false;
-        const filter=(r,u)=>r.emoji.name==='💰'&&u.id===uid;
-        const collector=msg.createReactionCollector({filter,max:1,time:20000});
-        collector.on('collect',async()=>{
-            cashedOut=true; collector.stop();
-            if(mult>=crashAt){addXP(gid,uid,10);return msg.edit({embeds:[new EmbedBuilder().setColor(0xe74c3c).setTitle('📉 Already Crashed!').setDescription(`It crashed at **${crashAt}×** before you cashed out!\n💸 Lost **${bet.toLocaleString()} 🪙**`).setFooter({text:'SOLDIER² Games'}).setTimestamp()]});}
-            const winnings=Math.floor(bet*mult);
-            addCoins(uid,winnings); addXP(gid,uid,100);
-            await msg.edit({embeds:[new EmbedBuilder().setColor(0x00cc44).setTitle('💰 Cashed Out!')
-                .setDescription(`Cashed out at **${mult.toFixed(2)}×**!\n🏆 +**${winnings.toLocaleString()} 🪙**\nBalance: **${getUserBalance(uid).toLocaleString()} 🪙**`)
-                .setFooter({text:'SOLDIER² Games'}).setTimestamp()
-            ]});
-        });
-        const interval=setInterval(async()=>{
-            if(cashedOut){clearInterval(interval);return;}
-            mult=+(mult+0.1).toFixed(2);
-            if(mult>=crashAt){
-                clearInterval(interval); collector.stop();
-                if(!cashedOut){addXP(gid,uid,10);await msg.edit({embeds:[new EmbedBuilder().setColor(0xe74c3c).setTitle('💥 CRASHED!')
-                    .setDescription(`Crashed at **${crashAt}×**! 💸 Lost **${bet.toLocaleString()} 🪙**`)
-                    .setFooter({text:'SOLDIER² Games'}).setTimestamp()
-                ]});}
+
+        // Interval ticks every 2 seconds
+        const interval = setInterval(async () => {
+            if (cashedOut || crashed) { clearInterval(interval); return; }
+
+            mult = +(mult + 0.1).toFixed(2);
+
+            if (mult >= crashAt) {
+                crashed = true;
+                clearInterval(interval);
+                if (!cashedOut) {
+                    addXP(gid, uid, 10);
+                    await msg.edit({ embeds: [new EmbedBuilder()
+                        .setColor(0xe74c3c).setTitle('💥 CRASHED!')
+                        .setDescription(`Crashed at **${crashAt}×**!\n💸 Lost **${bet.toLocaleString()} 🪙**\nBalance: **${getUserBalance(uid).toLocaleString()} 🪙**`)
+                        .setFooter({ text: 'SOLDIER² Games' }).setTimestamp()
+                    ]}).catch(() => {});
+                }
                 return;
             }
-            await msg.edit({embeds:[new EmbedBuilder().setColor(mult>3?0xFFD700:0x00cc44).setTitle('📈 CRASH')
-                .setDescription(`Multiplier: **${mult.toFixed(2)}×**\n\nReact 💰 to **cash out**!\nBet: **${bet.toLocaleString()} 🪙** → **${Math.floor(bet*mult).toLocaleString()} 🪙**`)
-                .setFooter({text:'SOLDIER² Games'}).setTimestamp()
-            ]}).catch(()=>{});
-        },2000);
+
+            await msg.edit({ embeds: [new EmbedBuilder()
+                .setColor(mult > 3 ? 0xFFD700 : 0x00cc44).setTitle('📈 CRASH')
+                .setDescription(
+                    `Multiplier: **${mult.toFixed(2)}×**\n\n` +
+                    `React 💰 to **cash out**!\n` +
+                    `Bet: **${bet.toLocaleString()} 🪙** → **${Math.floor(bet * mult).toLocaleString()} 🪙**`
+                )
+                .setFooter({ text: 'Cash out before it crashes!' }).setTimestamp()
+            ]}).catch(() => {});
+        }, 2000);
+
+        // Fresh reaction collector
+        const filter    = (r, u) => r.emoji.name === '💰' && u.id === uid;
+        const collector = msg.createReactionCollector({ filter, time: 60000 });
+
+        collector.on('collect', async () => {
+            if (cashedOut || crashed) return;
+            cashedOut = true;
+            clearInterval(interval);
+            collector.stop();
+
+            const winnings = Math.floor(bet * mult);
+            addCoins(uid, winnings);
+            addXP(gid, uid, 100);
+
+            await msg.edit({ embeds: [new EmbedBuilder()
+                .setColor(0x00cc44).setTitle('💰 Cashed Out!')
+                .setDescription(
+                    `Cashed out at **${mult.toFixed(2)}×**!\n` +
+                    `🏆 +**${winnings.toLocaleString()} 🪙**\n` +
+                    `Balance: **${getUserBalance(uid).toLocaleString()} 🪙**`
+                )
+                .setFooter({ text: 'SOLDIER² Games' }).setTimestamp()
+            ]});
+        });
+
+        collector.on('end', () => {
+            clearInterval(interval);
+        });
+
         return;
     }
 
     // ×wheel
     if (command==='wheel') {
-        const bet=parseInt(args[0]);
-        if(!bet||bet<1) return reply('❌ Usage: `×wheel <bet>`');
-        if(getUserBalance(uid)<bet) return reply(`❌ Not enough coins. Balance: **${getUserBalance(uid).toLocaleString()} 🪙**`);
-        const SEGMENTS=[{label:'2×',mult:2,color:'#e74c3c'},{label:'0×',mult:0,color:'#333333'},{label:'1.5×',mult:1.5,color:'#3498db'},{label:'3×',mult:3,color:'#2ecc71'},{label:'0×',mult:0,color:'#333333'},{label:'1×',mult:1,color:'#9b59b6'},{label:'0×',mult:0,color:'#333333'},{label:'5×',mult:5,color:'#FFD700'}];
-        const idx=Math.floor(Math.random()*SEGMENTS.length);
-        const seg=SEGMENTS[idx];
-        const canvas=createCanvas(400,400); const ctx=canvas.getContext('2d');
-        const cx=200,cy=200,r=180,slice=Math.PI*2/SEGMENTS.length;
-        for(let i=0;i<SEGMENTS.length;i++){
-            ctx.beginPath(); ctx.moveTo(cx,cy); ctx.arc(cx,cy,r,i*slice,(i+1)*slice); ctx.closePath();
-            ctx.fillStyle=SEGMENTS[i].color; ctx.fill();
-            ctx.strokeStyle='#ffffff'; ctx.lineWidth=2; ctx.stroke();
-            ctx.save(); ctx.translate(cx,cy); ctx.rotate(i*slice+slice/2);
-            ctx.fillStyle='#ffffff'; ctx.font='bold 18px sans-serif'; ctx.textAlign='right';
-            ctx.fillText(SEGMENTS[i].label,r-15,6); ctx.restore();
+        const bet = parseInt(args[0]);
+        if (!bet || bet < 1) return reply('❌ Usage: `×wheel <bet>`');
+        if (getUserBalance(uid) < bet) return reply(`❌ Not enough coins. Balance: **${getUserBalance(uid).toLocaleString()} 🪙**`);
+
+        const SEGMENTS = [
+            { label: '2×',   mult: 2,   color: '#e74c3c' },
+            { label: '0×',   mult: 0,   color: '#333333' },
+            { label: '1.5×', mult: 1.5, color: '#3498db' },
+            { label: '3×',   mult: 3,   color: '#2ecc71' },
+            { label: '0×',   mult: 0,   color: '#333333' },
+            { label: '1×',   mult: 1,   color: '#9b59b6' },
+            { label: '0×',   mult: 0,   color: '#333333' },
+            { label: '5×',   mult: 5,   color: '#FFD700' },
+        ];
+
+        const finalIdx = Math.floor(Math.random() * SEGMENTS.length);
+
+        function buildWheel(highlightIdx) {
+            const canvas = createCanvas(400, 400);
+            const ctx    = canvas.getContext('2d');
+            const cx = 200, cy = 200, r = 180;
+            const slice = Math.PI * 2 / SEGMENTS.length;
+
+            // Dark background
+            ctx.fillStyle = '#1a1a2e';
+            ctx.fillRect(0, 0, 400, 400);
+
+            for (let i = 0; i < SEGMENTS.length; i++) {
+                ctx.beginPath();
+                ctx.moveTo(cx, cy);
+                ctx.arc(cx, cy, r, i * slice, (i + 1) * slice);
+                ctx.closePath();
+
+                // Highlight the current segment
+                ctx.fillStyle = i === highlightIdx
+                    ? '#ffffff'
+                    : SEGMENTS[i].color;
+                ctx.fill();
+                ctx.strokeStyle = '#ffffff';
+                ctx.lineWidth   = 2;
+                ctx.stroke();
+
+                // Label
+                ctx.save();
+                ctx.translate(cx, cy);
+                ctx.rotate(i * slice + slice / 2);
+                ctx.fillStyle  = i === highlightIdx ? '#000000' : '#ffffff';
+                ctx.font       = 'bold 18px sans-serif';
+                ctx.textAlign  = 'right';
+                ctx.fillText(SEGMENTS[i].label, r - 15, 6);
+                ctx.restore();
+            }
+
+            // Arrow at top pointing down
+            ctx.fillStyle = '#ffffff';
+            ctx.beginPath();
+            ctx.moveTo(200, 10);
+            ctx.lineTo(190, 30);
+            ctx.lineTo(210, 30);
+            ctx.closePath();
+            ctx.fill();
+
+            // Center cap
+            ctx.fillStyle   = '#1a1a2e';
+            ctx.beginPath();
+            ctx.arc(cx, cy, 20, 0, Math.PI * 2);
+            ctx.fill();
+            ctx.strokeStyle = '#ffffff';
+            ctx.lineWidth   = 2;
+            ctx.stroke();
+
+            return new AttachmentBuilder(canvas.toBuffer('image/png'), { name: 'wheel.png' });
         }
-        // Arrow pointing to winner
-        const angle=idx*slice+slice/2;
-        ctx.fillStyle='#ffffff'; ctx.beginPath();
-        ctx.moveTo(cx+Math.cos(angle)*(r+15),cy+Math.sin(angle)*(r+15));
-        ctx.lineTo(cx+Math.cos(angle-0.15)*(r-5),cy+Math.sin(angle-0.15)*(r-5));
-        ctx.lineTo(cx+Math.cos(angle+0.15)*(r-5),cy+Math.sin(angle+0.15)*(r-5));
-        ctx.fill();
-        ctx.fillStyle='#1a1a1a'; ctx.beginPath(); ctx.arc(cx,cy,20,0,Math.PI*2); ctx.fill();
-        const payout=Math.floor(bet*seg.mult);
-        addCoins(uid,payout-bet); addXP(gid,uid,payout>0?100:10);
-        const att=new AttachmentBuilder(canvas.toBuffer('image/png'),{name:'wheel.png'});
-        return message.channel.send({embeds:[new EmbedBuilder()
-            .setColor(payout>bet?0xFFD700:payout>0?0x3498db:0xe74c3c).setTitle(`🎡 Prize Wheel — ${seg.label} ${payout>bet?'Win! 🏆':payout>0?'Break Even!':'Loss!'}`)
-            .setDescription(`Landed on **${seg.label}**!\n\n${payout>0?`+**${(payout-bet).toLocaleString()} 🪙**`:`💸 -**${bet.toLocaleString()} 🪙**`}\nBalance: **${getUserBalance(uid).toLocaleString()} 🪙**`)
-            .setImage('attachment://wheel.png').setFooter({text:'SOLDIER² Games'}).setTimestamp()
-        ],files:[att]});
+
+        // Spin frames — simulate wheel moving through segments
+        const spinFrames = [];
+        const totalFrames = 10;
+        for (let i = 0; i < totalFrames; i++) {
+            // Last 3 frames slow down toward final
+            if (i >= totalFrames - 3) {
+                spinFrames.push((finalIdx - (totalFrames - 1 - i) + SEGMENTS.length) % SEGMENTS.length);
+            } else {
+                spinFrames.push(Math.floor(Math.random() * SEGMENTS.length));
+            }
+        }
+        spinFrames.push(finalIdx); // always end on final
+
+        // Send initial frame
+        const f0  = buildWheel(spinFrames[0]);
+        const msg = await message.channel.send({
+            embeds: [new EmbedBuilder()
+                .setColor(0x888888).setTitle('🎡 Prize Wheel — Spinning...')
+                .setDescription(`Spinning...\nBet: **${bet.toLocaleString()} 🪙**`)
+                .setImage('attachment://wheel.png')
+                .setFooter({ text: 'SOLDIER² Games' }).setTimestamp()
+            ],
+            files: [f0]
+        });
+
+        // Animate through frames
+        for (let i = 1; i < spinFrames.length; i++) {
+            const delay = i >= spinFrames.length - 4 ? 700 : 300;
+            await new Promise(res => setTimeout(res, delay));
+            const frame = buildWheel(spinFrames[i]);
+            await msg.edit({
+                embeds: [new EmbedBuilder()
+                    .setColor(0x888888).setTitle('🎡 Prize Wheel — Spinning...')
+                    .setDescription(`Spinning...\nBet: **${bet.toLocaleString()} 🪙**`)
+                    .setImage('attachment://wheel.png')
+                    .setFooter({ text: 'SOLDIER² Games' }).setTimestamp()
+                ],
+                files: [frame]
+            });
+        }
+
+        // Final result
+        const seg    = SEGMENTS[finalIdx];
+        const payout = Math.floor(bet * seg.mult);
+        addCoins(uid, payout - bet);
+        addXP(gid, uid, payout > 0 ? 100 : 10);
+
+        const finalFrame = buildWheel(finalIdx);
+        await msg.edit({
+            embeds: [new EmbedBuilder()
+                .setColor(payout > bet ? 0xFFD700 : payout > 0 ? 0x3498db : 0xe74c3c)
+                .setTitle(`🎡 Prize Wheel — ${seg.label} ${payout > bet ? 'Win! 🏆' : payout > 0 ? 'Break Even!' : 'Loss!'}`)
+                .setDescription(
+                    `Landed on **${seg.label}**!\n\n` +
+                    `${payout > 0 ? `+**${(payout - bet).toLocaleString()} 🪙**` : `💸 -**${bet.toLocaleString()} 🪙**`}\n` +
+                    `Balance: **${getUserBalance(uid).toLocaleString()} 🪙**`
+                )
+                .setImage('attachment://wheel.png')
+                .setFooter({ text: 'SOLDIER² Games' }).setTimestamp()
+            ],
+            files: [finalFrame]
+        });
+
+        return;
     }
 
     // ×war
@@ -5754,111 +6373,298 @@ if (command === 'testwelcome') {
 
     // ×race
     if (command==='race') {
-        const opponent=message.mentions.users.first();
-        const bet=parseInt(args[0]);
-        if(!bet||bet<1||!opponent||opponent.bot) return reply('❌ Usage: `×race <bet> @opponent`');
-        if(getUserBalance(uid)<bet) return reply(`❌ Not enough coins.`);
-        if(getUserBalance(opponent.id)<bet) return reply(`❌ <@${opponent.id}> doesn't have enough coins.`);
-        const cMsg=await message.channel.send({embeds:[new EmbedBuilder().setColor(0xe74c3c).setTitle('🏁 Race Challenge!')
+        const opponent = message.mentions.users.first();
+        const bet      = parseInt(args[0]);
+        if (!bet || bet < 1 || !opponent || opponent.bot)
+            return reply('❌ Usage: `×race <bet> @opponent`');
+        if (opponent.id === uid)
+            return reply('❌ You cannot race yourself.');
+        if (getUserBalance(uid) < bet)
+            return reply(`❌ Not enough coins.`);
+        if (getUserBalance(opponent.id) < bet)
+            return reply(`❌ <@${opponent.id}> doesn't have enough coins.`);
+
+        // Challenge message
+        const cMsg = await message.channel.send({ embeds: [new EmbedBuilder()
+            .setColor(0xe74c3c).setTitle('🏁 Race Challenge!')
             .setDescription(`<@${opponent.id}> you've been challenged to a race by <@${uid}>!\nBet: **${bet.toLocaleString()} 🪙**\n\nReact ✅ to accept.`)
+            .setFooter({ text: 'Expires in 30 seconds' }).setTimestamp()
         ]});
         await cMsg.react('✅');
-        const accepted=await cMsg.awaitReactions({filter:(r,u)=>r.emoji.name==='✅'&&u.id===opponent.id,max:1,time:30000}).catch(()=>null);
-        if(!accepted?.first()) return cMsg.edit({embeds:[new EmbedBuilder().setColor(0xe74c3c).setTitle('❌ No response.')]});
-        await cMsg.edit({embeds:[new EmbedBuilder().setColor(0xe74c3c).setTitle('🏁 RACE START!')
-            .setDescription(`**BOTH PLAYERS** react ⚡ as fast as possible!\n<@${uid}> vs <@${opponent.id}>`)
+
+        const accepted = await cMsg.awaitReactions({
+            filter: (r, u) => r.emoji.name === '✅' && u.id === opponent.id,
+            max: 1, time: 30000
+        }).catch(() => null);
+
+        if (!accepted?.first())
+            return cMsg.edit({ embeds: [new EmbedBuilder()
+                .setColor(0x888888).setTitle('❌ Race Declined')
+                .setDescription(`<@${opponent.id}> did not respond in time.`)] });
+
+        // Race start
+        await cMsg.edit({ embeds: [new EmbedBuilder()
+            .setColor(0xFFD700).setTitle('🏁 RACE START!')
+            .setDescription(`**BOTH PLAYERS** react ⚡ as fast as possible!\n<@${uid}> vs <@${opponent.id}>\n\nBet: **${bet.toLocaleString()} 🪙**`)
+            .setFooter({ text: 'First to react wins!' }).setTimestamp()
         ]});
         await cMsg.react('⚡');
-        const raceFilter=(r,u)=>r.emoji.name==='⚡'&&[uid,opponent.id].includes(u.id);
-        const raceCol=await cMsg.awaitReactions({filter:raceFilter,max:2,time:15000}).catch(()=>null);
-        if(!raceCol||raceCol.size===0) return cMsg.edit({embeds:[new EmbedBuilder().setColor(0x888888).setTitle('🏁 Race').setDescription('Nobody reacted in time!')]});
-        const reactor=raceCol.first().users.cache.find(u=>u.id!==client.user.id);
-        const winner=reactor?.id||uid, loser=winner===uid?opponent.id:uid;
-        addCoins(winner,bet); addCoins(loser,-bet); addXP(gid,winner,100); addXP(gid,loser,10);
-        return cMsg.edit({embeds:[new EmbedBuilder().setColor(0xe74c3c).setTitle('🏁 Race Result!')
-            .setDescription(`⚡ <@${winner}> reacted first and wins **${bet.toLocaleString()} 🪙**!\n<@${loser}> was too slow.`)
-            .setFooter({text:'SOLDIER² Games'}).setTimestamp()
-        ]});
+
+        // Track who reacted first using a collector with individual collect events
+        let raceWinner = null;
+
+        const raceCollector = cMsg.createReactionCollector({
+            filter: (r, u) => r.emoji.name === '⚡' && [uid, opponent.id].includes(u.id) && u.id !== client.user.id,
+            time: 15000
+        });
+
+        raceCollector.on('collect', (r, u) => {
+            if (!raceWinner) {
+                raceWinner = u.id;
+                raceCollector.stop('winner');
+            }
+        });
+
+        raceCollector.on('end', async (collected, reason) => {
+            if (reason === 'time' || !raceWinner) {
+                return cMsg.edit({ embeds: [new EmbedBuilder()
+                    .setColor(0x888888).setTitle('🏁 Race')
+                    .setDescription('Nobody reacted in time! No coins exchanged.')
+                    .setFooter({ text: 'SOLDIER² Games' }).setTimestamp()] });
+            }
+
+            const loser = raceWinner === uid ? opponent.id : uid;
+            addCoins(raceWinner, bet);
+            addCoins(loser, -bet);
+            addXP(gid, raceWinner, 100);
+            addXP(gid, loser, 10);
+
+            return cMsg.edit({ embeds: [new EmbedBuilder()
+                .setColor(0x00cc00).setTitle('🏁 Race Result!')
+                .setDescription(
+                    `⚡ <@${raceWinner}> reacted first and wins **${bet.toLocaleString()} 🪙**!\n` +
+                    `<@${loser}> was too slow.\n\n` +
+                    `Balance: **${getUserBalance(raceWinner).toLocaleString()} 🪙**`
+                )
+                .setFooter({ text: 'SOLDIER² Games' }).setTimestamp()] });
+        });
+
+        return;
     }
 
     // ×hangman
     if (command==='hangman') {
-        const WORDS=['soldier','discord','military','fortress','commander','battalion','sergeant','lieutenant','colonel','general','operation','classified','protocol','tactical','squadron'];
-        const word=WORDS[Math.floor(Math.random()*WORDS.length)];
-        const guessed=new Set(); let wrong=0; const MAX_WRONG=6;
-        const GALLOWS=['```\n\n\n\n\n=========```','```\n  |\n  |\n  |\n  |\n=========```','```\n  +---+\n  |\n  |\n  |\n  |\n=========```','```\n  +---+\n  |   |\n  O   |\n      |\n      |\n=========```','```\n  +---+\n  |   |\n  O   |\n  |   |\n      |\n=========```','```\n  +---+\n  |   |\n  O   |\n /|   |\n      |\n=========```','```\n  +---+\n  |   |\n  O   |\n /|\\  |\n /    |\n=========```'];
-        const display=()=>word.split('').map(l=>guessed.has(l)?l:'_').join(' ');
-        const LETTERS='🇦🇧🇨🇩🇪🇫🇬🇭🇮🇯🇰🇱🇲🇳🇴🇵🇶🇷🇸🇹🇺🇻🇼🇽🇾🇿'.match(/\p{Emoji}/gu);
-        const ALPHA='abcdefghijklmnopqrstuvwxyz'.split('');
-        const buildEmbed=()=>new EmbedBuilder().setColor(wrong>=MAX_WRONG?0xe74c3c:0x3498db).setTitle('🔤 Hangman')
-            .setDescription(`${GALLOWS[wrong]}\n\n**Word:** \`${display()}\`\n**Wrong guesses (${wrong}/${MAX_WRONG}):** ${[...guessed].filter(l=>!word.includes(l)).join(' ')||'none'}\n\nReact with a letter to guess!`);
-        const msg=await message.channel.send({embeds:[buildEmbed()]});
-        for(const e of LETTERS) await msg.react(e).catch(()=>{});
-        const filter=(r,u)=>LETTERS.includes(r.emoji.name)&&u.id===uid;
-        const doGuess=async()=>{
-            if(wrong>=MAX_WRONG||display().replace(/ /g,'')=== word) return;
-            const col=await msg.awaitReactions({filter,max:1,time:60000}).catch(()=>null);
-            if(!col?.first()) return msg.edit({embeds:[new EmbedBuilder().setColor(0x888888).setTitle('⏰ Hangman timed out!').setDescription(`The word was **${word}**`)]});
-            const letter=ALPHA[LETTERS.indexOf(col.first().emoji.name)];
-            try{await col.first().users.remove(uid);}catch{}
-            if(guessed.has(letter)){await msg.edit({embeds:[buildEmbed()]});return doGuess();}
+        const WORDS = ['soldier','discord','military','fortress','commander','battalion','sergeant','lieutenant','colonel','general','operation','classified','protocol','tactical','squadron'];
+        const word    = WORDS[Math.floor(Math.random() * WORDS.length)];
+        const guessed = new Set();
+        let wrong     = 0;
+        const MAX_WRONG = 6;
+
+        const GALLOWS = [
+            '```\n\n\n\n\n=========```',
+            '```\n  |\n  |\n  |\n  |\n=========```',
+            '```\n  +---+\n  |\n  |\n  |\n  |\n=========```',
+            '```\n  +---+\n  |   |\n  O   |\n      |\n      |\n=========```',
+            '```\n  +---+\n  |   |\n  O   |\n  |   |\n      |\n=========```',
+            '```\n  +---+\n  |   |\n  O   |\n /|   |\n      |\n=========```',
+            '```\n  +---+\n  |   |\n  O   |\n /|\\  |\n /    |\n=========```',
+        ];
+
+        const display    = () => word.split('').map(l => guessed.has(l) ? l : '_').join(' ');
+        const wrongList  = () => [...guessed].filter(l => !word.includes(l)).join(' ') || 'none';
+        const buildEmbed = () => new EmbedBuilder()
+            .setColor(wrong >= MAX_WRONG ? 0xe74c3c : 0x3498db)
+            .setTitle('🔤 Hangman')
+            .setDescription(
+                `${GALLOWS[wrong]}\n\n` +
+                `**Word:** \`${display()}\`\n` +
+                `**Wrong guesses (${wrong}/${MAX_WRONG}):** ${wrongList()}\n\n` +
+                `Type a **single letter** in chat to guess!`
+            )
+            .setFooter({ text: 'SOLDIER² Games' }).setTimestamp();
+
+        const msg = await message.channel.send({ embeds: [buildEmbed()] });
+
+        const doGuess = async () => {
+            if (wrong >= MAX_WRONG || display().replace(/ /g, '') === word) return;
+
+            const chatFilter = m =>
+                m.author.id === uid &&
+                !m.author.bot &&
+                m.content.length === 1 &&
+                /^[a-zA-Z]$/.test(m.content);
+
+            const col = await message.channel.awaitMessages({
+                filter: chatFilter,
+                max: 1,
+                time: 60000,
+                errors: ['time']
+            }).catch(() => null);
+
+            if (!col?.first()) {
+                return msg.edit({ embeds: [new EmbedBuilder()
+                    .setColor(0x888888).setTitle('⏰ Hangman timed out!')
+                    .setDescription(`The word was **${word}**`)
+                    .setFooter({ text: 'SOLDIER² Games' })] });
+            }
+
+            const letter = col.first().content.toLowerCase();
+
+            if (guessed.has(letter)) {
+                await msg.edit({ embeds: [new EmbedBuilder()
+                    .setColor(0x3498db).setTitle('🔤 Hangman')
+                    .setDescription(
+                        `${GALLOWS[wrong]}\n\n` +
+                        `**Word:** \`${display()}\`\n` +
+                        `**Wrong guesses (${wrong}/${MAX_WRONG}):** ${wrongList()}\n\n` +
+                        `⚠️ You already guessed **${letter}**! Try another letter.`
+                    )
+                    .setFooter({ text: 'SOLDIER² Games' }).setTimestamp()] });
+                return doGuess();
+            }
+
             guessed.add(letter);
-            if(!word.includes(letter)) wrong++;
-            if(wrong>=MAX_WRONG){addXP(gid,uid,10);return msg.edit({embeds:[new EmbedBuilder().setColor(0xe74c3c).setTitle('💀 You were hanged!').setDescription(`The word was **${word}**`).setFooter({text:'SOLDIER² Games'})]});}
-            if(display().replace(/ /g,'')=== word){addXP(gid,uid,100);addCoins(uid,500);return msg.edit({embeds:[new EmbedBuilder().setColor(0x00cc00).setTitle('✅ You guessed it!').setDescription(`The word was **${word}**!\n+**500 🪙** +**100 XP**`).setFooter({text:'SOLDIER² Games'})]});}
-            await msg.edit({embeds:[buildEmbed()]}); doGuess();
+            if (!word.includes(letter)) wrong++;
+
+            if (wrong >= MAX_WRONG) {
+                addXP(gid, uid, 10);
+                return msg.edit({ embeds: [new EmbedBuilder()
+                    .setColor(0xe74c3c).setTitle('💀 You were hanged!')
+                    .setDescription(
+                        `${GALLOWS[MAX_WRONG]}\n\n` +
+                        `The word was **${word}**\n` +
+                        `Wrong guesses: ${wrongList()}`
+                    )
+                    .setFooter({ text: 'SOLDIER² Games' }).setTimestamp()] });
+            }
+
+            if (display().replace(/ /g, '') === word) {
+                addXP(gid, uid, 100);
+                addCoins(uid, 500);
+                return msg.edit({ embeds: [new EmbedBuilder()
+                    .setColor(0x00cc00).setTitle('✅ You guessed it!')
+                    .setDescription(
+                        `The word was **${word}**!\n\n` +
+                        `+**500 🪙** +**100 XP**\n` +
+                        `Guessed letters: ${[...guessed].join(' ')}`
+                    )
+                    .setFooter({ text: 'SOLDIER² Games' }).setTimestamp()] });
+            }
+
+            await msg.edit({ embeds: [buildEmbed()] });
+            doGuess();
         };
-        doGuess(); return;
+
+        doGuess();
+        return;
     }
 
     // ×wordle
     if (command==='wordle') {
-        const WORDS=['brave','sword','guard','steel','force','ranks','staff','march','scout','tower','ammo','siege','radio','blitz','flank'];
-        const word=WORDS[Math.floor(Math.random()*WORDS.length)];
-        let attempts=0; const MAX=6;
-        const buildCanvas=(guesses)=>{
-            const canvas=createCanvas(350,420); const ctx=canvas.getContext('2d');
-            ctx.fillStyle='#121213'; ctx.fillRect(0,0,350,420);
-            for(let r=0;r<MAX;r++){
-                const guess=guesses[r]||'';
-                for(let c=0;c<5;c++){
-                    const x=15+c*65, y=15+r*65, letter=guess[c]||'';
-                    let bg='#3a3a3c';
-                    if(letter){
-                        if(word[c]===letter) bg='#538d4e';
-                        else if(word.includes(letter)) bg='#b59f3b';
-                        else bg='#3a3a3c';
+        const WORDS = ['brave','sword','guard','steel','force','ranks','staff','march','scout','tower','flank','blitz','radio','siege','scout'];
+        const word  = WORDS[Math.floor(Math.random() * WORDS.length)];
+        let attempts  = 0;
+        const MAX     = 6;
+        const guesses = [];
+        let wordleMsg = null;
+
+        const buildCanvas = () => {
+            const canvas = createCanvas(350, 420);
+            const ctx    = canvas.getContext('2d');
+            ctx.fillStyle = '#121213';
+            ctx.fillRect(0, 0, 350, 420);
+
+            for (let r = 0; r < MAX; r++) {
+                const guess  = guesses[r] || '';
+                for (let c = 0; c < 5; c++) {
+                    const x      = 15 + c * 65;
+                    const y      = 15 + r * 65;
+                    const letter = guess[c] || '';
+                    let bg       = '#3a3a3c';
+
+                    if (letter) {
+                        if (word[c] === letter)       bg = '#538d4e'; // green
+                        else if (word.includes(letter)) bg = '#b59f3b'; // yellow
+                        else                            bg = '#3a3a3c'; // grey
                     }
-                    ctx.fillStyle=bg; ctx.beginPath(); ctx.roundRect(x,y,60,60,5); ctx.fill();
-                    ctx.fillStyle='#ffffff'; ctx.font='bold 28px sans-serif'; ctx.textAlign='center';
-                    ctx.fillText(letter.toUpperCase(),x+30,y+42);
+
+                    ctx.fillStyle = bg;
+                    ctx.beginPath(); ctx.roundRect(x, y, 60, 60, 5); ctx.fill();
+                    ctx.fillStyle  = '#ffffff';
+                    ctx.font       = 'bold 28px sans-serif';
+                    ctx.textAlign  = 'center';
+                    ctx.fillText(letter.toUpperCase(), x + 30, y + 42);
                 }
             }
             return canvas.toBuffer('image/png');
         };
-        const guesses=[];
-        const send=async()=>{
-            const att=new AttachmentBuilder(buildCanvas(guesses),{name:'wordle.png'});
-            if(!wordleMsg){
-                wordleMsg=await message.channel.send({embeds:[new EmbedBuilder().setColor(0x538d4e).setTitle('🟩 Wordle').setDescription(`Guess the **5-letter** word! Type in chat.\n${MAX-attempts} guesses left.`).setImage('attachment://wordle.png')],files:[att]});
+
+        const sendOrEdit = async () => {
+            const att = new AttachmentBuilder(buildCanvas(), { name: 'wordle.png' });
+            if (!wordleMsg) {
+                wordleMsg = await message.channel.send({
+                    embeds: [new EmbedBuilder()
+                        .setColor(0x538d4e).setTitle('🟩 Wordle')
+                        .setDescription(`Guess the **5-letter** word! Type in chat.\n**${MAX - attempts} guesses left.**`)
+                        .setImage('attachment://wordle.png')
+                        .setFooter({ text: 'SOLDIER² Games' })
+                    ],
+                    files: [att]
+                });
             } else {
-                await wordleMsg.edit({embeds:[new EmbedBuilder().setColor(0x538d4e).setTitle('🟩 Wordle').setDescription(`${MAX-attempts} guesses left.`).setImage('attachment://wordle.png')],files:[att]});
+                await wordleMsg.edit({
+                    embeds: [new EmbedBuilder()
+                        .setColor(0x538d4e).setTitle('🟩 Wordle')
+                        .setDescription(`**${MAX - attempts} guesses left.**`)
+                        .setImage('attachment://wordle.png')
+                        .setFooter({ text: 'SOLDIER² Games' })
+                    ],
+                    files: [att]
+                });
             }
         };
-        let wordleMsg=null;
-        await send();
-        const chatFilter=m=>m.author.id===uid&&m.content.length===5&&/^[a-zA-Z]+$/.test(m.content);
-        const doGuess=async()=>{
-            const col=await message.channel.awaitMessages({filter:chatFilter,max:1,time:60000}).catch(()=>null);
-            if(!col?.first()) return message.channel.send(`⏰ <@${uid}> timed out! The word was **${word}**.`);
-            const guess=col.first().content.toLowerCase();
-            guesses.push(guess); attempts++;
-            await send();
-            if(guess===word){addXP(gid,uid,100);addCoins(uid,1000);return message.channel.send(`✅ <@${uid}> got **${word.toUpperCase()}** in ${attempts} tr${attempts===1?'y':'ies'}! +**1000 🪙**`);}
-            if(attempts>=MAX){addXP(gid,uid,10);return message.channel.send(`💀 <@${uid}> ran out of guesses! The word was **${word.toUpperCase()}**.`);}
+
+        await sendOrEdit();
+
+        const doGuess = async () => {
+            const chatFilter = m =>
+                m.author.id === uid &&
+                !m.author.bot &&
+                m.content.length === 5 &&
+                /^[a-zA-Z]+$/.test(m.content);
+
+            const col = await message.channel.awaitMessages({
+                filter: chatFilter,
+                max: 1,
+                time: 60000,
+                errors: ['time']
+            }).catch(() => null);
+
+            if (!col?.first()) {
+                return message.channel.send(`⏰ <@${uid}> timed out! The word was **${word.toUpperCase()}**.`);
+            }
+
+            const guess = col.first().content.toLowerCase();
+            guesses.push(guess);
+            attempts++;
+            await sendOrEdit();
+
+            if (guess === word) {
+                addXP(gid, uid, 100);
+                addCoins(uid, 1000);
+                return message.channel.send(`✅ <@${uid}> got **${word.toUpperCase()}** in ${attempts} tr${attempts === 1 ? 'y' : 'ies'}! +**1000 🪙**`);
+            }
+
+            if (attempts >= MAX) {
+                addXP(gid, uid, 10);
+                return message.channel.send(`💀 <@${uid}> ran out of guesses! The word was **${word.toUpperCase()}**.`);
+            }
+
             doGuess();
         };
-        doGuess(); return;
+
+        doGuess();
+        return;
     }
 
     // ×daily
@@ -6168,6 +6974,10 @@ if (command === 'testwelcome') {
                 `• \`${prefix}watchlist @user <reason>\` — Add to watchlist\n` +
                 `• \`${prefix}unwatchlist @user\` — Remove from watchlist\n` +
                 `• \`${prefix}watchlistview\` — View all watched users\n\n` +
+                `**━━━ GIVEAWAYS ━━━**\n` +
+                `• \`${prefix}giveawaystart <time> <winners> <prize> [prize2:<p2>] [color:<#hex>] [text:<intro>] [gif:bottom|side|winner|none]\` — Start a giveaway *(Enlisted+)*\n` +
+                `• \`${prefix}giveawayend\` — End active giveaway early *(Enlisted+)*\n` +
+                `• \`${prefix}giveawaycontinue <messageID>\` — Resume after bot restart *(Enlisted+)*\n\n` +
                 `**━━━ CONFIG ━━━**\n` +
                 `• \`${prefix}setprefix <prefix>\` — Change server prefix\n` +
                 `• \`${prefix}settings\` — View all bot settings\n` +
@@ -6258,10 +7068,6 @@ if (command === 'testwelcome') {
                 `• \`${prefix}flaggedlist\` — View all flagged users\n` +
                 `• \`${prefix}crosswarn <userID> <reason>\` — Warn across all servers\n` +
                 `• \`${prefix}globalhistory <userID>\` — Full mod history across servers\n\n` +
-               `**━━━ GIVEAWAYS ━━━**\n` +
-                `• \`${prefix}giveawaystart <time> <winners> <prize> [prize2:<p2>] [color:<#hex>] [text:<intro>] [gif:bottom|side|winner|none]\` — Start a giveaway *(Enlisted+)*\n` +
-                `• \`${prefix}giveawayend\` — End active giveaway early *(Enlisted+)*\n` +
-                `• \`${prefix}giveawaycontinue <messageID>\` — Resume after bot restart *(Enlisted+)*\n\n` +
                 `**━━━ GLOBAL ACTIONS ━━━**\n` +
                 `• \`${prefix}globalban <userID> [reason]\` — Ban from ALL servers\n` +
                 `• \`${prefix}globalunban <userID>\` — Unban from ALL servers\n` +
