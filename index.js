@@ -221,7 +221,6 @@ let botData = {
     birthdayEnabled:    {},  
     birthdayConfig:     {},   
     antiraidSnapshot:   {},
-    xpCooldowns:        {},
     logChannels:        {},
     qotd:               {},
     mutedRoles:         {},
@@ -277,6 +276,10 @@ function getCleanData() {
     delete clean.dutyStatus;
     delete clean.gameCooldowns;
     delete clean.antiraidSnapshot;
+    delete clean.pokemonCache;
+    delete clean.catchBerryBoost;
+    delete clean.activeSpawns;
+    delete clean.activeBattles;
     return clean;
 }
 
