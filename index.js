@@ -3094,26 +3094,244 @@ client.on('messageDelete', async message => {
 });
 
 //MESSAGE REACTION ADD — Reaction Roles\\
-
 client.on('messageReactionAdd', async (reaction, user) => {
     if (user.bot) return;
     if (!reaction.message.guild) return;
-    
-    const gid = reaction.message.guild.id;
+
+    // Fetch partial reaction/message if needed
+    if (reaction.partial) {
+        try { await reaction.fetch(); } catch { return; }
+    }
+    if (reaction.message.partial) {
+        try { await reaction.message.fetch(); } catch { return; }
+    }
+
+    const gid     = reaction.message.guild.id;
+    const channel = reaction.message.channel;
+
+    // ══════════════════════════════════════════
+    //  POKÉMON — BATTLE MOVE SELECTION
+    // ══════════════════════════════════════════
+    const battleEntry = Object.entries(botData.activeBattles || {}).find(
+        ([, b]) => b.battleMsgId === reaction.message.id
+    );
+
+    if (battleEntry) {
+        const [battleId, battle] = battleEntry;
+        const moveEmojis   = ['1️⃣','2️⃣','3️⃣','4️⃣'];
+        const selectEmojis = ['1️⃣','2️⃣','3️⃣','4️⃣','5️⃣'];
+        const emoji        = reaction.emoji.name;
+
+        // ── Faint switch selection ──
+        if (battle.phase === 'switching' && battle.switchPending === user.id) {
+            if (!selectEmojis.includes(emoji)) return;
+            const ud        = getUserPokemon(user.id);
+            const available = ud.party
+                .map(idx => ud.collection[idx])
+                .filter(p => p && p.uid !== battle.player1.pokemon.uid && (p.currentBattleHp ?? p.stats.hp) > 0);
+            const chosen = available[selectEmojis.indexOf(emoji)];
+            if (!chosen) return;
+            const isP1    = battle.player1.userId === user.id;
+            const fighter = isP1 ? battle.player1 : battle.player2;
+            fighter.pokemon        = chosen;
+            fighter.currentHp      = chosen.currentBattleHp ?? chosen.stats.hp;
+            fighter.maxHp          = chosen.stats.hp;
+            fighter.statusEffect   = null;
+            fighter.sleepTurns     = 0;
+            fighter.confusionTurns = 0;
+            battle.switchPending   = null;
+            battle.phase           = 'selecting';
+            battle.p1Move          = null;
+            battle.p2Move          = null;
+            markDirty(); scheduleSave();
+            const battleMsg = await channel.messages.fetch(battle.battleMsgId).catch(() => null);
+            if (battleMsg) {
+                const imgBuf  = await generateBattleImage(battle).catch(() => null);
+                const imgFile = imgBuf ? new AttachmentBuilder(imgBuf, { name: `battle_${battle.turnNumber}.png` }) : null;
+                const switchLog = [`🔄 <@${user.id}> sent out **${chosen.shiny ? '✨ ' : ''}${formatPokeName(chosen.name)}**!`];
+                await battleMsg.edit({ embeds: [buildBattleEmbed(battle, switchLog, imgFile)], files: imgFile ? [imgFile] : [] }).catch(() => {});
+                await battleMsg.reactions.removeAll().catch(() => {});
+                for (const e of [...moveEmojis, '🎒', '🔄']) await battleMsg.react(e).catch(() => {});
+            }
+            if (battle.type === 'pve') { battle.p2Move = await getBotMove(battle.player2); markDirty(); scheduleSave(); }
+            setMoveTimeout(battleId, channel);
+            return;
+        }
+
+        // ── 🔄 Voluntary switch — open menu ──
+        if (battle.phase === 'selecting' && emoji === '🔄' && user.id === battle.player1.userId && !battle.p1Move) {
+            const ud        = getUserPokemon(user.id);
+            const available = ud.party
+                .map(idx => ud.collection[idx])
+                .filter(p => p && p.uid !== battle.player1.pokemon.uid && (p.currentBattleHp ?? p.stats.hp) > 0);
+            if (!available.length) {
+                await channel.send({ embeds: [new EmbedBuilder().setColor(0xE74C3C).setDescription('❌ No other Pokémon available to switch to!').setFooter({ text: 'SOLDIER² Pokémon Battle' })] })
+                    .then(m => setTimeout(() => m.delete().catch(() => {}), 4000)).catch(() => {});
+                return;
+            }
+            battle.phase         = 'switchselect';
+            battle.switchPending = user.id;
+            const switchLines = available.map((p, i) =>
+                `${selectEmojis[i]} ${p.shiny ? '✨ ' : ''}**${formatPokeName(p.name)}** Lv.${p.level} — HP: ${p.currentBattleHp ?? p.stats.hp}/${p.stats.hp}`
+            ).join('\n');
+            const battleMsg = await channel.messages.fetch(battle.battleMsgId).catch(() => null);
+            if (battleMsg) {
+                await battleMsg.reactions.removeAll().catch(() => {});
+                await battleMsg.edit({ embeds: [new EmbedBuilder()
+                    .setColor(0x3498DB).setTitle('🔄 Switch Pokémon')
+                    .setDescription(`<@${user.id}> — choose a Pokémon to switch to:\n\n${switchLines}\n\n*Switching costs your turn.*`)
+                    .setFooter({ text: 'SOLDIER² Pokémon Battle' })
+                ]}).catch(() => {});
+                for (let i = 0; i < available.length; i++) await battleMsg.react(selectEmojis[i]).catch(() => {});
+            }
+            return;
+        }
+
+        // ── 🔄 Voluntary switch — pick Pokémon ──
+        if (battle.phase === 'switchselect' && battle.switchPending === user.id && selectEmojis.includes(emoji)) {
+            const ud        = getUserPokemon(user.id);
+            const available = ud.party
+                .map(idx => ud.collection[idx])
+                .filter(p => p && p.uid !== battle.player1.pokemon.uid && (p.currentBattleHp ?? p.stats.hp) > 0);
+            const chosen = available[selectEmojis.indexOf(emoji)];
+            if (!chosen) return;
+            battle.player1.pokemon        = chosen;
+            battle.player1.currentHp      = chosen.currentBattleHp ?? chosen.stats.hp;
+            battle.player1.maxHp          = chosen.stats.hp;
+            battle.player1.statusEffect   = null;
+            battle.player1.sleepTurns     = 0;
+            battle.player1.confusionTurns = 0;
+            battle.player1.atkMod         = 1;
+            battle.player1.atkBoost       = 1;
+            battle.p1Move                 = '__switch__';
+            battle.switchPending          = null;
+            battle.phase                  = 'selecting';
+            markDirty(); scheduleSave();
+            if (battle.type === 'pve') { battle.p2Move = await getBotMove(battle.player2); markDirty(); scheduleSave(); }
+            const battleMsg = await channel.messages.fetch(battle.battleMsgId).catch(() => null);
+            if (battleMsg) {
+                const imgBuf  = await generateBattleImage(battle).catch(() => null);
+                const imgFile = imgBuf ? new AttachmentBuilder(imgBuf, { name: `battle_${battle.turnNumber}.png` }) : null;
+                const switchLog = [`🔄 <@${user.id}> switched to **${chosen.shiny ? '✨ ' : ''}${formatPokeName(chosen.name)}**! *(turn used)*`];
+                await battleMsg.edit({ embeds: [buildBattleEmbed(battle, switchLog, imgFile)], files: imgFile ? [imgFile] : [] }).catch(() => {});
+            }
+            if (battle.p1Move && battle.p2Move) setTimeout(() => executeTurn(battleId, channel), 2500);
+            return;
+        }
+
+        // ── 🎒 Bag — open item menu ──
+        if (battle.phase === 'selecting' && emoji === '🎒' && user.id === battle.player1.userId && !battle.p1Move) {
+            const bag       = getUserBag(user.id);
+            const healItems = Object.entries(bag.healing || {})
+                .filter(([, qty]) => qty > 0)
+                .map(([key, qty]) => ({ key, qty, def: POKE_ITEMS.healing[key] }))
+                .filter(e => e.def);
+            if (!healItems.length) {
+                await channel.send({ embeds: [new EmbedBuilder().setColor(0xE74C3C).setDescription('❌ You have no healing items!').setFooter({ text: 'SOLDIER² Pokémon Battle' })] })
+                    .then(m => setTimeout(() => m.delete().catch(() => {}), 4000)).catch(() => {});
+                return;
+            }
+            battle.phase         = 'itemselect';
+            battle.switchPending = user.id;
+            const itemLines = healItems.slice(0, 5).map((e, i) => `${selectEmojis[i]} **${e.def.label}** ×${e.qty}`).join('\n');
+            const battleMsg = await channel.messages.fetch(battle.battleMsgId).catch(() => null);
+            if (battleMsg) {
+                await battleMsg.reactions.removeAll().catch(() => {});
+                await battleMsg.edit({ embeds: [new EmbedBuilder()
+                    .setColor(0x2ECC71).setTitle('🎒 Use an Item')
+                    .setDescription(`<@${user.id}> — choose an item:\n\n${itemLines}\n\n*Using an item costs your turn.*`)
+                    .setFooter({ text: 'SOLDIER² Pokémon Battle' })
+                ]}).catch(() => {});
+                for (let i = 0; i < Math.min(healItems.length, 5); i++) await battleMsg.react(selectEmojis[i]).catch(() => {});
+            }
+            return;
+        }
+
+        // ── 🎒 Item selection — apply item ──
+        if (battle.phase === 'itemselect' && battle.switchPending === user.id && selectEmojis.includes(emoji)) {
+            const bag       = getUserBag(user.id);
+            const healItems = Object.entries(bag.healing || {})
+                .filter(([, qty]) => qty > 0)
+                .map(([key, qty]) => ({ key, qty, def: POKE_ITEMS.healing[key] }))
+                .filter(e => e.def);
+            const chosen = healItems[selectEmojis.indexOf(emoji)];
+            if (!chosen) return;
+            const fighter = battle.player1;
+            const pkm     = fighter.pokemon;
+            const key     = chosen.key;
+            let healAmt   = 0;
+            let msg       = '';
+            if (key === 'potion')             healAmt = 20;
+            else if (key === 'super-potion')  healAmt = 60;
+            else if (key === 'hyper-potion')  healAmt = 120;
+            else if (key === 'max-potion')    healAmt = fighter.maxHp - fighter.currentHp;
+            else if (key === 'full-restore')  { healAmt = fighter.maxHp - fighter.currentHp; fighter.statusEffect = null; }
+            else if (key === 'antidote')      { if (fighter.statusEffect === 'poison')    { fighter.statusEffect = null; msg = '☠️ Poison cured!'; } }
+            else if (key === 'burn-heal')     { if (fighter.statusEffect === 'burn')      { fighter.statusEffect = null; msg = '🔥 Burn cured!'; } }
+            else if (key === 'ice-heal')      { if (fighter.statusEffect === 'freeze')    { fighter.statusEffect = null; msg = '🧊 Freeze cured!'; } }
+            else if (key === 'awakening')     { if (fighter.statusEffect === 'sleep')     { fighter.statusEffect = null; msg = '😴 Woke up!'; } }
+            else if (key === 'paralyze-heal') { if (fighter.statusEffect === 'paralysis') { fighter.statusEffect = null; msg = '⚡ Paralysis cured!'; } }
+            else if (key === 'full-heal')     { fighter.statusEffect = null; msg = '✅ All status conditions cured!'; }
+            else if (key === 'ether')         { for (const m of pkm.moves) { if (pkm.pp?.[m] !== undefined) pkm.pp[m] = Math.min((pkm.pp[m] || 0) + 10, 35); } msg = '🔵 Restored 10 PP to all moves!'; }
+            else if (key === 'max-ether')     { for (const m of pkm.moves) { const md = await fetchMove(m); if (pkm.pp) pkm.pp[m] = md?.pp || 10; } msg = '🔵 Fully restored PP to all moves!'; }
+            else if (key === 'elixir')        { for (const m of pkm.moves) { if (pkm.pp?.[m] !== undefined) pkm.pp[m] = Math.min((pkm.pp[m] || 0) + 10, 35); } msg = '🔵 Restored 10 PP to all moves!'; }
+            else if (key === 'max-elixir')    { await restoreAllPP(pkm); msg = '🔵 Fully restored all PP!'; }
+            else if (key.includes('berry'))   healAmt = 20;
+            if (healAmt > 0) { fighter.currentHp = Math.min(fighter.maxHp, fighter.currentHp + healAmt); pkm.currentBattleHp = fighter.currentHp; msg = `💚 **${formatPokeName(pkm.name)}** restored **${healAmt} HP**!`; }
+            if (!msg) msg = '❌ That item had no effect.';
+            removeFromBag(user.id, 'healing', key, 1);
+            battle.p1Move        = '__item__';
+            battle.switchPending = null;
+            battle.phase         = 'selecting';
+            markDirty(); scheduleSave();
+            if (battle.type === 'pve' && !battle.p2Move) { battle.p2Move = await getBotMove(battle.player2); markDirty(); scheduleSave(); }
+            const battleMsg = await channel.messages.fetch(battle.battleMsgId).catch(() => null);
+            if (battleMsg) {
+                const imgBuf  = await generateBattleImage(battle).catch(() => null);
+                const imgFile = imgBuf ? new AttachmentBuilder(imgBuf, { name: `battle_${battle.turnNumber}.png` }) : null;
+                await battleMsg.edit({ embeds: [buildBattleEmbed(battle, [msg], imgFile)], files: imgFile ? [imgFile] : [] }).catch(() => {});
+            }
+            if (battle.p1Move && battle.p2Move) setTimeout(() => executeTurn(battleId, channel), 2500);
+            return;
+        }
+
+        // ── Move selection ──
+        if (battle.phase !== 'selecting') return;
+        if (!moveEmojis.includes(emoji)) return;
+        const moveIndex = moveEmojis.indexOf(emoji);
+
+        if (user.id === battle.player1.userId && !battle.p1Move) {
+            const move = battle.player1.pokemon.moves[moveIndex];
+            if (!move) return;
+            battle.p1Move = move;
+            markDirty(); scheduleSave();
+            await channel.send({ embeds: [new EmbedBuilder().setColor(0x3498DB).setDescription(`<@${user.id}> selected **${formatPokeName(move)}**!`).setFooter({ text: 'SOLDIER² Pokémon Battle' })] })
+                .then(m => setTimeout(() => m.delete().catch(() => {}), 4000)).catch(() => {});
+        }
+        if (battle.type === 'pvp' && user.id === battle.player2.userId && !battle.p2Move) {
+            const move = battle.player2.pokemon.moves[moveIndex];
+            if (!move) return;
+            battle.p2Move = move;
+            markDirty(); scheduleSave();
+            await channel.send({ embeds: [new EmbedBuilder().setColor(0x9B59B6).setDescription(`<@${user.id}> selected their move!`).setFooter({ text: 'SOLDIER² Pokémon Battle' })] })
+                .then(m => setTimeout(() => m.delete().catch(() => {}), 4000)).catch(() => {});
+        }
+        if (battle.p1Move && battle.p2Move) setTimeout(() => executeTurn(battleId, channel), 2500);
+        return;
+    }
+
+    // ══════════════════════════════════════════
+    //  EXISTING — REACTION ROLES
+    // ══════════════════════════════════════════
     const roles = getReactionRoles(gid, reaction.message.id);
-    
-    if (!roles) return; //Not a reaction role message\\
-    
+    if (!roles) return;
     const roleId = roles[reaction.emoji.toString()];
-    if (!roleId) return; //Emoji not mapped to a role\\
-    
+    if (!roleId) return;
     const member = await reaction.message.guild.members.fetch(user.id).catch(() => null);
     if (!member) return;
-    
     const role = reaction.message.guild.roles.cache.get(roleId);
     if (!role) return;
-    
-        await member.roles.add(role).catch(() => {});
+    await member.roles.add(role).catch(() => {});
 });
 
 //MESSAGE REACTION REMOVE — Reaction Roles\\
@@ -8477,6 +8695,823 @@ if (command==='scratch') {
             .setImage('attachment://ship.png').setFooter({text:'SOLDIER² Games'}).setTimestamp()
         ],files:[att]});
                     }
+    // =========================================================
+    //  POKÉMON SYSTEM — ALL COMMANDS
+    // =========================================================
+
+    // ──────────────────────────────────────────
+    // ×moves <party slot>
+    // ──────────────────────────────────────────
+    if (command === 'moves') {
+        const ud   = getUserPokemon(uid);
+        const slot = parseInt(args[0]) - 1;
+        if (isNaN(slot) || slot < 0 || slot >= ud.party.length)
+            return reply(`❌ Usage: \`×moves <party slot>\` — slot 1 to ${ud.party.length}`);
+        const pkm = ud.collection[ud.party[slot]];
+        if (!pkm) return reply('❌ No Pokémon in that slot.');
+        const typeColors = { fire:0xEE8130,water:0x6390F0,grass:0x7AC74C,electric:0xF7D02C,psychic:0xF95587,ice:0x96D9D6,dragon:0x6F35FC,dark:0x705746,fairy:0xD685AD,normal:0xA8A77A,fighting:0xC22E28,poison:0xA33EA1,ground:0xE2BF65,rock:0xB6A136,bug:0xA6B91A,ghost:0x735797,steel:0xB7B7CE,flying:0xA98FF3 };
+        const moveFields = [];
+        for (const moveName of pkm.moves) {
+            const md      = await fetchMove(moveName);
+            const current = pkm.pp?.[moveName] ?? (md?.pp || 10);
+            const max     = md?.pp || 10;
+            const bar     = '█'.repeat(Math.round((current/max)*8)) + '░'.repeat(8-Math.round((current/max)*8));
+            moveFields.push({ name: `${formatPokeName(moveName)}`, value: md ? `Type: **${formatPokeName(md.type)}** | Cat: **${md.category}** | Power: **${md.power||'—'}** | Acc: **${md.accuracy||'—'}%**\nPP: \`${bar}\` ${current}/${max}` : `PP: ${current}/${max}`, inline: false });
+        }
+        const embed = new EmbedBuilder()
+            .setColor(typeColors[pkm.types[0]] || 0xFF6900)
+            .setTitle(`⚔️ ${pkm.shiny ? '✨ ' : ''}${formatPokeName(pkm.name)} — Move List`)
+            .setDescription(`Level **${pkm.level}** | Type: **${pkm.types.map(t => formatPokeName(t)).join(' / ')}**`)
+            .addFields(moveFields)
+            .setThumbnail(pkm.sprite)
+            .setFooter({ text: 'SOLDIER² Pokémon • PP restores after battles' })
+            .setTimestamp();
+        await message.channel.send({ embeds: [embed] });
+        return;
+    }
+
+    // ──────────────────────────────────────────
+    // ×pokestore [category] [page]
+    // ──────────────────────────────────────────
+    if (command === 'pokestore') {
+        const validCats = ['pokeballs', 'healing', 'berries'];
+        const catArg    = args[0]?.toLowerCase();
+        const pageArg   = parseInt(args[1]) || 1;
+        const category  = validCats.includes(catArg) ? catArg : 'pokeballs';
+        const page      = Math.max(0, pageArg - 1);
+        const items     = Object.entries(POKE_ITEMS[category]);
+        const perPage   = 12;
+        const maxPage   = Math.ceil(items.length / perPage) - 1;
+        const safePage  = Math.min(page, maxPage);
+        const imgBuf  = await generateStoreCanvas(category, safePage).catch(() => null);
+        const imgFile = imgBuf ? new AttachmentBuilder(imgBuf, { name: 'store.png' }) : null;
+        const embed = new EmbedBuilder()
+            .setColor(0x1565C0)
+            .setTitle('🏪 SOLDIER² Pokémart')
+            .setDescription(
+                `**Categories:** \`×pokestore pokeballs\` • \`×pokestore healing\` • \`×pokestore berries\`\n` +
+                `**Buy:** \`×buy <item-name> [quantity]\`\n` +
+                `**Your bag:** \`×bag\`\n\n` +
+                `*Item names use hyphens — e.g. \`poke-ball\`, \`ultra-ball\`, \`sitrus-berry\`*`
+            )
+            .setFooter({ text: `Page ${safePage+1}/${maxPage+1} • SOLDIER² Pokémart` });
+        if (imgFile) embed.setImage('attachment://store.png');
+        await message.channel.send({ embeds: [embed], files: imgFile ? [imgFile] : [] });
+        return;
+    }
+
+    // ──────────────────────────────────────────
+    // ×buy <item> [qty]
+    // ──────────────────────────────────────────
+    if (command === 'buy') {
+        const qtyArg  = parseInt(args[args.length - 1]);
+        const hasQty  = !isNaN(qtyArg) && qtyArg > 0;
+        const nameArgs = hasQty ? args.slice(0, -1) : args;
+        const itemKey  = nameArgs.join('-').toLowerCase();
+        const qty      = hasQty ? Math.min(qtyArg, 100) : 1;
+        if (!itemKey) return reply('❌ Usage: `×buy <item-name> [quantity]`\nExample: `×buy poke-ball 5`');
+        const found = findItemAnywhere(itemKey);
+        if (!found) return reply(`❌ Item \`${itemKey}\` not found. Use \`×pokestore\` to browse items.`);
+        const { category, key, item } = found;
+        const totalCost = item.price * qty;
+        const balance   = getUserBalance(uid);
+        if (balance < totalCost) return reply(`❌ Not enough gold! You need **${totalCost.toLocaleString()} 💰** but only have **${balance.toLocaleString()} 💰**.`);
+        const currentOwned = getBagItemCount(uid, category, key);
+        if (currentOwned + qty > 100) return reply(`❌ You can only hold **100** of any item. You already have **${currentOwned}**.`);
+        removeCoins(uid, totalCost);
+        addToBag(uid, category, key, qty);
+        const embed = new EmbedBuilder()
+            .setColor(0x1565C0).setTitle('🛒 Purchase Successful!')
+            .setDescription(`You bought **${qty}× ${item.label}** for **${totalCost.toLocaleString()} 💰**`)
+            .addFields(
+                { name: '💰 Remaining Balance', value: `${(balance-totalCost).toLocaleString()} 💰`, inline: true },
+                { name: '🎒 Now Owned',         value: `${currentOwned+qty}× ${item.label}`,          inline: true },
+            )
+            .setThumbnail(item.sprite).setFooter({ text: 'SOLDIER² Pokémart' }).setTimestamp();
+        await message.channel.send({ embeds: [embed] });
+        return;
+    }
+
+    // ──────────────────────────────────────────
+    // ×bag [category]
+    // ──────────────────────────────────────────
+    if (command === 'bag') {
+        const validCats = ['pokeballs', 'healing', 'berries'];
+        const catArg    = args[0]?.toLowerCase();
+        const category  = validCats.includes(catArg) ? catArg : 'pokeballs';
+        const imgBuf  = await generateBagCanvas(uid, category).catch(() => null);
+        const imgFile = imgBuf ? new AttachmentBuilder(imgBuf, { name: 'bag.png' }) : null;
+        const bag   = getUserBag(uid);
+        const total = Object.values(bag.pokeballs).reduce((a,b)=>a+b,0) + Object.values(bag.healing).reduce((a,b)=>a+b,0) + Object.values(bag.berries).reduce((a,b)=>a+b,0);
+        const embed = new EmbedBuilder()
+            .setColor(0x2d1b69).setTitle(`🎒 ${message.author.username}'s Bag`)
+            .setDescription(`**Total items:** ${total}\n\`×bag pokeballs\` • \`×bag healing\` • \`×bag berries\`\nBuy items at \`×pokestore\``)
+            .setFooter({ text: 'SOLDIER² Bag' });
+        if (imgFile) embed.setImage('attachment://bag.png');
+        await message.channel.send({ embeds: [embed], files: imgFile ? [imgFile] : [] });
+        return;
+    }
+
+    // ──────────────────────────────────────────────────
+    // ×useberry <berry-name>
+    // ──────────────────────────────────────────────────
+    if (command === 'useberry') {
+        const activeSpawn = botData.activeSpawns?.[gid];
+        if (!activeSpawn) return reply('❌ There is no wild Pokémon to use a berry on!');
+        const berryKey = args.join('-').toLowerCase();
+        if (!berryKey) return reply('❌ Usage: `×useberry <berry-name>`\nExample: `×useberry razz-berry`');
+        const berryDef = POKE_ITEMS.berries[berryKey];
+        if (!berryDef) return reply(`❌ Unknown berry: \`${berryKey}\`. Check \`×bag berries\` for your berries.`);
+        if (!berryDef.catchBoost) return reply(`❌ **${berryDef.label}** doesn't boost catch rate. Try a Razz Berry, Nanab Berry, Pinap Berry, or Golden Razz Berry.`);
+        const owned = getBagItemCount(uid, 'berries', berryKey);
+        if (owned < 1) return reply(`❌ You don't have any **${berryDef.label}**! Buy some at \`×pokestore berries\`.`);
+        if (!botData.catchBerryBoost) botData.catchBerryBoost = {};
+        if (!botData.catchBerryBoost[gid]) botData.catchBerryBoost[gid] = {};
+        botData.catchBerryBoost[gid][uid] = berryDef.catchBoost;
+        removeFromBag(uid, 'berries', berryKey, 1);
+        markDirty(); scheduleSave();
+        return reply({ embeds: [new EmbedBuilder()
+            .setColor(0xFF5722).setTitle(`🍓 ${berryDef.label} Used!`)
+            .setDescription(`<@${uid}> tossed a **${berryDef.label}** at the wild **${formatPokeName(activeSpawn.pokemon.name)}**!\n\n✅ Catch rate boosted by **${berryDef.catchBoost}×** on your next throw!\n\nNow use \`×catch <ball>\` to throw a Pokéball.`)
+            .setThumbnail(berryDef.sprite).setFooter({ text: 'SOLDIER² Pokémon' }).setTimestamp()
+        ]});
+    }
+
+    // ──────────────────────────────────────────
+    // ×catch <ball>
+    // ──────────────────────────────────────────
+    if (command === 'catch') {
+        const activeSpawn = botData.activeSpawns?.[gid];
+        if (!activeSpawn) return reply('❌ There is no wild Pokémon to catch right now!');
+        if (activeSpawn.catchAttempts?.[uid]) return reply('❌ You already attempted to catch this Pokémon!');
+        const ballKey = args.join('-').toLowerCase() || 'poke-ball';
+        const ballDef = POKE_ITEMS.pokeballs[ballKey];
+        if (!ballDef) return reply(`❌ Unknown ball: \`${ballKey}\`. Check \`×pokestore pokeballs\` for available balls.`);
+        const owned = getBagItemCount(uid, 'pokeballs', ballKey);
+        if (owned < 1) return reply(`❌ You don't have any **${ballDef.label}**! Buy some at \`×pokestore\`.`);
+        if (!activeSpawn.catchAttempts) activeSpawn.catchAttempts = {};
+        activeSpawn.catchAttempts[uid] = true;
+        removeFromBag(uid, 'pokeballs', ballKey, 1);
+        const pokemon = activeSpawn.pokemon;
+        const shiny   = activeSpawn.shiny;
+        const berryMult   = botData.catchBerryBoost?.[gid]?.[uid] || 1;
+        const boostedRate = Math.min(255, Math.floor(pokemon.catchRate * ballDef.catchMult * berryMult));
+        if (botData.catchBerryBoost?.[gid]?.[uid]) delete botData.catchBerryBoost[gid][uid];
+        const success = calculateCatchSuccess(boostedRate, pokemon.stats.hp, pokemon.stats.hp);
+        if (success) {
+            const entry = buildPokemonEntry(pokemon, shiny, 5);
+            addPokemonToUser(uid, entry);
+            delete botData.activeSpawns[gid];
+            markDirty(); scheduleSave();
+            const spawnChannel = client.channels.cache.get(activeSpawn.channelId);
+            if (spawnChannel) {
+                const spawnMsg = await spawnChannel.messages.fetch(activeSpawn.messageId).catch(() => null);
+                if (spawnMsg) await spawnMsg.edit({ embeds: [new EmbedBuilder()
+                    .setColor(shiny ? 0xFFD700 : 0x24c718)
+                    .setTitle(`${shiny ? '✨ ' : ''}🎉 Caught by ${message.author.username}!`)
+                    .setDescription(`<@${uid}> caught **${shiny ? '✨ ' : ''}${formatPokeName(pokemon.name)}** with a **${ballDef.label}**!`)
+                    .setImage(shiny ? pokemon.spriteShiny : pokemon.sprite)
+                    .setFooter({ text: 'SOLDIER² Pokémon' }).setTimestamp()
+                ]}).catch(() => {});
+            }
+            const embed = new EmbedBuilder()
+                .setColor(shiny ? 0xFFD700 : 0x24c718)
+                .setTitle(`${shiny ? '✨ Shiny ' : ''}Gotcha! ${formatPokeName(pokemon.name)} was caught!`)
+                .setDescription(`You used a **${ballDef.label}** and caught **${formatPokeName(pokemon.name)}**!`)
+                .addFields(
+                    { name: '🏷️ Trainer',    value: `<@${uid}>`,                                             inline: true },
+                    { name: '⭐ Level',       value: `5`,                                                      inline: true },
+                    { name: '✨ Shiny',       value: shiny ? 'YES! 🌟' : 'No',                                inline: true },
+                    { name: '🔷 Type',        value: pokemon.types.map(t => formatPokeName(t)).join(' / '),    inline: true },
+                    { name: '🎒 Ball Used',   value: ballDef.label,                                            inline: true },
+                    { name: '📊 Catch Rate',  value: `${boostedRate}/255 (${Math.round(boostedRate/255*100)}%)`, inline: true },
+                    { name: '🍓 Berry Boost', value: berryMult > 1 ? `${berryMult}×` : 'None',                inline: true },
+                )
+                .setThumbnail(shiny ? pokemon.spriteShiny : pokemon.sprite)
+                .setFooter({ text: 'SOLDIER² Pokémon' }).setTimestamp();
+            await message.channel.send({ content: `<@${uid}>`, embeds: [embed] });
+        } else {
+            await message.channel.send({ embeds: [new EmbedBuilder()
+                .setColor(0xE74C3C)
+                .setTitle(`💨 **${formatPokeName(pokemon.name)}** broke free!`)
+                .setDescription(`<@${uid}>'s **${ballDef.label}** failed! Others can still try.\n*Try a stronger ball or a berry for a better chance!*`)
+                .setThumbnail(shiny ? pokemon.spriteShiny : pokemon.sprite)
+                .setFooter({ text: 'SOLDIER² Pokémon' }).setTimestamp()
+            ]});
+        }
+        return;
+    }
+
+    // ──────────────────────────────────────────────────
+    // ×pokedex <name/id>
+    // ──────────────────────────────────────────────────
+    if (command === 'pokedex') {
+        const query = args[0]?.toLowerCase();
+        if (!query) return reply('❌ Usage: `×pokedex <pokémon name or ID>`');
+        const loadMsg = await reply('⏳ Looking up Pokémon...');
+        const data    = await fetchPokemon(query);
+        await loadMsg.delete().catch(() => {});
+        if (!data) return reply(`❌ Pokémon **${query}** not found. Check spelling and try again.`);
+        const embed = new EmbedBuilder()
+            .setColor(0x3498DB).setTitle(`#${data.id} — ${formatPokeName(data.name)}`)
+            .setThumbnail(data.sprite)
+            .addFields(
+                { name: '🔷 Types',       value: data.types.map(t=>formatPokeName(t)).join(' / '), inline: true },
+                { name: '❤️ HP',          value: `${data.stats.hp}`,                               inline: true },
+                { name: '⚔️ Attack',      value: `${data.stats.attack}`,                           inline: true },
+                { name: '🛡️ Defense',     value: `${data.stats.defense}`,                          inline: true },
+                { name: '✨ Sp. Attack',  value: `${data.stats.specialAttack}`,                    inline: true },
+                { name: '🔰 Sp. Defense', value: `${data.stats.specialDefense}`,                   inline: true },
+                { name: '💨 Speed',       value: `${data.stats.speed}`,                            inline: true },
+                { name: '🎣 Catch Rate',  value: `${data.catchRate}/255`,                          inline: true },
+                { name: '🥊 Moves',       value: data.moves.map(m=>formatPokeName(m)).join(', '),  inline: false },
+            )
+            .setFooter({ text: 'SOLDIER² Pokémon • Data from PokéAPI' }).setTimestamp();
+        return message.channel.send({ embeds: [embed] });
+    }
+
+    // ──────────────────────────────────────────────────
+    // ×givepokemon @user <name> [shiny] [level]
+    // ──────────────────────────────────────────────────
+    if (command === 'givepokemon') {
+        if (!canGivePokemon(gid, uid)) return reply('❌ Only **Officers**, **Generals**, and the **Bot Owner** can give Pokémon.');
+        const target  = message.mentions.users.first() || await resolveUser(client, args[0]);
+        const nameArg = message.mentions.users.size ? args[1] : args[0];
+        const isShiny = args.includes('shiny');
+        const lvlArg  = args.slice(2).find(a => !isNaN(parseInt(a)) && parseInt(a) >= 1 && parseInt(a) <= 100);
+        const level   = lvlArg ? parseInt(lvlArg) : 5;
+        if (!target)  return reply('❌ Usage: `×givepokemon @user <name> [shiny] [level]`');
+        if (!nameArg) return reply('❌ Please include a Pokémon name. Example: `×givepokemon @user pikachu`');
+        const loadMsg = await reply('⏳ Fetching Pokémon data...');
+        const data    = await fetchPokemon(nameArg.toLowerCase());
+        await loadMsg.delete().catch(() => {});
+        if (!data) return reply(`❌ Pokémon **${nameArg}** not found.`);
+        const entry = buildPokemonEntry(data, isShiny, level);
+        addPokemonToUser(target.id, entry);
+        const embed = new EmbedBuilder()
+            .setColor(isShiny ? 0xFFD700 : 0x24c718).setTitle(`${isShiny ? '✨ Shiny ' : ''}Pokémon Given!`)
+            .setDescription(`<@${target.id}> received **${isShiny ? '✨ ' : ''}${formatPokeName(data.name)}**!`)
+            .setThumbnail(isShiny ? data.spriteShiny : data.sprite)
+            .addFields(
+                { name: '🏷️ Name',  value: formatPokeName(data.name),                        inline: true },
+                { name: '⭐ Level', value: `${level}`,                                         inline: true },
+                { name: '✨ Shiny', value: isShiny ? 'Yes 🌟' : 'No',                         inline: true },
+                { name: '🔷 Types', value: data.types.map(t=>formatPokeName(t)).join(' / '), inline: true },
+                { name: '❤️ HP',    value: `${data.stats.hp}`,                                 inline: true },
+                { name: '⚔️ Atk',  value: `${data.stats.attack}`,                             inline: true },
+            )
+            .setFooter({ text: `Given by ${message.author.tag} • SOLDIER² Pokémon` }).setTimestamp();
+        return message.channel.send({ embeds: [embed] });
+    }
+
+    // ──────────────────────────────────────────────────
+    // ×party [@user]
+    // ──────────────────────────────────────────────────
+    if (command === 'party') {
+        const targetUser = message.mentions.users.first() || message.author;
+        const ud         = getUserPokemon(targetUser.id);
+        if (!ud.party.length) return reply(`❌ ${targetUser.id===uid ? 'You have' : `<@${targetUser.id}> has`} no Pokémon in their party.`);
+        const partyPokemon = ud.party.map(idx => ud.collection[idx]).filter(Boolean);
+        const embed = new EmbedBuilder()
+            .setColor(0x3498DB).setTitle(`🎮 ${targetUser.username}'s Battle Party`)
+            .setThumbnail(targetUser.displayAvatarURL({ dynamic: true }))
+            .setFooter({ text: `${partyPokemon.length}/6 slots filled • SOLDIER² Pokémon` }).setTimestamp();
+        for (let i = 0; i < partyPokemon.length; i++) {
+            const p   = partyPokemon[i];
+            const bar = buildHPBar(p.stats.hp, p.stats.hp);
+            const xpNeeded = xpForLevel(p.level + 1);
+            embed.addFields({ name: `${i+1}. ${p.shiny ? '✨ ' : ''}${formatPokeName(p.name)} — Lv.${p.level}`, value: `HP: ${bar}\nType: **${p.types.map(t=>formatPokeName(t)).join(' / ')}**\nXP: \`${p.xp}/${xpNeeded}\`\nMoves: ${p.moves.map(m=>`\`${formatPokeName(m)}\``).join(', ')}`, inline: false });
+        }
+        return message.channel.send({ embeds: [embed] });
+    }
+
+    // ──────────────────────────────────────────────────
+    // ×collection [@user] [page]
+    // ──────────────────────────────────────────────────
+    if (command === 'collection') {
+        const targetUser = message.mentions.users.first() || message.author;
+        const ud         = getUserPokemon(targetUser.id);
+        const pageArg    = message.mentions.users.size ? args[1] : args[0];
+        const page       = Math.max(parseInt(pageArg) || 1, 1);
+        const perPage    = 10;
+        if (!ud.collection.length) return reply(`❌ ${targetUser.id===uid ? 'You have' : `<@${targetUser.id}> has`} no Pokémon yet.`);
+        const totalPages = Math.ceil(ud.collection.length / perPage);
+        const safePage   = Math.min(page, totalPages);
+        const start      = (safePage - 1) * perPage;
+        const slice      = ud.collection.slice(start, start + perPage);
+        const lines = slice.map((p, i) => {
+            const inParty = ud.party.includes(start + i);
+            return `**${start+i+1}.** ${p.shiny?'✨ ':''}${formatPokeName(p.name)} — Lv.${p.level} | ${p.types.map(t=>formatPokeName(t)).join('/')}${inParty?' ⚔️':''}`;
+        });
+        const embed = new EmbedBuilder()
+            .setColor(0xFF6900).setTitle(`📦 ${targetUser.username}'s Collection`)
+            .setDescription(lines.join('\n'))
+            .setThumbnail(targetUser.displayAvatarURL({ dynamic: true }))
+            .setFooter({ text: `Page ${safePage}/${totalPages} • ${ud.collection.length} total • ⚔️ = in party • SOLDIER² Pokémon` }).setTimestamp();
+        return message.channel.send({ embeds: [embed] });
+    }
+
+    // ──────────────────────────────────────────────────
+    // ×inspect <number>
+    // ──────────────────────────────────────────────────
+    if (command === 'inspect') {
+        const ud  = getUserPokemon(uid);
+        const num = parseInt(args[0]);
+        if (isNaN(num) || num < 1 || num > ud.collection.length) return reply(`❌ Usage: \`×inspect <number>\` — use \`×collection\` to see your numbers.`);
+        const p        = ud.collection[num - 1];
+        const inParty  = ud.party.includes(num - 1);
+        const xpNeeded = xpForLevel(p.level + 1);
+        const xpPct    = Math.floor((p.xp / xpNeeded) * 100);
+        const bar      = buildHPBar(p.stats.hp, p.stats.hp);
+        const embed = new EmbedBuilder()
+            .setColor(p.shiny ? 0xFFD700 : 0x3498DB).setTitle(`${p.shiny?'✨ ':''}${formatPokeName(p.name)} — Lv.${p.level}`)
+            .setThumbnail(p.sprite)
+            .addFields(
+                { name: '🔷 Types',      value: p.types.map(t=>formatPokeName(t)).join(' / '), inline: true },
+                { name: '✨ Shiny',      value: p.shiny ? 'Yes 🌟' : 'No',                     inline: true },
+                { name: '⚔️ In Party',  value: inParty ? 'Yes' : 'No',                         inline: true },
+                { name: '❤️ HP',        value: bar,                                              inline: false },
+                { name: '⚔️ Attack',    value: `${p.stats.attack}`,                             inline: true },
+                { name: '🛡️ Defense',   value: `${p.stats.defense}`,                            inline: true },
+                { name: '✨ Sp. Atk',   value: `${p.stats.specialAttack}`,                      inline: true },
+                { name: '🔰 Sp. Def',   value: `${p.stats.specialDefense}`,                     inline: true },
+                { name: '💨 Speed',     value: `${p.stats.speed}`,                              inline: true },
+                { name: '📈 XP',        value: `\`${p.xp}/${xpNeeded}\` (${xpPct}%)`,          inline: true },
+                { name: '🥊 Moves',     value: p.moves.map(m=>`\`${formatPokeName(m)}\``).join(', '), inline: false },
+            )
+            .setFooter({ text: `Collection #${num} • SOLDIER² Pokémon` }).setTimestamp();
+        return message.channel.send({ embeds: [embed] });
+    }
+
+    // ──────────────────────────────────────────────────
+    // ×release <number>
+    // ──────────────────────────────────────────────────
+    if (command === 'release') {
+        const ud  = getUserPokemon(uid);
+        const num = parseInt(args[0]);
+        if (isNaN(num) || num < 1 || num > ud.collection.length) return reply(`❌ Usage: \`×release <number>\` — use \`×collection\` to see your numbers.`);
+        const idx = num - 1;
+        const pkm = ud.collection[idx];
+        if (!pkm) return reply('❌ Pokémon not found.');
+        ud.collection.splice(idx, 1);
+        ud.party = ud.party.filter(i => i !== idx).map(i => i > idx ? i - 1 : i);
+        markDirty(); scheduleSave();
+        return reply({ embeds: [new EmbedBuilder()
+            .setColor(0xE74C3C).setTitle('👋 Pokémon Released')
+            .setDescription(`You released **${pkm.shiny?'✨ ':''}${formatPokeName(pkm.name)}** (Lv.${pkm.level}).\n*Goodbye, ${formatPokeName(pkm.name)}...*`)
+            .setThumbnail(pkm.sprite).setTimestamp().setFooter({ text: 'SOLDIER² Pokémon' })
+        ]});
+    }
+
+    // ──────────────────────────────────────────────────
+    // ×pokeparty add/remove/swap
+    // ──────────────────────────────────────────────────
+    if (command === 'pokeparty') {
+        const ud     = getUserPokemon(uid);
+        const action = args[0]?.toLowerCase();
+        if (action === 'add') {
+            const num = parseInt(args[1]);
+            if (isNaN(num) || num < 1 || num > ud.collection.length) return reply(`❌ Usage: \`×pokeparty add <number>\``);
+            const idx = num - 1;
+            const pkm = ud.collection[idx];
+            if (ud.party.includes(idx)) return reply(`❌ **${formatPokeName(pkm.name)}** is already in your party.`);
+            if (ud.party.length >= 6) return reply('❌ Your party is full (6/6). Remove one first.');
+            ud.party.push(idx);
+            markDirty(); scheduleSave();
+            return reply(`✅ **${formatPokeName(pkm.name)}** added to your party. (${ud.party.length}/6)`);
+        }
+        if (action === 'remove') {
+            const num = parseInt(args[1]);
+            if (isNaN(num) || num < 1 || num > ud.collection.length) return reply(`❌ Usage: \`×pokeparty remove <number>\``);
+            const idx = num - 1;
+            const pkm = ud.collection[idx];
+            if (!ud.party.includes(idx)) return reply(`❌ **${formatPokeName(pkm.name)}** is not in your party.`);
+            ud.party = ud.party.filter(i => i !== idx);
+            markDirty(); scheduleSave();
+            return reply(`✅ **${formatPokeName(pkm.name)}** removed from your party. (${ud.party.length}/6)`);
+        }
+        if (action === 'swap') {
+            const slot1 = parseInt(args[1]) - 1;
+            const slot2 = parseInt(args[2]) - 1;
+            if (isNaN(slot1)||isNaN(slot2)||slot1<0||slot1>=ud.party.length||slot2<0||slot2>=ud.party.length)
+                return reply(`❌ Usage: \`×pokeparty swap <slot1> <slot2>\` — slots are 1 to ${ud.party.length}`);
+            const temp=ud.party[slot1]; ud.party[slot1]=ud.party[slot2]; ud.party[slot2]=temp;
+            markDirty(); scheduleSave();
+            const pkm1=ud.collection[ud.party[slot1]], pkm2=ud.collection[ud.party[slot2]];
+            return reply(`✅ Swapped slot **${slot1+1}** (${formatPokeName(pkm2.name)}) and slot **${slot2+1}** (${formatPokeName(pkm1.name)}).`);
+        }
+        return reply('❌ Usage:\n`×pokeparty add <number>` — add to party\n`×pokeparty remove <number>` — remove from party\n`×pokeparty swap <slot1> <slot2>` — reorder party');
+    }
+
+    // ──────────────────────────────────────────────────
+    // ×setspawnchannel #channel
+    // ──────────────────────────────────────────────────
+    if (command === 'setspawnchannel') {
+        if (!canSetSpawnChannel(gid, uid)) return reply('❌ You need at least Enlisted rank to set the spawn channel.');
+        const targetChannel = message.mentions.channels.first() || (args[0] ? message.guild.channels.cache.get(args[0]) : null);
+        if (!targetChannel || targetChannel.type !== 0) return reply('❌ Please mention a valid text channel. Example: `×setspawnchannel #wild-pokemon`');
+        if (!botData.pokemonSpawnChannels) botData.pokemonSpawnChannels = {};
+        botData.pokemonSpawnChannels[gid] = targetChannel.id;
+        markDirty(); scheduleSave();
+        scheduleNextSpawn(gid);
+        return reply({ embeds: [new EmbedBuilder()
+            .setColor(0x24c718).setTitle('✅ Spawn Channel Set')
+            .setDescription(`Wild Pokémon will now appear in <#${targetChannel.id}>.\nFirst spawn in **${SPAWN_MIN_MINUTES}–${SPAWN_MAX_MINUTES} minutes**.`)
+            .setFooter({ text: `Set by ${message.author.tag} • SOLDIER² Pokémon` }).setTimestamp()
+        ]});
+    }
+
+    // ──────────────────────────────────────────────────
+    // ×spawnpokemon — manually trigger a spawn (Officers+)
+    // ──────────────────────────────────────────────────
+    if (command === 'spawnpokemon') {
+        if (!canGivePokemon(gid, uid)) return reply('❌ Officers and above only.');
+        const channelId = botData.pokemonSpawnChannels?.[gid];
+        if (!channelId) return reply('❌ No spawn channel set. Use `×setspawnchannel #channel` first.');
+        const loadMsg = await reply('⏳ Spawning a wild Pokémon...');
+        await spawnWildPokemon(gid);
+        await loadMsg.delete().catch(() => {});
+        return;
+    }
+
+    // ──────────────────────────────────────────────────
+    // ×resetpokemon @user — wipe a user's collection (Officers+)
+    // ──────────────────────────────────────────────────
+    if (command === 'resetpokemon') {
+        if (!canGivePokemon(gid, uid)) return reply('❌ Officers and above only.');
+        const target = message.mentions.users.first() || await resolveUser(client, args[0]);
+        if (!target) return reply('❌ Usage: `×resetpokemon @user`');
+        const check = canAct(uid, target.id, gid);
+        if (!check.allowed) return reply(check.reason);
+        if (!botData.pokemon) botData.pokemon = {};
+        botData.pokemon[target.id] = { collection: [], party: [], battleStats: { wins: 0, losses: 0 } };
+        markDirty(); scheduleSave();
+        return reply({ embeds: [new EmbedBuilder()
+            .setColor(0xE74C3C).setTitle('🗑️ Pokémon Collection Reset')
+            .setDescription(`<@${target.id}>'s entire Pokémon collection has been wiped.`)
+            .addFields({ name: '🎯 Target', value: `${target.tag}`, inline: true },{ name: '⚡ By', value: `<@${uid}>`, inline: true })
+            .setTimestamp().setFooter({ text: 'SOLDIER² Pokémon' })
+        ]});
+    }
+
+    // ──────────────────────────────────────────────────
+    // ×battle [pve/pvp @user]
+    // ──────────────────────────────────────────────────
+    if (command === 'battle') {
+        const ud = getUserPokemon(uid);
+        if (!ud.party.length || !ud.collection[ud.party[0]]) return reply('❌ You have no Pokémon in your party. Use `×pokeparty add <number>` to add one.');
+        const mode      = args[0]?.toLowerCase();
+        const playerPkm = ud.collection[ud.party[0]];
+        const alreadyIn = Object.values(botData.activeBattles || {}).find(b => b.player1.userId===uid || b.player2.userId===uid);
+        if (alreadyIn) return reply('❌ You are already in a battle! Use `×forfeit` to end it.');
+
+        if (!mode || mode === 'pve') {
+            const randomId = SPAWN_POOL[Math.floor(Math.random() * SPAWN_POOL.length)];
+            const wildData = await fetchPokemon(randomId);
+            if (!wildData) return reply('❌ Could not load opponent. Try again.');
+            const wildLevel = Math.max(1, playerPkm.level + Math.floor(Math.random()*5) - 2);
+            const wildPkm   = buildPokemonEntry(wildData, false, wildLevel);
+            const battleId  = generateBattleId();
+            const battle = {
+                type:'pve', guildId:gid, channelId:message.channel.id, turnNumber:1, phase:'selecting',
+                p1Move:null, p2Move:null, switchPending:null, weather:null, weatherTurns:0,
+                player1:{ userId:uid, pokemon:playerPkm, currentHp:playerPkm.stats.hp, maxHp:playerPkm.stats.hp, statusEffect:null, sleepTurns:0, confusionTurns:0, atkMod:1, atkBoost:1 },
+                player2:{ userId:'BOT', pokemon:wildPkm, currentHp:wildPkm.stats.hp, maxHp:wildPkm.stats.hp, statusEffect:null, sleepTurns:0, confusionTurns:0, atkMod:1, atkBoost:1 },
+                battleMsgId:null,
+            };
+            if (!botData.activeBattles) botData.activeBattles = {};
+            botData.activeBattles[battleId] = battle;
+            battle.p2Move = await getBotMove(battle.player2);
+            const battleImgBuf = await generateBattleImage(battle).catch(() => null);
+            const battleFile   = battleImgBuf ? new AttachmentBuilder(battleImgBuf, { name: 'battle.png' }) : null;
+            const battleEmbed  = buildBattleEmbed(battle, [], battleFile);
+            const battleMsg    = await message.channel.send({ embeds: [battleEmbed], files: battleFile ? [battleFile] : [] });
+            battle.battleMsgId = battleMsg.id;
+            for (const emoji of ['1️⃣','2️⃣','3️⃣','4️⃣','🎒','🔄']) await battleMsg.react(emoji).catch(() => {});
+            markDirty(); scheduleSave();
+            setMoveTimeout(battleId, message.channel);
+            return;
+        }
+
+        if (mode === 'pvp') {
+            const opponent = message.mentions.users.first() || await resolveUser(client, args[1]);
+            if (!opponent)           return reply('❌ Usage: `×battle pvp @user`');
+            if (opponent.bot)        return reply('❌ Cannot battle a bot in PvP.');
+            if (opponent.id === uid) return reply('❌ You cannot battle yourself.');
+            const opponentUd = getUserPokemon(opponent.id);
+            if (!opponentUd.party.length || !opponentUd.collection[opponentUd.party[0]]) return reply(`❌ <@${opponent.id}> has no Pokémon in their party.`);
+            const existingBattle = Object.values(botData.activeBattles || {}).find(b => b.player1.userId===opponent.id || b.player2.userId===opponent.id);
+            if (existingBattle) return reply(`❌ <@${opponent.id}> is already in a battle.`);
+            const opponentPkm = opponentUd.collection[opponentUd.party[0]];
+            const battleId    = generateBattleId();
+            const challengeEmbed = new EmbedBuilder()
+                .setColor(0xFF6900).setTitle('⚔️ Pokémon Battle Challenge!')
+                .setDescription(`<@${uid}> challenged <@${opponent.id}> to a battle!\n\n**${formatPokeName(playerPkm.name)}** vs **${formatPokeName(opponentPkm.name)}**\n\n<@${opponent.id}> react ✅ to accept or ❌ to decline.`)
+                .addFields(
+                    { name: `<@${uid}>'s Pokémon`,         value: `${formatPokeName(playerPkm.name)} Lv.${playerPkm.level}`,    inline: true },
+                    { name: `<@${opponent.id}>'s Pokémon`, value: `${formatPokeName(opponentPkm.name)} Lv.${opponentPkm.level}`, inline: true },
+                ).setFooter({ text: 'Challenge expires in 60 seconds • SOLDIER² Pokémon' }).setTimestamp();
+            const challengeMsg = await message.channel.send({ embeds: [challengeEmbed] });
+            await challengeMsg.react('✅').catch(() => {});
+            await challengeMsg.react('❌').catch(() => {});
+            const filter    = (r, u) => u.id===opponent.id && ['✅','❌'].includes(r.emoji.name);
+            const collector = challengeMsg.createReactionCollector({ filter, time: 60000, max: 1 });
+            collector.on('collect', async (r) => {
+                await challengeMsg.reactions.removeAll().catch(() => {});
+                if (r.emoji.name === '❌') return challengeMsg.edit({ embeds: [new EmbedBuilder().setColor(0xE74C3C).setTitle('❌ Battle Declined').setDescription(`<@${opponent.id}> declined the battle.`).setTimestamp()] }).catch(() => {});
+                const battle = {
+                    type:'pvp', guildId:gid, channelId:message.channel.id, turnNumber:1, phase:'selecting',
+                    p1Move:null, p2Move:null, switchPending:null, weather:null, weatherTurns:0,
+                    player1:{ userId:uid, pokemon:playerPkm, currentHp:playerPkm.stats.hp, maxHp:playerPkm.stats.hp, statusEffect:null, sleepTurns:0, confusionTurns:0, atkMod:1, atkBoost:1 },
+                    player2:{ userId:opponent.id, pokemon:opponentPkm, currentHp:opponentPkm.stats.hp, maxHp:opponentPkm.stats.hp, statusEffect:null, sleepTurns:0, confusionTurns:0, atkMod:1, atkBoost:1 },
+                    battleMsgId:null,
+                };
+                if (!botData.activeBattles) botData.activeBattles = {};
+                botData.activeBattles[battleId] = battle;
+                const battleImgBuf = await generateBattleImage(battle).catch(() => null);
+                const battleFile   = battleImgBuf ? new AttachmentBuilder(battleImgBuf, { name: 'battle.png' }) : null;
+                const battleEmbed  = buildBattleEmbed(battle, [], battleFile);
+                const battleMsg    = await message.channel.send({ embeds: [battleEmbed], files: battleFile ? [battleFile] : [] });
+                battle.battleMsgId = battleMsg.id;
+                for (const emoji of ['1️⃣','2️⃣','3️⃣','4️⃣']) await battleMsg.react(emoji).catch(() => {});
+                await challengeMsg.delete().catch(() => {});
+                markDirty(); scheduleSave();
+                setMoveTimeout(battleId, message.channel);
+            });
+            collector.on('end', collected => {
+                if (!collected.size) challengeMsg.edit({ embeds: [new EmbedBuilder().setColor(0x95A5A6).setTitle('⏰ Challenge Expired').setDescription(`<@${opponent.id}> did not respond in time.`).setTimestamp()] }).catch(() => {});
+            });
+            return;
+        }
+        return reply('❌ Usage: `×battle` or `×battle pve` or `×battle pvp @user`');
+    }
+
+    // ──────────────────────────────────────────
+    // ×switch <slot>
+    // ──────────────────────────────────────────
+    if (command === 'switch') {
+        const battleEntry = Object.entries(botData.activeBattles || {}).find(([, b]) => b.player1.userId===uid || b.player2.userId===uid);
+        if (!battleEntry) return reply('❌ You are not in an active battle.');
+        const [battleId, battle] = battleEntry;
+        if (battle.phase !== 'selecting') return reply('❌ You can only switch during move selection.');
+        if (battle.player1.userId !== uid) return reply('❌ Only the challenger can use `×switch` in PvP.');
+        const slotArg = parseInt(args[0]) - 1;
+        const ud      = getUserPokemon(uid);
+        if (isNaN(slotArg) || slotArg < 0 || slotArg >= ud.party.length) return reply(`❌ Usage: \`×switch <party slot>\` — slots 1 to ${ud.party.length}`);
+        const chosen = ud.collection[ud.party[slotArg]];
+        if (!chosen) return reply('❌ No Pokémon in that slot.');
+        if (chosen.uid === battle.player1.pokemon.uid) return reply('❌ That Pokémon is already in battle.');
+        if (chosen.stats.hp <= 0 || battle.player1.currentHp <= 0) return reply('❌ That Pokémon has fainted.');
+        battle.player1.pokemon        = chosen;
+        battle.player1.currentHp      = chosen.stats.hp;
+        battle.player1.maxHp          = chosen.stats.hp;
+        battle.player1.statusEffect   = null;
+        battle.player1.sleepTurns     = 0;
+        battle.player1.confusionTurns = 0;
+        battle.player1.atkMod         = 1;
+        battle.player1.atkBoost       = 1;
+        const switchLog = [`🔄 <@${uid}> switched to **${formatPokeName(chosen.name)}**!`];
+        applyAbilityOnEntry(battle.player2, battle.player1, switchLog);
+        if (battle.type === 'pve') { battle.p1Move=null; await executeTurn(battleId, message.channel); }
+        else {
+            const imgBuf  = await generateBattleImage(battle).catch(() => null);
+            const imgFile = imgBuf ? new AttachmentBuilder(imgBuf, { name: 'battle.png' }) : null;
+            const battleMsg = await message.channel.messages.fetch(battle.battleMsgId).catch(() => null);
+            if (battleMsg) await battleMsg.edit({ embeds: [buildBattleEmbed(battle, switchLog, imgFile)], files: imgFile ? [imgFile] : [] }).catch(() => {});
+        }
+        markDirty(); scheduleSave();
+        return;
+    }
+
+    // ──────────────────────────────────────────
+    // ×trade @user <collection number>
+    // ──────────────────────────────────────────
+    if (command === 'trade') {
+        const target = message.mentions.users.first();
+        if (!target || target.bot || target.id === uid) return reply('❌ Usage: `×trade @user <collection number>`');
+        const numArg = parseInt(args[1] ?? args[0]);
+        if (isNaN(numArg)) return reply('❌ Usage: `×trade @user <collection number>`');
+        const ud  = getUserPokemon(uid);
+        const idx = numArg - 1;
+        if (idx < 0 || idx >= ud.collection.length || !ud.collection[idx]) return reply(`❌ No Pokémon at position ${numArg}. Check \`×collection\`.`);
+        const pkm = ud.collection[idx];
+        const tradeEmbed = new EmbedBuilder()
+            .setColor(0xFF6900).setTitle('🔄 Trade Request!')
+            .setDescription(`<@${uid}> wants to trade their **${pkm.shiny?'✨ ':''}${formatPokeName(pkm.name)}** (Lv.${pkm.level}) with <@${target.id}>!\n\n<@${target.id}> — React ✅ to **accept** or ❌ to **decline** *(60 seconds)*`)
+            .setThumbnail(pkm.sprite)
+            .addFields({ name: '🔷 Type', value: pkm.types.map(t=>formatPokeName(t)).join(' / '), inline:true },{ name: '⭐ Level', value: `${pkm.level}`, inline:true },{ name: '✨ Shiny', value: pkm.shiny?'YES 🌟':'No', inline:true })
+            .setFooter({ text: 'SOLDIER² Pokémon Trade' }).setTimestamp();
+        const tradeMsg = await message.channel.send({ content: `<@${target.id}>`, embeds: [tradeEmbed] });
+        await tradeMsg.react('✅').catch(() => {}); await tradeMsg.react('❌').catch(() => {});
+        const filter    = (r, u) => u.id===target.id && ['✅','❌'].includes(r.emoji.name);
+        const collector = tradeMsg.createReactionCollector({ filter, max: 1, time: 60000 });
+        collector.on('collect', async (reaction) => {
+            if (reaction.emoji.name === '❌') { await tradeMsg.edit({ embeds: [new EmbedBuilder().setColor(0xE74C3C).setTitle('❌ Trade Declined').setDescription(`<@${target.id}> declined the trade.`).setFooter({ text: 'SOLDIER² Pokémon Trade' })] }).catch(() => {}); return; }
+            const targetUd = getUserPokemon(target.id);
+            if (!targetUd.collection.length) return tradeMsg.edit({ embeds: [new EmbedBuilder().setColor(0xE74C3C).setTitle('❌ Trade Failed').setDescription(`<@${target.id}> has no Pokémon to trade!`).setFooter({ text: 'SOLDIER² Pokémon Trade' })] }).catch(() => {});
+            await tradeMsg.edit({ embeds: [new EmbedBuilder().setColor(0xFF6900).setTitle('🔄 Trade Accepted — Pick Your Pokémon').setDescription(`<@${target.id}> — reply with \`×tradeoffer <number>\` within 60 seconds to pick which Pokémon you offer.\nUse \`×collection\` to see your Pokémon numbers.`).setFooter({ text: 'SOLDIER² Pokémon Trade' })] }).catch(() => {});
+            const offerFilter  = m => m.author.id===target.id && m.content.toLowerCase().startsWith(`${prefix}tradeoffer`);
+            const offerCollect = message.channel.createMessageCollector({ filter: offerFilter, max: 1, time: 60000 });
+            offerCollect.on('collect', async (offerMsg) => {
+                const offerNum = parseInt(offerMsg.content.split(/\s+/)[1]);
+                if (isNaN(offerNum)) return;
+                const targetIdx = offerNum - 1;
+                if (targetIdx<0||targetIdx>=targetUd.collection.length||!targetUd.collection[targetIdx]) return message.channel.send(`❌ <@${target.id}> — invalid Pokémon number.`);
+                const targetPkm = targetUd.collection[targetIdx];
+                const confirmEmbed = new EmbedBuilder().setColor(0xFF6900).setTitle('🔄 Confirm Trade').setDescription(`**${formatPokeName(pkm.name)}** (Lv.${pkm.level}) ↔️ **${formatPokeName(targetPkm.name)}** (Lv.${targetPkm.level})\n\n<@${uid}> — React ✅ to confirm or ❌ to cancel.`).setFooter({ text: 'SOLDIER² Pokémon Trade' });
+                const confirmMsg = await message.channel.send({ content: `<@${uid}>`, embeds: [confirmEmbed] });
+                await confirmMsg.react('✅').catch(() => {}); await confirmMsg.react('❌').catch(() => {});
+                const cf = (r, u) => u.id===uid && ['✅','❌'].includes(r.emoji.name);
+                const cc = confirmMsg.createReactionCollector({ filter: cf, max: 1, time: 60000 });
+                cc.on('collect', async (r) => {
+                    if (r.emoji.name === '❌') { await confirmMsg.edit({ embeds: [new EmbedBuilder().setColor(0x95A5A6).setTitle('❌ Trade Cancelled').setFooter({ text: 'SOLDIER² Pokémon Trade' })] }).catch(() => {}); return; }
+                    const senderPkmCopy = { ...pkm }; const targetPkmCopy = { ...targetPkm };
+                    ud.collection[idx]=targetPkmCopy; targetUd.collection[targetIdx]=senderPkmCopy;
+                    markDirty(); scheduleSave();
+                    await confirmMsg.edit({ embeds: [new EmbedBuilder().setColor(0x24c718).setTitle('✅ Trade Complete!').setDescription(`<@${uid}> received **${formatPokeName(targetPkm.name)}**!\n<@${target.id}> received **${formatPokeName(pkm.name)}**!`).setFooter({ text: 'SOLDIER² Pokémon Trade' }).setTimestamp()] }).catch(() => {});
+                });
+                cc.on('end', (c) => { if(!c.size) confirmMsg.edit({ embeds: [new EmbedBuilder().setColor(0x95A5A6).setTitle('⏰ Trade timed out').setFooter({ text: 'SOLDIER² Pokémon Trade' })] }).catch(() => {}); });
+            });
+            offerCollect.on('end', (c) => { if(!c.size) message.channel.send(`⏰ Trade offer timed out.`).catch(() => {}); });
+        });
+        collector.on('end', (c) => { if(!c.size) tradeMsg.edit({ embeds: [new EmbedBuilder().setColor(0x95A5A6).setTitle('⏰ Trade Expired').setDescription(`<@${target.id}> did not respond in time.`).setFooter({ text: 'SOLDIER² Pokémon Trade' })] }).catch(() => {}); });
+        return;
+    }
+
+    // ──────────────────────────────────────────
+    // ×pokeleaderboard [catches/wins/shinies/level]
+    // ──────────────────────────────────────────
+    if (command === 'pokeleaderboard') {
+        const type    = args[0]?.toLowerCase() || 'catches';
+        const validLb = ['catches', 'wins', 'shinies', 'level'];
+        if (!validLb.includes(type)) return reply(`❌ Usage: \`×pokeleaderboard catches/wins/shinies/level\``);
+        const entries = [];
+        for (const [userId, data] of Object.entries(botData.pokemon || {})) {
+            if (!data.collection) continue;
+            let value = 0;
+            if (type==='catches') value=data.collection.length;
+            if (type==='wins')    value=data.battleStats?.wins||0;
+            if (type==='shinies') value=data.collection.filter(p=>p?.shiny).length;
+            if (type==='level')   value=Math.max(0,...data.collection.map(p=>p?.level||0));
+            if (value > 0) entries.push({ userId, value });
+        }
+        entries.sort((a, b) => b.value - a.value);
+        const top = entries.slice(0, 10);
+        if (!top.length) return reply('❌ No data yet!');
+        const medals = ['🥇','🥈','🥉'];
+        const desc   = top.map((e, i) => `${medals[i]||`**${i+1}.**`} <@${e.userId}> — **${e.value.toLocaleString()}** ${type==='catches'?'caught':type==='wins'?'wins':type==='shinies'?'✨ shinies':'highest lv.'}`).join('\n');
+        const titles = { catches:'🏆 Most Pokémon Caught', wins:'⚔️ Most Battle Wins', shinies:'✨ Most Shinies', level:'⭐ Highest Level Pokémon' };
+        await message.channel.send({ embeds: [new EmbedBuilder().setColor(0xFFD700).setTitle(titles[type]).setDescription(desc).setFooter({ text: 'SOLDIER² Pokémon Leaderboard' }).setTimestamp()] });
+        return;
+    }
+
+    // ──────────────────────────────────────────
+    // ×dexcompletion [@user]
+    // ──────────────────────────────────────────
+    if (command === 'dexcompletion') {
+        const target  = message.mentions.users.first() || message.author;
+        const ud      = getUserPokemon(target.id);
+        const total   = 1025;
+        const caught  = new Set(ud.collection.map(p=>p?.id)).size;
+        const shinies = ud.collection.filter(p=>p?.shiny).length;
+        const pct     = Math.floor((caught/total)*100);
+        const bar     = '█'.repeat(Math.floor(pct/5)) + '░'.repeat(20-Math.floor(pct/5));
+        await message.channel.send({ embeds: [new EmbedBuilder()
+            .setColor(0xFF6900).setTitle(`📖 ${target.username}'s Pokédex Completion`)
+            .addFields(
+                { name: '📊 Progress',       value: `\`${bar}\` ${pct}%`, inline: false },
+                { name: '✅ Species Caught',  value: `${caught} / ${total}`,          inline: true },
+                { name: '✨ Shinies',         value: `${shinies}`,                     inline: true },
+                { name: '📦 Total Collected', value: `${ud.collection.length}`,        inline: true },
+                { name: '⚔️ Battle Record',  value: `${ud.battleStats?.wins||0}W / ${ud.battleStats?.losses||0}L`, inline: true },
+            ).setThumbnail(target.displayAvatarURL({ dynamic: true })).setFooter({ text: 'SOLDIER² Pokédex' }).setTimestamp()
+        ]});
+        return;
+    }
+
+    // ──────────────────────────────────────────────────
+    // ×forfeit — surrender active battle
+    // ──────────────────────────────────────────────────
+    if (command === 'forfeit') {
+        const battleEntry = Object.entries(botData.activeBattles || {}).find(([, b]) => b.player1.userId===uid || b.player2.userId===uid);
+        if (!battleEntry) return reply('❌ You are not in an active battle.');
+        const [battleId, battle] = battleEntry;
+        const channel = client.channels.cache.get(battle.channelId);
+        const lu = getUserPokemon(uid);
+        lu.battleStats.losses = (lu.battleStats?.losses || 0) + 1;
+        if (battle.type === 'pvp') {
+            const winnerId = battle.player1.userId===uid ? battle.player2.userId : battle.player1.userId;
+            const wu = getUserPokemon(winnerId);
+            wu.battleStats.wins = (wu.battleStats?.wins || 0) + 1;
+        }
+        markDirty(); scheduleSave();
+        if (channel) {
+            await channel.send({ embeds: [new EmbedBuilder().setColor(0xE74C3C).setTitle('🏳️ Battle Forfeited').setDescription(`<@${uid}> forfeited the battle!`).setTimestamp().setFooter({ text: 'SOLDIER² Pokémon Battle' })] }).catch(() => {});
+            if (battle.battleMsgId) {
+                const battleMsg = await channel.messages.fetch(battle.battleMsgId).catch(() => null);
+                if (battleMsg) await battleMsg.edit({ embeds: [buildBattleEmbed(battle).setTitle('🏳️ Battle Ended — Forfeit').setColor(0xE74C3C)] }).catch(() => {});
+            }
+        }
+        clearMoveTimeout(battleId);
+        delete botData.activeBattles[battleId];
+        markDirty(); scheduleSave();
+        return;
+    }
+
+    // ──────────────────────────────────────────────────
+    // ×battlestatus — resend current battle state
+    // ──────────────────────────────────────────────────
+    if (command === 'battlestatus') {
+        const battleEntry = Object.entries(botData.activeBattles || {}).find(([, b]) => b.player1.userId===uid || b.player2.userId===uid);
+        if (!battleEntry) return reply('❌ You are not in an active battle.');
+        const [, battle] = battleEntry;
+        const embed      = buildBattleEmbed(battle);
+        embed.setTitle('🔄 Current Battle State — ' + embed.data.title);
+        return message.channel.send({ embeds: [embed] });
+    }
+
+    // ── END POKÉMON COMMANDS ───────────────────────────
+// ──────────────────────────────────────────
+    // ×pokehelp — Pokémon system help
+    // ──────────────────────────────────────────
+    if (command === 'pokehelp') {
+        const embed1 = new EmbedBuilder()
+            .setColor(0xFFD700)
+            .setTitle('🎮 SOLDIER² — Pokémon System (1/3)')
+            .setDescription(
+                `**━━━ CATCHING ━━━**\n` +
+                `• Wild Pokémon spawn every **15–45 min** in the spawn channel\n` +
+                `• Use \`${prefix}catch <ball>\` to throw a Pokéball\n` +
+                `• Buy balls at \`${prefix}pokestore\` — different balls have different catch rates\n` +
+                `• Shiny Pokémon appear at **1/4096** odds ✨\n\n` +
+                `**━━━ STORE & BAG ━━━**\n` +
+                `• \`${prefix}pokestore [pokeballs/healing/berries]\` — Browse the Pokémart\n` +
+                `• \`${prefix}buy <item> [qty]\` — Purchase items\n` +
+                `• \`${prefix}bag [pokeballs/healing/berries]\` — View your items\n\n` +
+                `**━━━ COLLECTION ━━━**\n` +
+                `• \`${prefix}collection [@user] [page]\` — View your full collection\n` +
+                `• \`${prefix}inspect <number>\` — Full details on one Pokémon\n` +
+                `• \`${prefix}release <number>\` — Release a Pokémon\n` +
+                `• \`${prefix}trade @user <number>\` — Trade a Pokémon with another player\n\n` +
+                `**━━━ PARTY ━━━**\n` +
+                `• \`${prefix}party [@user]\` — View battle party (up to 6)\n` +
+                `• \`${prefix}pokeparty add/remove/swap\` — Manage your party\n` +
+                `• \`${prefix}moves <slot>\` — View moves + PP for a party Pokémon\n\n` +
+                `**━━━ INFO ━━━**\n` +
+                `• \`${prefix}pokedex <name/id>\` — Look up any Pokémon\n` +
+                `• \`${prefix}dexcompletion [@user]\` — Check Pokédex completion %\n` +
+                `• \`${prefix}pokeleaderboard [catches/wins/shinies/level]\` — Server leaderboards`
+            );
+
+        const embed2 = new EmbedBuilder()
+            .setColor(0xFFD700)
+            .setTitle('🎮 SOLDIER² — Pokémon System (2/3)')
+            .setDescription(
+                `**━━━ BATTLES ━━━**\n` +
+                `• \`${prefix}battle pve\` — Fight a wild Pokémon\n` +
+                `• \`${prefix}battle pvp @user\` — Challenge another trainer\n` +
+                `• \`${prefix}switch <slot>\` — Switch your active Pokémon (costs your turn)\n` +
+                `• \`${prefix}forfeit\` — Surrender\n` +
+                `• \`${prefix}battlestatus\` — Resend battle embed\n` +
+                `• React 1️⃣2️⃣3️⃣4️⃣ to pick moves — 60 seconds per turn\n\n` +
+                `**━━━ BATTLE MECHANICS ━━━**\n` +
+                `• Real Fire Red damage formula with STAB, type chart, crits, accuracy\n` +
+                `• **PP system** — each move has limited uses, runs out = Struggle\n` +
+                `• **Abilities** — Blaze, Torrent, Levitate, Intimidate + 30 more\n` +
+                `• **Weather** — Rain Dance, Sunny Day, Sandstorm, Hail change damage + background\n` +
+                `• **Status** — 🔥 Burn | ⚡ Paralysis | ☠️ Poison | 😴 Sleep | 🧊 Freeze | 😵 Confusion\n\n` +
+                `**━━━ LEVELING & EVOLUTION ━━━**\n` +
+                `• Win battles to earn XP — Pokémon level up automatically\n` +
+                `• On level up you may be asked to **learn a new move** (replace or skip)\n` +
+                `• When evolution level is reached you choose to **evolve or cancel**\n` +
+                `• Max level: **100**`
+            );
+
+        const embed3 = new EmbedBuilder()
+            .setColor(0xFFD700)
+            .setTitle('🎮 SOLDIER² — Pokémon System (3/3)')
+            .setDescription(
+                `**━━━ STAFF COMMANDS ━━━**\n` +
+                `• \`${prefix}givepokemon @user <n> [shiny] [level]\` — Give a Pokémon *(Officers+)*\n` +
+                `• \`${prefix}resetpokemon @user\` — Wipe collection *(Officers+)*\n` +
+                `• \`${prefix}setspawnchannel #channel\` — Set spawn channel *(Enlisted+)*\n` +
+                `• \`${prefix}spawnpokemon\` — Manual spawn *(Officers+)*\n\n` +
+                `**━━━ TIPS ━━━**\n` +
+                `• Put your strongest Pokémon in party slot 1 — it battles first\n` +
+                `• Ultra Ball (2×) and Quick Ball (5× turn 1) are the best early catches\n` +
+                `• Master Ball catches anything — save it for legendaries\n` +
+                `• Use \`${prefix}switch <slot>\` mid-battle to counter type matchups\n` +
+                `• Weather effects show on the battle image background\n` +
+                `• All 1025 Pokémon from every generation can spawn`
+            )
+            .setImage('https://media.giphy.com/media/3ohzdYJK1wAdPWVk88/giphy.gif')
+            .setFooter({ text: 'SOLDIER² Pokémon System • Bot developer: TX-SOLDIER' });
+
+        await message.channel.send({ embeds: [embed1] });
+        await message.channel.send({ embeds: [embed2] });
+        await message.channel.send({ embeds: [embed3] });
+        return;
+    }
 // =========================================================
 //  HELP COMMANDS
 // =========================================================
