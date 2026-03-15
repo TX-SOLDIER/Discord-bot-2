@@ -9504,7 +9504,7 @@ if (command==='scratch') {
                 `• Weather effects show on the battle image background\n` +
                 `• All 1025 Pokémon from every generation can spawn`
             )
-            .setImage('https://media.giphy.com/media/3ohzdYJK1wAdPWVk88/giphy.gif')
+            .setImage('https://media4.giphy.com/media/v1.Y2lkPTZjMDliOTUyemhrcXJ4Y3o1dHo4azhuc24yY3R3NnIxZWtpMGxwc2lxZmVra296dCZlcD12MV9pbnRlcm5hbF9naWZfYnlfaWQmY3Q9Zw/KLQVVV7QSSfsdD0TCe/giphy.gif')
             .setFooter({ text: 'SOLDIER² Pokémon System • Bot developer: TX-SOLDIER' });
 
         await message.channel.send({ embeds: [embed1] });
