@@ -119,6 +119,75 @@ const MASTER_LOG_CHANNELS = [
     '1355199085631508641',
     'PUT_CHANNEL_ID_2_HERE'
 ];
+// ============================================================
+//  POKÉ STORE — ITEM DEFINITIONS
+// ============================================================
+const POKE_ITEMS = {
+    pokeballs: {
+        'poke-ball':       { price: 200,    catchMult: 1,    sprite: 'https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/items/poke-ball.png',        label: 'Poké Ball',       desc: 'A basic Ball for catching wild Pokémon.' },
+        'great-ball':      { price: 600,    catchMult: 1.5,  sprite: 'https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/items/great-ball.png',       label: 'Great Ball',      desc: 'Higher catch rate than a Poké Ball.' },
+        'ultra-ball':      { price: 1200,   catchMult: 2,    sprite: 'https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/items/ultra-ball.png',       label: 'Ultra Ball',      desc: 'Excellent catch rate.' },
+        'master-ball':     { price: 100000, catchMult: 255,  sprite: 'https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/items/master-ball.png',      label: 'Master Ball',     desc: 'Catches any Pokémon without fail.' },
+        'safari-ball':     { price: 500,    catchMult: 1.5,  sprite: 'https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/items/safari-ball.png',      label: 'Safari Ball',     desc: 'Used in the Safari Zone.' },
+        'fast-ball':       { price: 800,    catchMult: 4,    sprite: 'https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/items/fast-ball.png',        label: 'Fast Ball',       desc: '4× catch rate on fast Pokémon.' },
+        'level-ball':      { price: 800,    catchMult: 2,    sprite: 'https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/items/level-ball.png',       label: 'Level Ball',      desc: 'Better for lower level Pokémon.' },
+        'lure-ball':       { price: 800,    catchMult: 3,    sprite: 'https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/items/lure-ball.png',        label: 'Lure Ball',       desc: '3× on Pokémon caught while fishing.' },
+        'heavy-ball':      { price: 800,    catchMult: 2,    sprite: 'https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/items/heavy-ball.png',       label: 'Heavy Ball',      desc: 'Better for heavier Pokémon.' },
+        'love-ball':       { price: 800,    catchMult: 8,    sprite: 'https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/items/love-ball.png',        label: 'Love Ball',       desc: '8× if opposite gender.' },
+        'friend-ball':     { price: 1000,   catchMult: 1,    sprite: 'https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/items/friend-ball.png',      label: 'Friend Ball',     desc: 'Raises caught Pokémon friendship.' },
+        'moon-ball':       { price: 1000,   catchMult: 4,    sprite: 'https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/items/moon-ball.png',        label: 'Moon Ball',       desc: '4× on Moon Stone evolvers.' },
+        'sport-ball':      { price: 300,    catchMult: 1.5,  sprite: 'https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/items/sport-ball.png',       label: 'Sport Ball',      desc: 'Used in Bug-Catching Contests.' },
+        'net-ball':        { price: 1000,   catchMult: 3.5,  sprite: 'https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/items/net-ball.png',         label: 'Net Ball',        desc: '3.5× on Water and Bug types.' },
+        'dive-ball':       { price: 1000,   catchMult: 3.5,  sprite: 'https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/items/dive-ball.png',        label: 'Dive Ball',       desc: '3.5× on Pokémon while diving.' },
+        'nest-ball':       { price: 1000,   catchMult: 3,    sprite: 'https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/items/nest-ball.png',        label: 'Nest Ball',       desc: 'Better for lower level Pokémon.' },
+        'repeat-ball':     { price: 1000,   catchMult: 3.5,  sprite: 'https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/items/repeat-ball.png',      label: 'Repeat Ball',     desc: '3.5× on previously caught species.' },
+        'timer-ball':      { price: 1000,   catchMult: 4,    sprite: 'https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/items/timer-ball.png',       label: 'Timer Ball',      desc: 'Gets better the more turns pass.' },
+        'luxury-ball':     { price: 1500,   catchMult: 1,    sprite: 'https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/items/luxury-ball.png',      label: 'Luxury Ball',     desc: 'Raises friendship of caught Pokémon fast.' },
+        'premier-ball':    { price: 200,    catchMult: 1,    sprite: 'https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/items/premier-ball.png',     label: 'Premier Ball',    desc: 'A rare Ball made for special occasions.' },
+        'dusk-ball':       { price: 1000,   catchMult: 3.5,  sprite: 'https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/items/dusk-ball.png',        label: 'Dusk Ball',       desc: '3.5× at night or in caves.' },
+        'heal-ball':       { price: 300,    catchMult: 1,    sprite: 'https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/items/heal-ball.png',        label: 'Heal Ball',       desc: 'Fully restores caught Pokémon.' },
+        'quick-ball':      { price: 1000,   catchMult: 5,    sprite: 'https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/items/quick-ball.png',       label: 'Quick Ball',      desc: '5× catch rate on the first turn.' },
+        'cherish-ball':    { price: 5000,   catchMult: 1,    sprite: 'https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/items/cherish-ball.png',     label: 'Cherish Ball',    desc: 'A very rare Ball used for events.' },
+        'park-ball':       { price: 300,    catchMult: 255,  sprite: 'https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/items/park-ball.png',        label: 'Park Ball',       desc: 'Guaranteed catch in the Pal Park.' },
+        'dream-ball':      { price: 3000,   catchMult: 4,    sprite: 'https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/items/dream-ball.png',       label: 'Dream Ball',      desc: '4× on sleeping Pokémon.' },
+        'beast-ball':      { price: 5000,   catchMult: 5,    sprite: 'https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/items/beast-ball.png',       label: 'Beast Ball',      desc: '5× on Ultra Beasts.' },
+    },
+    healing: {
+        'potion':          { price: 300,    heal: 20,   sprite: 'https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/items/potion.png',               label: 'Potion',          desc: 'Restores 20 HP to one Pokémon.' },
+        'super-potion':    { price: 700,    heal: 50,   sprite: 'https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/items/super-potion.png',         label: 'Super Potion',    desc: 'Restores 50 HP to one Pokémon.' },
+        'hyper-potion':    { price: 1200,   heal: 120,  sprite: 'https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/items/hyper-potion.png',         label: 'Hyper Potion',    desc: 'Restores 120 HP to one Pokémon.' },
+        'max-potion':      { price: 2500,   heal: 9999, sprite: 'https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/items/max-potion.png',           label: 'Max Potion',      desc: 'Fully restores HP to one Pokémon.' },
+        'full-restore':    { price: 3000,   heal: 9999, sprite: 'https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/items/full-restore.png',         label: 'Full Restore',    desc: 'Fully restores HP and cures status.' },
+        'revive':          { price: 1500,   revive: true, sprite: 'https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/items/revive.png',             label: 'Revive',          desc: 'Revives a fainted Pokémon to half HP.' },
+        'max-revive':      { price: 4000,   revive: true, full: true, sprite: 'https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/items/max-revive.png', label: 'Max Revive', desc: 'Revives a fainted Pokémon to full HP.' },
+        'antidote':        { price: 200,    cures: 'poison',   sprite: 'https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/items/antidote.png',      label: 'Antidote',        desc: 'Cures poison.' },
+        'burn-heal':       { price: 200,    cures: 'burn',     sprite: 'https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/items/burn-heal.png',      label: 'Burn Heal',       desc: 'Cures a burn.' },
+        'ice-heal':        { price: 200,    cures: 'freeze',   sprite: 'https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/items/ice-heal.png',       label: 'Ice Heal',        desc: 'Cures a frozen Pokémon.' },
+        'awakening':       { price: 200,    cures: 'sleep',    sprite: 'https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/items/awakening.png',      label: 'Awakening',       desc: 'Wakes up a sleeping Pokémon.' },
+        'paralyze-heal':   { price: 200,    cures: 'paralysis',sprite: 'https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/items/paralyze-heal.png', label: 'Paralyze Heal',   desc: 'Cures paralysis.' },
+        'full-heal':       { price: 600,    cures: 'all',      sprite: 'https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/items/full-heal.png',      label: 'Full Heal',       desc: 'Cures all status conditions.' },
+        'ether':           { price: 1200,   pp: 10,    sprite: 'https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/items/ether.png',                  label: 'Ether',           desc: 'Restores 10 PP to one move.' },
+        'max-ether':       { price: 2000,   pp: 9999,  sprite: 'https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/items/max-ether.png',              label: 'Max Ether',       desc: 'Fully restores PP to one move.' },
+        'elixir':          { price: 3000,   ppAll: 10, sprite: 'https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/items/elixir.png',                 label: 'Elixir',          desc: 'Restores 10 PP to all moves.' },
+        'max-elixir':      { price: 4500,   ppAll: 9999, sprite: 'https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/items/max-elixir.png',           label: 'Max Elixir',      desc: 'Fully restores all move PP.' },
+    },
+    berries: {
+        'oran-berry':      { price: 150,    heal: 10,  sprite: 'https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/items/oran-berry.png',             label: 'Oran Berry',      desc: 'Restores 10 HP when held.' },
+        'sitrus-berry':    { price: 400,    heal: 25,  sprite: 'https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/items/sitrus-berry.png',           label: 'Sitrus Berry',    desc: 'Restores 25 HP when held.' },
+        'lum-berry':       { price: 500,    cures: 'all', sprite: 'https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/items/lum-berry.png',           label: 'Lum Berry',       desc: 'Cures any status condition.' },
+        'chesto-berry':    { price: 200,    cures: 'sleep',    sprite: 'https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/items/chesto-berry.png',   label: 'Chesto Berry',    desc: 'Cures sleep.' },
+        'pecha-berry':     { price: 200,    cures: 'poison',   sprite: 'https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/items/pecha-berry.png',    label: 'Pecha Berry',     desc: 'Cures poison.' },
+        'rawst-berry':     { price: 200,    cures: 'burn',     sprite: 'https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/items/rawst-berry.png',    label: 'Rawst Berry',     desc: 'Cures a burn.' },
+        'aspear-berry':    { price: 200,    cures: 'freeze',   sprite: 'https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/items/aspear-berry.png',   label: 'Aspear Berry',    desc: 'Cures a frozen Pokémon.' },
+        'cheri-berry':     { price: 200,    cures: 'paralysis',sprite: 'https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/items/cheri-berry.png',    label: 'Cheri Berry',     desc: 'Cures paralysis.' },
+        'leppa-berry':     { price: 600,    pp: 10,    sprite: 'https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/items/leppa-berry.png',            label: 'Leppa Berry',     desc: 'Restores 10 PP to one move.' },
+        'figy-berry':      { price: 300,    heal: 'third', sprite: 'https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/items/figy-berry.png',         label: 'Figy Berry',      desc: 'Restores 1/3 max HP in battle.' },
+        'razz-berry':      { price: 100,    catchBoost: 1.5, sprite: 'https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/items/razz-berry.png',       label: 'Razz Berry',      desc: '1.5× catch rate when used during a catch.' },
+        'nanab-berry':     { price: 100,    catchBoost: 1.3, sprite: 'https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/items/nanab-berry.png',      label: 'Nanab Berry',     desc: 'Calms wild Pokémon slightly.' },
+        'pinap-berry':     { price: 200,    catchBoost: 2,   sprite: 'https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/items/pinap-berry.png',      label: 'Pinap Berry',     desc: '2× catch rate on next throw.' },
+        'golden-razz-berry': { price: 800,  catchBoost: 2.5, sprite: 'https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/items/golden-razz-berry.png', label: 'Golden Razz',   desc: '2.5× catch rate when used.' },
+    },
+};
 
 //SLASH COMMANDS\\
 const slashCommands = [
@@ -168,6 +237,13 @@ let botData = {
     commandLog:         {},
     disabledCommands:   {},
     serverPrefixes:     {},
+    catchBerryBoost:    {},
+    pokeBags:           {},
+    pokemon:            {},
+    pokemonSpawnChannels: {},
+    pokemonCache:       {},
+    activeSpawns:       {},
+    activeBattles:      {},
     welcomeMessages:    {},   // { guildId: { channelId, color, message, gif } }
     leaveMessages:      {},   // { guildId: { channelId, color, message, gif } }
     currency:           {},      // { userId: { balance: 1000, lastUpdated: timestamp } }
@@ -1268,6 +1344,1553 @@ function buildServerRankEmbed(gid, gname) {
         .setDescription(lines.length ? lines.join('\n') : '*(none)*')
         .setTimestamp().setFooter({ text: `SOLDIER² — ${sorted.length} enlisted` });
     }
+// ============================================================
+//  POKÉMON SYSTEM — CONSTANTS & HELPERS
+// ============================================================
+
+const POKEDEX_URL        = 'https://pokeapi.co/api/v2';
+const SHINY_ODDS         = 4096;
+const SPAWN_MIN_MINUTES  = 15;
+const SPAWN_MAX_MINUTES  = 45;
+const SPAWN_DESPAWN_MINS = 10;
+const BATTLE_MOVE_TIMEOUT = 120000; // 2 minutes to pick a move
+
+const SPAWN_POOL = [
+    ...Array.from({ length: 1025 }, (_, i) => i + 1),
+    ...Array.from({ length: 277 },  (_, i) => i + 10001),
+];
+
+// ── XP formula ──
+function xpForLevel(level) {
+    return Math.floor(0.8 * Math.pow(level, 3));
+}
+
+// ── Check and apply level ups ──
+function checkLevelUp(pkm) {
+    const levels = [];
+    while (pkm.xp >= xpForLevel(pkm.level + 1) && pkm.level < 100) {
+        pkm.level++;
+        levels.push(pkm.level);
+    }
+    return levels;
+}
+
+// ── Async post-levelup handler ──
+async function handleLevelUps(pkm, levels, channel, userId) {
+    for (const lvl of levels) {
+        await checkNewMoves(pkm, lvl, channel, userId);
+    }
+    if (levels.length > 0) {
+        await checkAndTriggerEvolution(pkm, channel, userId);
+    }
+}
+
+// ── Fetch Pokémon from PokéAPI with cache ──
+async function fetchPokemon(nameOrId) {
+    const key = String(nameOrId).toLowerCase();
+    if (botData.pokemonCache[key]) return botData.pokemonCache[key];
+    try {
+        const res = await fetch(`${POKEDEX_URL}/pokemon/${key}`);
+        if (!res.ok) return null;
+        const data = await res.json();
+        const levelUpMoves = data.moves
+            .filter(m => m.version_group_details.some(v => v.move_learn_method.name === 'level-up'))
+            .map(m => ({
+                level: Math.max(...m.version_group_details
+                    .filter(v => v.move_learn_method.name === 'level-up')
+                    .map(v => v.level_learned_at)),
+                name: m.move.name,
+            }))
+            .sort((a, b) => a.level - b.level);
+
+        const parsed = {
+            id:          data.id,
+            name:        data.name,
+            types:       data.types.map(t => t.type.name),
+            stats: {
+                hp:             data.stats.find(s => s.stat.name === 'hp').base_stat,
+                attack:         data.stats.find(s => s.stat.name === 'attack').base_stat,
+                defense:        data.stats.find(s => s.stat.name === 'defense').base_stat,
+                specialAttack:  data.stats.find(s => s.stat.name === 'special-attack').base_stat,
+                specialDefense: data.stats.find(s => s.stat.name === 'special-defense').base_stat,
+                speed:          data.stats.find(s => s.stat.name === 'speed').base_stat,
+            },
+            moves:        data.moves.slice(0, 4).map(m => m.move.name),
+            levelUpMoves,
+            sprite:       data.sprites.front_default,
+            spriteShiny:  data.sprites.front_shiny,
+            catchRate:    100,
+            evolvesTo:    null,
+            ability:      data.abilities?.[0]?.ability?.name || null,
+        };
+        try {
+            const specRes = await fetch(`${POKEDEX_URL}/pokemon-species/${key}`);
+            if (specRes.ok) {
+                const specData   = await specRes.json();
+                parsed.catchRate = specData.capture_rate;
+                const evoUrl = specData.evolution_chain?.url;
+                if (evoUrl) {
+                    const evoRes = await fetch(evoUrl);
+                    if (evoRes.ok) {
+                        const evoData = await evoRes.json();
+                        const findEvo = (chain, targetName) => {
+                            if (chain.species.name === targetName) {
+                                for (const next of chain.evolves_to) {
+                                    const det = next.evolution_details[0];
+                                    if (det?.trigger?.name === 'level-up' && det?.min_level) {
+                                        return { name: next.species.name, minLevel: det.min_level };
+                                    }
+                                }
+                            }
+                            for (const next of chain.evolves_to) {
+                                const found = findEvo(next, targetName);
+                                if (found) return found;
+                            }
+                            return null;
+                        };
+                        parsed.evolvesTo = findEvo(evoData.chain, parsed.name);
+                    }
+                }
+            }
+        } catch {}
+        botData.pokemonCache[key] = parsed;
+        markDirty(); scheduleSave();
+        return parsed;
+    } catch { return null; }
+}
+
+// ── Fetch move data with cache ──
+async function fetchMove(moveName) {
+    const key = `move_${moveName.toLowerCase()}`;
+    if (botData.pokemonCache[key]) return botData.pokemonCache[key];
+    try {
+        const res = await fetch(`${POKEDEX_URL}/move/${moveName.toLowerCase()}`);
+        if (!res.ok) return null;
+        const data = await res.json();
+        const parsed = {
+            name:     data.name,
+            power:    data.power || 0,
+            accuracy: data.accuracy || 100,
+            pp:       data.pp || 10,
+            type:     data.type.name,
+            category: data.damage_class.name,
+            effect:   data.effect_entries.find(e => e.language.name === 'en')?.short_effect || '',
+        };
+        botData.pokemonCache[key] = parsed;
+        markDirty(); scheduleSave();
+        return parsed;
+    } catch { return null; }
+}
+
+// ── Roll for shiny ──
+function rollShiny() {
+    return Math.floor(Math.random() * SHINY_ODDS) === 0;
+}
+
+// ── Format name nicely ──
+function formatPokeName(name) {
+    return name.replace(/-/g, ' ').replace(/\b\w/g, c => c.toUpperCase());
+}
+
+// ============================================================
+//  PP HELPERS
+// ============================================================
+async function getPP(pkm, moveName) {
+    if (!pkm.pp) pkm.pp = {};
+    if (pkm.pp[moveName] !== undefined) return pkm.pp[moveName];
+    const data = await fetchMove(moveName);
+    const max  = data?.pp || 10;
+    pkm.pp[moveName] = max;
+    return max;
+}
+
+async function usePP(pkm, moveName) {
+    if (!pkm.pp) pkm.pp = {};
+    if (pkm.pp[moveName] === undefined) {
+        const data = await fetchMove(moveName);
+        pkm.pp[moveName] = data?.pp || 10;
+    }
+    if (pkm.pp[moveName] <= 0) return false;
+    pkm.pp[moveName]--;
+    return true;
+}
+
+async function restoreAllPP(pkm) {
+    if (!pkm.pp) pkm.pp = {};
+    for (const move of (pkm.moves || [])) {
+        const data = await fetchMove(move);
+        pkm.pp[move] = data?.pp || 10;
+    }
+}
+
+// ============================================================
+//  EVOLUTION SYSTEM
+// ============================================================
+async function checkAndTriggerEvolution(pkm, channel, userId) {
+    if (!pkm.evolvesTo) return false;
+    const { name: evoName, minLevel } = pkm.evolvesTo;
+    if (pkm.level < minLevel) return false;
+
+    const evoData = await fetchPokemon(evoName);
+    if (!evoData) return false;
+
+    const evoEmbed = new EmbedBuilder()
+        .setColor(0xFFD700)
+        .setTitle('✨ Your Pokémon is evolving!')
+        .setDescription(
+            `**${formatPokeName(pkm.name)}** is evolving into **${formatPokeName(evoName)}**!\n\n` +
+            `React ✅ to **evolve** or ❌ to **cancel** *(60 seconds)*`
+        )
+        .setThumbnail(evoData.sprite)
+        .setFooter({ text: 'SOLDIER² Pokémon Evolution' })
+        .setTimestamp();
+
+    const evoMsg = await channel.send({ content: `<@${userId}>`, embeds: [evoEmbed] }).catch(() => null);
+    if (!evoMsg) return false;
+
+    await evoMsg.react('✅').catch(() => {});
+    await evoMsg.react('❌').catch(() => {});
+
+    return new Promise(resolve => {
+        const filter    = (r, u) => u.id === userId && ['✅','❌'].includes(r.emoji.name);
+        const collector = evoMsg.createReactionCollector({ filter, max: 1, time: 60000 });
+
+        collector.on('collect', async (reaction) => {
+            if (reaction.emoji.name === '✅') {
+                const oldName   = pkm.name;
+                pkm.name        = evoData.name;
+                pkm.types       = evoData.types;
+                pkm.stats       = evoData.stats;
+                pkm.sprite      = pkm.shiny ? evoData.spriteShiny : evoData.sprite;
+                pkm.spriteShiny = evoData.spriteShiny;
+                pkm.evolvesTo   = evoData.evolvesTo || null;
+                pkm.ability     = evoData.ability   || pkm.ability;
+                pkm.id          = evoData.id;
+                pkm.pp          = {};
+                markDirty(); scheduleSave();
+                await evoMsg.edit({ embeds: [new EmbedBuilder()
+                    .setColor(0xFFD700)
+                    .setTitle(`🎉 ${formatPokeName(oldName)} evolved into ${formatPokeName(evoData.name)}!`)
+                    .setDescription(`<@${userId}>'s **${formatPokeName(oldName)}** is now **${formatPokeName(evoData.name)}**!`)
+                    .setImage(pkm.shiny ? evoData.spriteShiny : evoData.sprite)
+                    .setFooter({ text: 'SOLDIER² Pokémon Evolution' })
+                    .setTimestamp()
+                ]}).catch(() => {});
+                resolve(true);
+            } else {
+                await evoMsg.edit({ embeds: [new EmbedBuilder()
+                    .setColor(0x95A5A6)
+                    .setTitle(`❌ Evolution cancelled`)
+                    .setDescription(`**${formatPokeName(pkm.name)}** did not evolve.`)
+                    .setFooter({ text: 'SOLDIER² Pokémon Evolution' })
+                ]}).catch(() => {});
+                resolve(false);
+            }
+        });
+        collector.on('end', (c) => {
+            if (!c.size) {
+                evoMsg.edit({ embeds: [new EmbedBuilder()
+                    .setColor(0x95A5A6)
+                    .setTitle('⏰ Evolution timed out')
+                    .setDescription(`**${formatPokeName(pkm.name)}** did not evolve.`)
+                    .setFooter({ text: 'SOLDIER² Pokémon Evolution' })
+                ]}).catch(() => {});
+                resolve(false);
+            }
+        });
+    });
+}
+
+// ============================================================
+//  MOVE LEARN CHECK
+// ============================================================
+async function checkNewMoves(pkm, newLevel, channel, userId) {
+    const data = await fetchPokemon(pkm.name);
+    if (!data?.levelUpMoves) return;
+
+    const toLearn = data.levelUpMoves.filter(m => m.level === newLevel);
+    for (const moveEntry of toLearn) {
+        const moveName = moveEntry.name;
+        if (pkm.moves.includes(moveName)) continue;
+
+        const moveData = await fetchMove(moveName);
+        if (!moveData) continue;
+
+        const typeColors = {
+            fire: 0xEE8130, water: 0x6390F0, grass: 0x7AC74C, electric: 0xF7D02C,
+            psychic: 0xF95587, ice: 0x96D9D6, dragon: 0x6F35FC, dark: 0x705746,
+            fairy: 0xD685AD, normal: 0xA8A77A, fighting: 0xC22E28, poison: 0xA33EA1,
+            ground: 0xE2BF65, rock: 0xB6A136, bug: 0xA6B91A, ghost: 0x735797,
+            steel: 0xB7B7CE, flying: 0xA98FF3,
+        };
+
+        const hasFull    = pkm.moves.length >= 4;
+        const learnEmbed = new EmbedBuilder()
+            .setColor(typeColors[moveData.type] || 0xFF6900)
+            .setTitle(`📖 ${formatPokeName(pkm.name)} wants to learn ${formatPokeName(moveName)}!`)
+            .setDescription(
+                `**New move:** ${formatPokeName(moveName)}\n` +
+                `Type: ${formatPokeName(moveData.type)} | Power: ${moveData.power || '—'} | Acc: ${moveData.accuracy || '—'}% | PP: ${moveData.pp || 10}\n\n` +
+                (hasFull
+                    ? `React ✅ to learn it and choose which move to replace, or ❌ to skip.\n\n` +
+                      `**Current moves:**\n` +
+                      pkm.moves.map((m, i) => `${['1️⃣','2️⃣','3️⃣','4️⃣'][i]} ${formatPokeName(m)}`).join('\n')
+                    : `React ✅ to **learn** or ❌ to **skip**.`)
+            )
+            .setFooter({ text: 'SOLDIER² Pokémon • 60 seconds to decide' });
+
+        const learnMsg = await channel.send({ content: `<@${userId}>`, embeds: [learnEmbed] }).catch(() => null);
+        if (!learnMsg) continue;
+
+        await learnMsg.react('✅').catch(() => {});
+        await learnMsg.react('❌').catch(() => {});
+
+        await new Promise(resolve => {
+            const f1 = (r, u) => u.id === userId && ['✅','❌'].includes(r.emoji.name);
+            const c1 = learnMsg.createReactionCollector({ filter: f1, max: 1, time: 60000 });
+
+            c1.on('collect', async (r) => {
+                if (r.emoji.name === '❌') {
+                    await learnMsg.edit({ embeds: [new EmbedBuilder()
+                        .setColor(0x95A5A6)
+                        .setTitle(`❌ ${formatPokeName(pkm.name)} did not learn ${formatPokeName(moveName)}.`)
+                        .setFooter({ text: 'SOLDIER² Pokémon' })
+                    ]}).catch(() => {});
+                    return resolve();
+                }
+
+                if (!hasFull) {
+                    pkm.moves.push(moveName);
+                    if (!pkm.pp) pkm.pp = {};
+                    pkm.pp[moveName] = moveData.pp || 10;
+                    markDirty(); scheduleSave();
+                    await learnMsg.edit({ embeds: [new EmbedBuilder()
+                        .setColor(0x24c718)
+                        .setTitle(`✅ ${formatPokeName(pkm.name)} learned ${formatPokeName(moveName)}!`)
+                        .setFooter({ text: 'SOLDIER² Pokémon' })
+                    ]}).catch(() => {});
+                    return resolve();
+                }
+
+                // Full moveset — pick slot to replace
+                await learnMsg.reactions.removeAll().catch(() => {});
+                for (const e of ['1️⃣','2️⃣','3️⃣','4️⃣']) await learnMsg.react(e).catch(() => {});
+
+                const slotEmojis = ['1️⃣','2️⃣','3️⃣','4️⃣'];
+                const f2 = (r2, u2) => u2.id === userId && slotEmojis.includes(r2.emoji.name);
+                const c2 = learnMsg.createReactionCollector({ filter: f2, max: 1, time: 60000 });
+
+                c2.on('collect', async (r2) => {
+                    const slotIdx      = slotEmojis.indexOf(r2.emoji.name);
+                    const oldMove      = pkm.moves[slotIdx];
+                    pkm.moves[slotIdx] = moveName;
+                    if (!pkm.pp) pkm.pp = {};
+                    delete pkm.pp[oldMove];
+                    pkm.pp[moveName] = moveData.pp || 10;
+                    markDirty(); scheduleSave();
+                    await learnMsg.edit({ embeds: [new EmbedBuilder()
+                        .setColor(0x24c718)
+                        .setTitle(`✅ ${formatPokeName(pkm.name)} forgot ${formatPokeName(oldMove)} and learned ${formatPokeName(moveName)}!`)
+                        .setFooter({ text: 'SOLDIER² Pokémon' })
+                    ]}).catch(() => {});
+                    resolve();
+                });
+                c2.on('end', (c) => { if (!c.size) resolve(); });
+            });
+            c1.on('end', (c) => { if (!c.size) resolve(); });
+        });
+    }
+}
+
+// ── Get user Pokémon data ──
+function getUserPokemon(userId) {
+    if (!botData.pokemon) botData.pokemon = {};
+    if (!botData.pokemon[userId]) {
+        botData.pokemon[userId] = {
+            collection:  [],
+            party:       [],
+            battleStats: { wins: 0, losses: 0 },
+        };
+    }
+    if (!botData.pokemon[userId].battleStats) {
+        botData.pokemon[userId].battleStats = { wins: 0, losses: 0 };
+    }
+    return botData.pokemon[userId];
+}
+
+// ── Build a new Pokémon entry ──
+function buildPokemonEntry(data, shiny = false, level = 5) {
+    const startMoves = (data.levelUpMoves || [])
+        .filter(m => m.level <= level)
+        .slice(-4)
+        .map(m => m.name);
+    const movesToUse = startMoves.length > 0 ? startMoves : data.moves.slice(0, 4);
+
+    return {
+        uid:         `${data.id}_${Date.now()}_${Math.floor(Math.random() * 9999)}`,
+        id:          data.id,
+        name:        data.name,
+        shiny,
+        level,
+        xp:          0,
+        moves:       movesToUse,
+        pp:          {},
+        types:       data.types,
+        stats:       data.stats,
+        ability:     data.ability || null,
+        evolvesTo:   data.evolvesTo || null,
+        sprite:      shiny ? data.spriteShiny : data.sprite,
+        spriteShiny: data.spriteShiny || null,
+    };
+}
+
+// ── Add Pokémon to user collection ──
+function addPokemonToUser(userId, entry) {
+    const ud = getUserPokemon(userId);
+    ud.collection.push(entry);
+    if (ud.party.length < 6) {
+        ud.party.push(ud.collection.length - 1);
+    }
+    markDirty(); scheduleSave();
+}
+
+// ── Build HP bar ──
+function buildHPBar(current, max, length = 10) {
+    const filled = Math.max(0, Math.round((current / max) * length));
+    const empty  = length - filled;
+    const pct    = Math.floor((current / max) * 100);
+    let color    = '🟩';
+    if (pct <= 50) color = '🟨';
+    if (pct <= 20) color = '🟥';
+    return `${color.repeat(filled)}⬛`.repeat(empty) + ` \`${current}/${max}\``;
+}
+
+// ── Status emoji ──
+function getStatusEmoji(status) {
+    const map = {
+        burn: '🔥', paralysis: '⚡', poison: '☠️',
+        sleep: '😴', freeze: '🧊', confusion: '😵',
+    };
+    return map[status] || '';
+}
+
+// ── Permission helpers ──
+function canGivePokemon(guildId, userId) {
+    return isFiveStar(userId) || isGeneral(userId) || isOfficer(userId);
+}
+
+function canSetSpawnChannel(guildId, userId) {
+    return (
+        isFiveStar(userId)     ||
+        isGeneral(userId)      ||
+        isOfficer(userId)      ||
+        isCSM(guildId, userId) ||
+        isEnlisted(guildId, userId)
+    );
+}
+
+// ============================================================
+//  POKÉ BAG HELPERS
+// ============================================================
+function getUserBag(userId) {
+    if (!botData.pokeBags) botData.pokeBags = {};
+    if (!botData.pokeBags[userId]) {
+        botData.pokeBags[userId] = { pokeballs: {}, healing: {}, berries: {} };
+    }
+    const bag = botData.pokeBags[userId];
+    if (!bag.pokeballs) bag.pokeballs = {};
+    if (!bag.healing)   bag.healing   = {};
+    if (!bag.berries)   bag.berries   = {};
+    return bag;
+}
+
+function getBagItemCount(userId, category, itemKey) {
+    const bag = getUserBag(userId);
+    return bag[category]?.[itemKey] || 0;
+}
+
+function addToBag(userId, category, itemKey, qty = 1) {
+    const bag     = getUserBag(userId);
+    const current = bag[category][itemKey] || 0;
+    bag[category][itemKey] = Math.min(100, current + qty);
+    markDirty(); scheduleSave();
+    return bag[category][itemKey];
+}
+
+function removeFromBag(userId, category, itemKey, qty = 1) {
+    const bag     = getUserBag(userId);
+    const current = bag[category][itemKey] || 0;
+    if (current < qty) return false;
+    bag[category][itemKey] = current - qty;
+    if (bag[category][itemKey] === 0) delete bag[category][itemKey];
+    markDirty(); scheduleSave();
+    return true;
+}
+
+function getTotalBalls(userId) {
+    const bag = getUserBag(userId);
+    return Object.values(bag.pokeballs).reduce((a, b) => a + b, 0);
+}
+
+function findItemAnywhere(key) {
+    const k = key.toLowerCase();
+    for (const [cat, items] of Object.entries(POKE_ITEMS)) {
+        if (items[k]) return { category: cat, key: k, item: items[k] };
+    }
+    for (const [cat, items] of Object.entries(POKE_ITEMS)) {
+        for (const [ik, iv] of Object.entries(items)) {
+            if (iv.label.toLowerCase() === k || ik.replace(/-/g, ' ') === k) {
+                return { category: cat, key: ik, item: iv };
+            }
+        }
+    }
+    return null;
+}
+
+// ── Generate store canvas ──
+async function generateStoreCanvas(category = 'pokeballs', page = 0) {
+    const items   = Object.entries(POKE_ITEMS[category]);
+    const perPage = 12;
+    const start   = page * perPage;
+    const slice   = items.slice(start, start + perPage);
+    const cols    = 4;
+    const rows    = Math.ceil(slice.length / cols);
+    const cellW   = 180, cellH = 100;
+    const padX    = 20, padY = 20;
+    const headerH = 90;
+    const W = cols * cellW + padX * 2;
+    const H = headerH + rows * cellH + padY * 2 + 40;
+
+    const canvas = createCanvas(W, H);
+    const ctx    = canvas.getContext('2d');
+
+    const bg = ctx.createLinearGradient(0, 0, 0, H);
+    bg.addColorStop(0, '#1565C0');
+    bg.addColorStop(0.4, '#0D47A1');
+    bg.addColorStop(1, '#0a2a6e');
+    ctx.fillStyle = bg;
+    ctx.fillRect(0, 0, W, H);
+
+    ctx.globalAlpha = 0.06;
+    for (let r = 0; r < H / 30; r++) {
+        for (let c = 0; c < W / 30; c++) {
+            if ((r + c) % 2 === 0) { ctx.fillStyle = '#ffffff'; ctx.fillRect(c * 30, r * 30, 30, 30); }
+        }
+    }
+    ctx.globalAlpha = 1;
+
+    ctx.fillStyle = 'rgba(0,0,0,0.45)';
+    ctx.fillRect(0, 0, W, headerH);
+
+    ctx.fillStyle = '#FFD700';
+    ctx.font = 'bold 28px sans-serif';
+    ctx.fillText('🏪 POKÉMART', padX, 38);
+
+    ctx.fillStyle = '#ffffff';
+    ctx.font = '14px sans-serif';
+    const catLabels = { pokeballs: 'Poké Balls', healing: 'Medicine', berries: 'Berries' };
+    ctx.fillText(`Category: ${catLabels[category]}  •  Page ${page + 1}/${Math.ceil(items.length / perPage)}`, padX, 60);
+    ctx.fillText(`Use ×buy <item name> [qty] to purchase`, padX, 78);
+
+    ctx.strokeStyle = '#FFD700';
+    ctx.lineWidth   = 2;
+    ctx.beginPath();
+    ctx.moveTo(0, headerH);
+    ctx.lineTo(W, headerH);
+    ctx.stroke();
+
+    for (let i = 0; i < slice.length; i++) {
+        const [key, item] = slice[i];
+        const col = i % cols;
+        const row = Math.floor(i / cols);
+        const x   = padX + col * cellW;
+        const y   = headerH + padY + row * cellH;
+
+        ctx.fillStyle = 'rgba(255,255,255,0.08)';
+        ctx.beginPath(); ctx.roundRect(x, y, cellW - 8, cellH - 8, 8); ctx.fill();
+
+        ctx.strokeStyle = 'rgba(255,215,0,0.3)';
+        ctx.lineWidth   = 1;
+        ctx.beginPath(); ctx.roundRect(x, y, cellW - 8, cellH - 8, 8); ctx.stroke();
+
+        try { const img = await loadImage(item.sprite); ctx.drawImage(img, x + 6, y + 10, 36, 36); } catch {}
+
+        ctx.fillStyle = '#ffffff';
+        ctx.font      = 'bold 11px sans-serif';
+        ctx.fillText(item.label.slice(0, 18), x + 48, y + 22);
+
+        ctx.fillStyle = '#FFD700';
+        ctx.font      = 'bold 12px sans-serif';
+        ctx.fillText(`💰 ${item.price.toLocaleString()}`, x + 48, y + 38);
+
+        ctx.fillStyle = '#aaddff';
+        ctx.font      = '10px sans-serif';
+        if (item.catchMult)                          ctx.fillText(`${item.catchMult}× catch rate`, x + 48, y + 52);
+        else if (item.heal && item.heal !== 'third') ctx.fillText(`+${item.heal === 9999 ? 'Full' : item.heal} HP`, x + 48, y + 52);
+        else if (item.cures)                         ctx.fillText(`Cures ${item.cures}`, x + 48, y + 52);
+        else if (item.pp)                            ctx.fillText(`+${item.pp === 9999 ? 'Full' : item.pp} PP`, x + 48, y + 52);
+        else if (item.ppAll)                         ctx.fillText(`+${item.ppAll === 9999 ? 'Full' : item.ppAll} PP all`, x + 48, y + 52);
+        else if (item.catchBoost)                    ctx.fillText(`${item.catchBoost}× catch boost`, x + 48, y + 52);
+    }
+
+    ctx.fillStyle = 'rgba(0,0,0,0.3)';
+    ctx.fillRect(0, H - 30, W, 30);
+    ctx.fillStyle = '#aaaaaa';
+    ctx.font      = '11px sans-serif';
+    ctx.fillText('SOLDIER² Pokémart  •  ×pokestore pokeballs/healing/berries', padX, H - 10);
+
+    return canvas.toBuffer('image/png');
+}
+
+// ── Generate bag canvas ──
+async function generateBagCanvas(userId, category = 'pokeballs') {
+    const bag    = getUserBag(userId);
+    const owned  = Object.entries(bag[category] || {}).filter(([, qty]) => qty > 0);
+    const cols   = 4;
+    const rows   = Math.max(1, Math.ceil(owned.length / cols));
+    const cellW  = 160, cellH = 90;
+    const padX   = 20, padY = 20;
+    const headerH = 80;
+    const W = cols * cellW + padX * 2;
+    const H = headerH + rows * cellH + padY * 2 + 30;
+
+    const canvas = createCanvas(W, H);
+    const ctx    = canvas.getContext('2d');
+
+    const bg = ctx.createLinearGradient(0, 0, 0, H);
+    bg.addColorStop(0, '#2d1b69');
+    bg.addColorStop(1, '#11091f');
+    ctx.fillStyle = bg;
+    ctx.fillRect(0, 0, W, H);
+
+    ctx.globalAlpha = 0.05;
+    for (let r = 0; r < H / 25; r++) {
+        for (let c = 0; c < W / 25; c++) {
+            if ((r + c) % 2 === 0) { ctx.fillStyle = '#ffffff'; ctx.fillRect(c * 25, r * 25, 25, 25); }
+        }
+    }
+    ctx.globalAlpha = 1;
+
+    ctx.fillStyle = 'rgba(0,0,0,0.5)';
+    ctx.fillRect(0, 0, W, headerH);
+
+    ctx.fillStyle = '#FFD700';
+    ctx.font      = 'bold 24px sans-serif';
+    ctx.fillText('🎒 BAG', padX, 35);
+
+    ctx.fillStyle = '#ffffff';
+    ctx.font      = '13px sans-serif';
+    const catLabels = { pokeballs: 'Poké Balls', healing: 'Medicine', berries: 'Berries' };
+    ctx.fillText(`${catLabels[category]}  •  Use ×bag pokeballs/healing/berries`, padX, 58);
+
+    ctx.strokeStyle = '#FFD700';
+    ctx.lineWidth   = 1.5;
+    ctx.beginPath(); ctx.moveTo(0, headerH); ctx.lineTo(W, headerH); ctx.stroke();
+
+    if (owned.length === 0) {
+        ctx.fillStyle = '#aaaaaa';
+        ctx.font      = '16px sans-serif';
+        ctx.fillText('No items in this category.', padX, headerH + 50);
+    }
+
+    for (let i = 0; i < owned.length; i++) {
+        const [key, qty] = owned[i];
+        const item = POKE_ITEMS[category]?.[key];
+        if (!item) continue;
+
+        const col = i % cols;
+        const row = Math.floor(i / cols);
+        const x   = padX + col * cellW;
+        const y   = headerH + padY + row * cellH;
+
+        ctx.fillStyle = 'rgba(255,255,255,0.07)';
+        ctx.beginPath(); ctx.roundRect(x, y, cellW - 8, cellH - 8, 8); ctx.fill();
+
+        ctx.strokeStyle = 'rgba(255,215,0,0.25)';
+        ctx.lineWidth   = 1;
+        ctx.beginPath(); ctx.roundRect(x, y, cellW - 8, cellH - 8, 8); ctx.stroke();
+
+        try { const img = await loadImage(item.sprite); ctx.drawImage(img, x + 8, y + 10, 32, 32); } catch {}
+
+        ctx.fillStyle = '#ffffff';
+        ctx.font      = 'bold 11px sans-serif';
+        ctx.fillText(item.label.slice(0, 16), x + 46, y + 22);
+
+        ctx.fillStyle = '#FFD700';
+        ctx.font      = 'bold 14px sans-serif';
+        ctx.fillText(`×${qty}`, x + 46, y + 42);
+    }
+
+    ctx.fillStyle = 'rgba(0,0,0,0.3)';
+    ctx.fillRect(0, H - 26, W, 26);
+    ctx.fillStyle = '#888888';
+    ctx.font      = '10px sans-serif';
+    ctx.fillText('SOLDIER² Bag  •  Use ×useitem <item> <party slot>', padX, H - 8);
+
+    return canvas.toBuffer('image/png');
+}
+
+// ============================================================
+//  POKÉMON PHASE 2 — SPAWN & CATCH HELPERS
+// ============================================================
+const spawnTimers = {};
+
+function buildSpawnEmbed(pokemon, shiny) {
+    const sprite = shiny
+        ? (pokemon.spriteShiny || `https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/shiny/${pokemon.id}.png`)
+        : `https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/other/official-artwork/${pokemon.id}.png`;
+    return new EmbedBuilder()
+        .setColor(shiny ? 0xFFD700 : 0xFF6900)
+        .setTitle(`${shiny ? '✨ A shiny wild ' : '🌿 A wild '}**${formatPokeName(pokemon.name)}** appeared!`)
+        .setDescription(
+            `Use \`×catch <ball>\` to throw a Pokéball!\n` +
+            `Example: \`×catch poke-ball\` or \`×catch ultra-ball\`\n\n` +
+            `**Type:** ${pokemon.types.map(t => formatPokeName(t)).join(' / ')}\n` +
+            `${shiny ? '\n✨ **This is a SHINY Pokémon! Extremely rare!**' : ''}\n\n` +
+            `*No Pokéballs? Buy some with \`×pokestore\`*`
+        )
+        .setImage(sprite)
+        .setFooter({ text: `Flees in ${SPAWN_DESPAWN_MINS} minutes • SOLDIER² Pokémon` })
+        .setTimestamp();
+}
+
+function calculateCatchSuccess(catchRate, currentHp, maxHp) {
+    const safeCatchRate = Math.max(1, Math.min(255, catchRate || 45));
+    const a  = Math.floor((3 * maxHp - 2 * currentHp) * safeCatchRate / (3 * maxHp));
+    const b  = Math.floor(1048560 / Math.sqrt(Math.sqrt(Math.max(1, 16711680 / Math.max(1, a)))));
+    const s1 = Math.floor(Math.random() * 65536);
+    const s2 = Math.floor(Math.random() * 65536);
+    const s3 = Math.floor(Math.random() * 65536);
+    return s1 < b && s2 < b && s3 < b;
+}
+
+async function spawnWildPokemon(guildId) {
+    const channelId = botData.pokemonSpawnChannels?.[guildId];
+    if (!channelId) return;
+
+    const channel = client.channels.cache.get(channelId);
+    if (!channel) return;
+
+    const randomId = SPAWN_POOL[Math.floor(Math.random() * SPAWN_POOL.length)];
+    const data     = await fetchPokemon(randomId);
+    if (!data) { scheduleNextSpawn(guildId); return; }
+
+    const shiny    = rollShiny();
+    const spawnMsg = await channel.send({ embeds: [buildSpawnEmbed(data, shiny)] }).catch(() => null);
+    if (!spawnMsg) { scheduleNextSpawn(guildId); return; }
+
+    if (!botData.activeSpawns) botData.activeSpawns = {};
+    botData.activeSpawns[guildId] = {
+        messageId:     spawnMsg.id,
+        channelId,
+        pokemon:       data,
+        shiny,
+        spawnedAt:     Date.now(),
+        catchAttempts: {},
+    };
+    markDirty(); scheduleSave();
+
+    setTimeout(async () => {
+        const current = botData.activeSpawns?.[guildId];
+        if (!current || current.messageId !== spawnMsg.id) return;
+
+        const fledEmbed = new EmbedBuilder()
+            .setColor(0x95A5A6)
+            .setTitle(`🌿 The wild **${formatPokeName(data.name)}** fled!`)
+            .setDescription('It got away safely...')
+            .setImage(shiny ? data.spriteShiny : data.sprite)
+            .setFooter({ text: 'SOLDIER² Pokémon' })
+            .setTimestamp();
+
+        await spawnMsg.edit({ embeds: [fledEmbed] }).catch(() => {});
+        delete botData.activeSpawns[guildId];
+        markDirty(); scheduleSave();
+        scheduleNextSpawn(guildId);
+    }, SPAWN_DESPAWN_MINS * 60 * 1000);
+
+    scheduleNextSpawn(guildId);
+}
+
+function scheduleNextSpawn(guildId) {
+    if (spawnTimers[guildId]) {
+        clearTimeout(spawnTimers[guildId]);
+        delete spawnTimers[guildId];
+    }
+    const minMs = SPAWN_MIN_MINUTES * 60 * 1000;
+    const maxMs = SPAWN_MAX_MINUTES * 60 * 1000;
+    const delay = Math.floor(Math.random() * (maxMs - minMs + 1)) + minMs;
+    spawnTimers[guildId] = setTimeout(() => spawnWildPokemon(guildId), delay);
+}
+
+function resumeAllSpawns() {
+    if (!botData.pokemonSpawnChannels) return;
+    for (const guildId of Object.keys(botData.pokemonSpawnChannels)) {
+        scheduleNextSpawn(guildId);
+    }
+}
+
+// ============================================================
+//  POKÉMON BATTLE — CANVAS IMAGE GENERATOR
+// ============================================================
+async function generateBattleImage(battle) {
+    const W = 800, H = 300;
+    const canvas = createCanvas(W, H);
+    const ctx    = canvas.getContext('2d');
+
+    const weather = battle.weather || null;
+    const wInfo   = weather ? WEATHER_INFO[weather] : null;
+    const p1      = battle.player1;
+    const p2      = battle.player2;
+    const enemyType = p2.pokemon.types?.[0]?.toLowerCase() || 'normal';
+
+    const TYPE_ARENAS = {
+        normal:   { top: '#6e6e6e', mid: '#4a4a4a', bot: '#2e2e2e', ground: '#888888',
+            fx: (ctx, W, H) => { for (let i = 0; i < 20; i++) { ctx.fillStyle = `rgba(255,255,255,${Math.random()*0.06})`; ctx.beginPath(); ctx.arc(Math.random()*W, Math.random()*H, Math.random()*40+10, 0, Math.PI*2); ctx.fill(); } } },
+        fire:     { top: '#7f0000', mid: '#bf360c', bot: '#e64a19', ground: '#ff6d00',
+            fx: (ctx, W, H) => { for (let i = 0; i < 25; i++) { ctx.fillStyle = `rgba(255,${Math.floor(Math.random()*80+80)},0,${Math.random()*0.3+0.1})`; ctx.beginPath(); ctx.ellipse(Math.random()*W, H*0.6+Math.random()*H*0.4, Math.random()*8+3, Math.random()*18+6, 0, 0, Math.PI*2); ctx.fill(); } const glow = ctx.createRadialGradient(W*0.5,H,10,W*0.5,H,200); glow.addColorStop(0,'rgba(255,100,0,0.25)'); glow.addColorStop(1,'rgba(255,0,0,0)'); ctx.fillStyle=glow; ctx.fillRect(0,0,W,H); } },
+        water:    { top: '#0d3b6e', mid: '#1565c0', bot: '#0288d1', ground: '#29b6f6',
+            fx: (ctx, W, H) => { for (let i = 0; i < 30; i++) { ctx.strokeStyle = `rgba(100,200,255,${Math.random()*0.2+0.05})`; ctx.lineWidth = Math.random()*2+1; ctx.beginPath(); ctx.moveTo(Math.random()*W, Math.random()*H); ctx.quadraticCurveTo(Math.random()*W, Math.random()*H, Math.random()*W, Math.random()*H); ctx.stroke(); } } },
+        grass:    { top: '#1b5e20', mid: '#2e7d32', bot: '#388e3c', ground: '#66bb6a',
+            fx: (ctx, W, H) => { for (let i = 0; i < 20; i++) { ctx.strokeStyle = `rgba(100,255,100,${Math.random()*0.2})`; ctx.lineWidth = 1; const x = Math.random()*W; ctx.beginPath(); ctx.moveTo(x, H); ctx.quadraticCurveTo(x+Math.random()*20-10, H-Math.random()*40, x+Math.random()*10-5, H-Math.random()*60-10); ctx.stroke(); } ctx.fillStyle = 'rgba(50,200,50,0.06)'; ctx.fillRect(0,0,W,H); } },
+        electric: { top: '#1a1a00', mid: '#3d3400', bot: '#665c00', ground: '#fdd835',
+            fx: (ctx, W, H) => { for (let i = 0; i < 12; i++) { ctx.strokeStyle = `rgba(255,235,${Math.floor(Math.random()*50)},${Math.random()*0.5+0.2})`; ctx.lineWidth = Math.random()*2+0.5; ctx.beginPath(); let x = Math.random()*W, y = 0; ctx.moveTo(x, y); for (let j = 0; j < 6; j++) { x += Math.random()*30-15; y += H/6; ctx.lineTo(x, y); } ctx.stroke(); } ctx.fillStyle = 'rgba(255,220,0,0.07)'; ctx.fillRect(0,0,W,H); } },
+        ice:      { top: '#e0f7fa', mid: '#80deea', bot: '#4dd0e1', ground: '#b2ebf2',
+            fx: (ctx, W, H) => { for (let i = 0; i < 30; i++) { ctx.fillStyle = `rgba(200,240,255,${Math.random()*0.4+0.1})`; ctx.beginPath(); ctx.arc(Math.random()*W, Math.random()*H, Math.random()*3+1, 0, Math.PI*2); ctx.fill(); } ctx.fillStyle = 'rgba(180,240,255,0.08)'; ctx.fillRect(0,0,W,H); } },
+        fighting: { top: '#3e0000', mid: '#7f1010', bot: '#b71c1c', ground: '#d32f2f',
+            fx: (ctx, W, H) => { for (let i = 0; i < 15; i++) { ctx.fillStyle = `rgba(200,50,50,${Math.random()*0.15})`; ctx.beginPath(); ctx.arc(Math.random()*W, Math.random()*H, Math.random()*50+10, 0, Math.PI*2); ctx.fill(); } for (let i = 0; i < 8; i++) { ctx.strokeStyle = `rgba(255,100,100,${Math.random()*0.2})`; ctx.lineWidth = Math.random()*3+1; ctx.beginPath(); ctx.moveTo(Math.random()*W, 0); ctx.lineTo(Math.random()*W, H); ctx.stroke(); } } },
+        poison:   { top: '#1a0033', mid: '#4a148c', bot: '#6a1b9a', ground: '#ab47bc',
+            fx: (ctx, W, H) => { for (let i = 0; i < 20; i++) { ctx.fillStyle = `rgba(180,0,255,${Math.random()*0.15})`; ctx.beginPath(); ctx.arc(Math.random()*W, Math.random()*H, Math.random()*15+3, 0, Math.PI*2); ctx.fill(); } ctx.fillStyle = 'rgba(130,0,200,0.08)'; ctx.fillRect(0,0,W,H); } },
+        ground:   { top: '#3e2000', mid: '#6d4c18', bot: '#8d6e2a', ground: '#bcaa74',
+            fx: (ctx, W, H) => { for (let i = 0; i < 25; i++) { ctx.fillStyle = `rgba(180,140,60,${Math.random()*0.2})`; ctx.beginPath(); ctx.ellipse(Math.random()*W, Math.random()*H, Math.random()*20+5, 3, Math.random()*Math.PI, 0, Math.PI*2); ctx.fill(); } } },
+        flying:   { top: '#1a237e', mid: '#283593', bot: '#3949ab', ground: '#90caf9',
+            fx: (ctx, W, H) => { for (let i = 0; i < 12; i++) { ctx.fillStyle = `rgba(255,255,255,${Math.random()*0.15+0.05})`; ctx.beginPath(); ctx.ellipse(Math.random()*W, Math.random()*H*0.6, Math.random()*80+20, Math.random()*20+5, 0, 0, Math.PI*2); ctx.fill(); } const skyGlow = ctx.createRadialGradient(W*0.5,0,10,W*0.5,0,200); skyGlow.addColorStop(0,'rgba(150,180,255,0.2)'); skyGlow.addColorStop(1,'rgba(0,0,100,0)'); ctx.fillStyle=skyGlow; ctx.fillRect(0,0,W,H); } },
+        psychic:  { top: '#0f0c29', mid: '#302b63', bot: '#24243e', ground: '#ce93d8',
+            fx: (ctx, W, H) => { for (let i = 0; i < 20; i++) { ctx.strokeStyle = `rgba(255,100,220,${Math.random()*0.2})`; ctx.lineWidth = 1; ctx.beginPath(); ctx.arc(W/2+Math.random()*100-50, H/2+Math.random()*100-50, Math.random()*80+20, 0, Math.PI*2); ctx.stroke(); } ctx.fillStyle = 'rgba(200,0,255,0.05)'; ctx.fillRect(0,0,W,H); } },
+        bug:      { top: '#1b3a00', mid: '#33691e', bot: '#558b2f', ground: '#aed581',
+            fx: (ctx, W, H) => { for (let i = 0; i < 15; i++) { ctx.fillStyle = `rgba(150,255,50,${Math.random()*0.12})`; ctx.beginPath(); ctx.arc(Math.random()*W, Math.random()*H, Math.random()*20+5, 0, Math.PI*2); ctx.fill(); } } },
+        rock:     { top: '#212121', mid: '#37474f', bot: '#455a64', ground: '#90a4ae',
+            fx: (ctx, W, H) => { for (let i = 0; i < 20; i++) { ctx.fillStyle = `rgba(150,150,150,${Math.random()*0.15})`; const x=Math.random()*W, y=Math.random()*H, s=Math.random()*20+5; ctx.beginPath(); ctx.moveTo(x,y-s); ctx.lineTo(x+s,y); ctx.lineTo(x,y+s); ctx.lineTo(x-s,y); ctx.closePath(); ctx.fill(); } } },
+        ghost:    { top: '#0a0014', mid: '#1a0033', bot: '#2d004d', ground: '#7b1fa2',
+            fx: (ctx, W, H) => { for (let i = 0; i < 15; i++) { ctx.fillStyle = `rgba(150,0,255,${Math.random()*0.12})`; ctx.beginPath(); ctx.arc(Math.random()*W, Math.random()*H, Math.random()*30+10, 0, Math.PI*2); ctx.fill(); } for (let i = 0; i < 20; i++) { ctx.fillStyle = `rgba(255,255,255,${Math.random()*0.06})`; ctx.beginPath(); ctx.arc(Math.random()*W, Math.random()*H, Math.random()*2+1, 0, Math.PI*2); ctx.fill(); } } },
+        dragon:   { top: '#0d0d1a', mid: '#1a237e', bot: '#311b92', ground: '#7c4dff',
+            fx: (ctx, W, H) => { for (let i = 0; i < 15; i++) { ctx.strokeStyle = `rgba(100,100,255,${Math.random()*0.25})`; ctx.lineWidth = Math.random()*2+1; ctx.beginPath(); ctx.moveTo(Math.random()*W, 0); ctx.bezierCurveTo(Math.random()*W, H*0.3, Math.random()*W, H*0.6, Math.random()*W, H); ctx.stroke(); } const dragonGlow = ctx.createRadialGradient(W*0.5,H*0.5,10,W*0.5,H*0.5,250); dragonGlow.addColorStop(0,'rgba(80,0,255,0.15)'); dragonGlow.addColorStop(1,'rgba(0,0,80,0)'); ctx.fillStyle=dragonGlow; ctx.fillRect(0,0,W,H); } },
+        dark:     { top: '#0a0a0a', mid: '#1a1a1a', bot: '#0d0d0d', ground: '#424242',
+            fx: (ctx, W, H) => { for (let i = 0; i < 25; i++) { ctx.fillStyle = `rgba(255,255,255,${Math.random()*0.05})`; ctx.beginPath(); ctx.arc(Math.random()*W, Math.random()*H, Math.random()*2+0.5, 0, Math.PI*2); ctx.fill(); } ctx.fillStyle = 'rgba(0,0,0,0.3)'; ctx.fillRect(0,0,W,H); } },
+        steel:    { top: '#1c1c2e', mid: '#2e3a4a', bot: '#37474f', ground: '#90a4ae',
+            fx: (ctx, W, H) => { for (let i = 0; i < 15; i++) { ctx.strokeStyle = `rgba(180,200,220,${Math.random()*0.15})`; ctx.lineWidth = Math.random()*3+1; const x = Math.random()*W; ctx.beginPath(); ctx.moveTo(x, 0); ctx.lineTo(x+Math.random()*20-10, H); ctx.stroke(); } ctx.fillStyle = 'rgba(150,180,200,0.05)'; ctx.fillRect(0,0,W,H); } },
+        fairy:    { top: '#1a001a', mid: '#4a0040', bot: '#7b0060', ground: '#f48fb1',
+            fx: (ctx, W, H) => { for (let i = 0; i < 30; i++) { ctx.fillStyle = `rgba(255,150,255,${Math.random()*0.2})`; ctx.beginPath(); ctx.arc(Math.random()*W, Math.random()*H, Math.random()*4+1, 0, Math.PI*2); ctx.fill(); } const fairyGlow = ctx.createRadialGradient(W*0.5,H*0.3,10,W*0.5,H*0.3,200); fairyGlow.addColorStop(0,'rgba(255,100,255,0.15)'); fairyGlow.addColorStop(1,'rgba(200,0,200,0)'); ctx.fillStyle=fairyGlow; ctx.fillRect(0,0,W,H); } },
+    };
+
+    const arena = TYPE_ARENAS[enemyType] || TYPE_ARENAS.normal;
+
+    const bg = ctx.createLinearGradient(0, 0, 0, H);
+    bg.addColorStop(0,   wInfo ? wInfo.bgTop : arena.top);
+    bg.addColorStop(0.5, wInfo ? wInfo.bgTop : arena.mid);
+    bg.addColorStop(1,   wInfo ? wInfo.bgBot : arena.bot);
+    ctx.fillStyle = bg;
+    ctx.fillRect(0, 0, W, H);
+
+    if (!wInfo) arena.fx(ctx, W, H);
+
+    if (weather === 'rain') {
+        ctx.strokeStyle = 'rgba(100,160,255,0.25)'; ctx.lineWidth = 1;
+        for (let i = 0; i < 40; i++) { const rx = Math.random()*W, ry = Math.random()*H; ctx.beginPath(); ctx.moveTo(rx, ry); ctx.lineTo(rx-4, ry+12); ctx.stroke(); }
+    }
+    if (weather === 'sandstorm') {
+        ctx.fillStyle = 'rgba(200,160,80,0.15)'; ctx.fillRect(0,0,W,H);
+        for (let i = 0; i < 30; i++) { ctx.fillStyle = `rgba(200,160,80,${Math.random()*0.2})`; ctx.beginPath(); ctx.ellipse(Math.random()*W, Math.random()*H, Math.random()*20+5, 3, Math.random()*Math.PI, 0, Math.PI*2); ctx.fill(); }
+    }
+    if (weather === 'hail' || weather === 'snow') {
+        for (let i = 0; i < 35; i++) { ctx.fillStyle = `rgba(200,230,255,${Math.random()*0.4+0.1})`; ctx.beginPath(); ctx.arc(Math.random()*W, Math.random()*H, Math.random()*3+1, 0, Math.PI*2); ctx.fill(); }
+    }
+    if (weather === 'sun') {
+        const sunGlow = ctx.createRadialGradient(W*0.5,-20,10,W*0.5,-20,250);
+        sunGlow.addColorStop(0,'rgba(255,200,50,0.35)'); sunGlow.addColorStop(1,'rgba(255,150,0,0)');
+        ctx.fillStyle = sunGlow; ctx.fillRect(0,0,W,H);
+    }
+
+    if (wInfo) {
+        ctx.fillStyle = 'rgba(0,0,0,0.4)'; ctx.beginPath(); ctx.roundRect(W/2-80, 5, 160, 24, 6); ctx.fill();
+        ctx.fillStyle = '#ffffff'; ctx.font = 'bold 12px sans-serif'; ctx.textAlign = 'center';
+        ctx.fillText(wInfo.label, W/2, 22); ctx.textAlign = 'left';
+    }
+
+    ctx.strokeStyle = wInfo ? '#e94560' : (arena.ground || '#e94560');
+    ctx.lineWidth   = 2;
+    ctx.beginPath(); ctx.moveTo(0, H*0.72); ctx.lineTo(W, H*0.72); ctx.stroke();
+
+    ctx.fillStyle = wInfo ? 'rgba(233,69,96,0.15)' : 'rgba(255,255,255,0.10)';
+    ctx.beginPath(); ctx.ellipse(180, H*0.72, 100, 16, 0, 0, Math.PI*2); ctx.fill();
+    ctx.beginPath(); ctx.ellipse(620, H*0.72, 100, 16, 0, 0, Math.PI*2); ctx.fill();
+
+    try {
+        const p1Url = `https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/other/official-artwork/${p1.pokemon.id}.png`;
+        const img = await loadImage(p1Url);
+        ctx.drawImage(img, 80, H*0.05, 180, 180);
+    } catch {}
+
+    try {
+        const p2Url = `https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/other/official-artwork/${p2.pokemon.id}.png`;
+        const img = await loadImage(p2Url);
+        ctx.save(); ctx.translate(620+90, 0); ctx.scale(-1, 1);
+        ctx.drawImage(img, 0, H*0.08, 180, 180); ctx.restore();
+    } catch {}
+
+    function getStatusColor(status) {
+        const map = { burn:'#cc4400', paralysis:'#ccaa00', poison:'#884488', sleep:'#446688', freeze:'#4488cc', confusion:'#886644' };
+        return map[status] || '#666666';
+    }
+
+    function drawHPBar(x, y, current, max, name, level, status) {
+        const barW = 180, barH = 10;
+        const pct    = Math.max(0, current / max);
+        const filled = Math.floor(pct * barW);
+
+        ctx.fillStyle = 'rgba(0,0,0,0.60)'; ctx.beginPath(); ctx.roundRect(x, y, 210, 72, 8); ctx.fill();
+        ctx.strokeStyle = '#e94560'; ctx.lineWidth = 1.5; ctx.beginPath(); ctx.roundRect(x, y, 210, 72, 8); ctx.stroke();
+
+        ctx.fillStyle = '#ffffff'; ctx.font = 'bold 13px sans-serif';
+        ctx.fillText(`${name}  Lv.${level}`, x+10, y+18);
+
+        if (status) {
+            ctx.fillStyle = getStatusColor(status); ctx.beginPath(); ctx.roundRect(x+130, y+6, 68, 16, 4); ctx.fill();
+            ctx.fillStyle = '#ffffff'; ctx.font = 'bold 10px sans-serif';
+            ctx.fillText(status.toUpperCase(), x+136, y+18);
+        }
+
+        ctx.fillStyle = '#aaaaaa'; ctx.font = '11px sans-serif'; ctx.fillText('HP', x+10, y+38);
+        ctx.fillStyle = '#2a2a4a'; ctx.beginPath(); ctx.roundRect(x+28, y+28, barW, barH, 5); ctx.fill();
+
+        let barColor = '#44cc44';
+        if (pct <= 0.5) barColor = '#ffcc00';
+        if (pct <= 0.2) barColor = '#ff4444';
+
+        if (filled > 0) { ctx.fillStyle = barColor; ctx.beginPath(); ctx.roundRect(x+28, y+28, filled, barH, 5); ctx.fill(); }
+
+        ctx.fillStyle = '#ffffff'; ctx.font = 'bold 11px sans-serif';
+        ctx.fillText(`${current}/${max}`, x+28, y+58);
+    }
+
+    drawHPBar(W-225, H-88, p2.currentHp, p2.maxHp, formatPokeName(p2.pokemon.name), p2.pokemon.level, p2.statusEffect);
+    drawHPBar(15,     H-88, p1.currentHp, p1.maxHp, formatPokeName(p1.pokemon.name), p1.pokemon.level, p1.statusEffect);
+
+    ctx.fillStyle = 'rgba(233,69,96,0.85)'; ctx.font = 'bold 28px sans-serif';
+    ctx.fillText('VS', W/2-16, H/2+8);
+
+    return canvas.toBuffer('image/png');
+}
+
+// ============================================================
+//  POKÉMON PHASE 3 — BATTLE ENGINE
+// ============================================================
+
+const TYPE_CHART = {
+    normal:   { rock: 0.5, ghost: 0, steel: 0.5 },
+    fire:     { fire: 0.5, water: 0.5, grass: 2, ice: 2, bug: 2, rock: 0.5, dragon: 0.5, steel: 2 },
+    water:    { fire: 2, water: 0.5, grass: 0.5, ground: 2, rock: 2, dragon: 0.5 },
+    electric: { water: 2, electric: 0.5, grass: 0.5, ground: 0, flying: 2, dragon: 0.5 },
+    grass:    { fire: 0.5, water: 2, grass: 0.5, poison: 0.5, ground: 2, flying: 0.5, bug: 0.5, rock: 2, dragon: 0.5, steel: 0.5 },
+    ice:      { fire: 0.5, water: 0.5, grass: 2, ice: 0.5, ground: 2, flying: 2, dragon: 2, steel: 0.5 },
+    fighting: { normal: 2, ice: 2, poison: 0.5, flying: 0.5, psychic: 0.5, bug: 0.5, rock: 2, ghost: 0, dark: 2, steel: 2, fairy: 0.5 },
+    poison:   { grass: 2, poison: 0.5, ground: 0.5, rock: 0.5, ghost: 0.5, steel: 0, fairy: 2 },
+    ground:   { fire: 2, electric: 2, grass: 0.5, poison: 2, flying: 0, bug: 0.5, rock: 2, steel: 2 },
+    flying:   { electric: 0.5, grass: 2, fighting: 2, bug: 2, rock: 0.5, steel: 0.5 },
+    psychic:  { fighting: 2, poison: 2, psychic: 0.5, dark: 0, steel: 0.5 },
+    bug:      { fire: 0.5, grass: 2, fighting: 0.5, flying: 0.5, psychic: 2, ghost: 0.5, dark: 2, steel: 0.5, fairy: 0.5 },
+    rock:     { fire: 2, ice: 2, fighting: 0.5, ground: 0.5, flying: 2, bug: 2, steel: 0.5 },
+    ghost:    { normal: 0, psychic: 2, ghost: 2, dark: 0.5 },
+    dragon:   { dragon: 2, steel: 0.5, fairy: 0 },
+    dark:     { fighting: 0.5, psychic: 2, ghost: 2, dark: 0.5, fairy: 0.5 },
+    steel:    { fire: 0.5, water: 0.5, electric: 0.5, ice: 2, rock: 2, steel: 0.5, fairy: 2 },
+    fairy:    { fire: 0.5, fighting: 2, poison: 0.5, dragon: 2, dark: 2, steel: 0.5 },
+};
+
+function getTypeEffectiveness(moveType, defenderTypes) {
+    let multiplier = 1;
+    for (const defType of defenderTypes) {
+        const row = TYPE_CHART[moveType];
+        if (row && row[defType] !== undefined) multiplier *= row[defType];
+    }
+    return multiplier;
+}
+
+function getEffectivenessText(multiplier) {
+    if (multiplier === 0)  return "It doesn't affect the target...";
+    if (multiplier >= 2)   return "⚡ It's super effective!";
+    if (multiplier <= 0.5) return "😐 It's not very effective...";
+    return null;
+}
+
+function calculateDamage(attacker, defender, move) {
+    if (!move.power || move.power === 0) return { damage: 0, isCrit: false, effectiveness: 1, missed: false, failed: false };
+    if (Math.random() * 100 > (move.accuracy || 100)) return { damage: 0, isCrit: false, effectiveness: 1, missed: true, failed: false };
+    if (attacker.statusEffect === 'paralysis' && Math.random() < 0.25) return { damage: 0, isCrit: false, effectiveness: 1, missed: false, failed: true };
+    if (attacker.statusEffect === 'sleep' || attacker.statusEffect === 'freeze') return { damage: 0, isCrit: false, effectiveness: 1, missed: false, failed: true };
+
+    const isPhys = move.category === 'physical';
+    const atk    = isPhys ? attacker.pokemon.stats.attack       : attacker.pokemon.stats.specialAttack;
+    const def    = isPhys ? defender.pokemon.stats.defense      : defender.pokemon.stats.specialDefense;
+    const level  = attacker.pokemon.level;
+    const atkMod = (attacker.statusEffect === 'burn' && isPhys) ? 0.5 : 1;
+
+    let damage = Math.floor(
+        (Math.floor((2 * level / 5 + 2) * move.power * (atk * atkMod) / def) / 50) + 2
+    );
+
+    if (attacker.pokemon.types.includes(move.type)) damage = Math.floor(damage * 1.5);
+
+    const effectiveness = getTypeEffectiveness(move.type, defender.pokemon.types);
+    damage = Math.floor(damage * effectiveness);
+    damage = Math.floor(damage * ((Math.floor(Math.random() * 16) + 85) / 100));
+
+    const isCrit = Math.random() < (1 / 16);
+    if (isCrit) damage = Math.floor(damage * 1.5);
+
+    return { damage: Math.max(1, damage), isCrit, effectiveness, missed: false, failed: false };
+}
+
+function applyEndOfTurnStatus(fighter) {
+    const messages = [];
+    let skipMove   = false;
+    if (!fighter.statusEffect) return { messages, skipMove };
+
+    if (fighter.statusEffect === 'poison') {
+        const dmg = Math.max(1, Math.floor(fighter.maxHp / 8));
+        fighter.currentHp = Math.max(0, fighter.currentHp - dmg);
+        messages.push(`☠️ **${formatPokeName(fighter.pokemon.name)}** is hurt by poison! (-${dmg} HP)`);
+    }
+    if (fighter.statusEffect === 'burn') {
+        const dmg = Math.max(1, Math.floor(fighter.maxHp / 16));
+        fighter.currentHp = Math.max(0, fighter.currentHp - dmg);
+        messages.push(`🔥 **${formatPokeName(fighter.pokemon.name)}** is hurt by its burn! (-${dmg} HP)`);
+    }
+    if (fighter.statusEffect === 'sleep') {
+        fighter.sleepTurns = (fighter.sleepTurns || 0) + 1;
+        if (fighter.sleepTurns >= 3) {
+            fighter.statusEffect = null; fighter.sleepTurns = 0;
+            messages.push(`😴 **${formatPokeName(fighter.pokemon.name)}** woke up!`);
+        } else {
+            messages.push(`😴 **${formatPokeName(fighter.pokemon.name)}** is fast asleep!`);
+            skipMove = true;
+        }
+    }
+    if (fighter.statusEffect === 'freeze') {
+        if (Math.random() < 0.2) {
+            fighter.statusEffect = null;
+            messages.push(`🧊 **${formatPokeName(fighter.pokemon.name)}** thawed out!`);
+        } else {
+            messages.push(`🧊 **${formatPokeName(fighter.pokemon.name)}** is frozen solid!`);
+            skipMove = true;
+        }
+    }
+    if (fighter.statusEffect === 'confusion') {
+        fighter.confusionTurns = (fighter.confusionTurns || 0) + 1;
+        if (fighter.confusionTurns >= 4) {
+            fighter.statusEffect = null; fighter.confusionTurns = 0;
+            messages.push(`😵 **${formatPokeName(fighter.pokemon.name)}** snapped out of confusion!`);
+        } else if (Math.random() < 0.5) {
+            const dmg = Math.max(1, Math.floor(fighter.maxHp / 8));
+            fighter.currentHp = Math.max(0, fighter.currentHp - dmg);
+            messages.push(`😵 **${formatPokeName(fighter.pokemon.name)}** hurt itself in confusion! (-${dmg} HP)`);
+            skipMove = true;
+        }
+    }
+    return { messages, skipMove };
+}
+
+function applyMoveEffect(move, target) {
+    const messages = [];
+    if (target.statusEffect) return messages;
+    const effect = move.effect?.toLowerCase() || '';
+
+    if      (effect.includes('burn')     && Math.random() < 0.1) { target.statusEffect = 'burn';      messages.push(`🔥 **${formatPokeName(target.pokemon.name)}** was burned!`);       }
+    else if (effect.includes('paralyze') && Math.random() < 0.1) { target.statusEffect = 'paralysis'; messages.push(`⚡ **${formatPokeName(target.pokemon.name)}** was paralyzed!`);   }
+    else if (effect.includes('poison')   && Math.random() < 0.1) { target.statusEffect = 'poison';    messages.push(`☠️ **${formatPokeName(target.pokemon.name)}** was poisoned!`);    }
+    else if (effect.includes('sleep')    && Math.random() < 0.1) { target.statusEffect = 'sleep';     messages.push(`😴 **${formatPokeName(target.pokemon.name)}** fell asleep!`);     }
+    else if (effect.includes('freeze')   && Math.random() < 0.1) { target.statusEffect = 'freeze';    messages.push(`🧊 **${formatPokeName(target.pokemon.name)}** was frozen!`);      }
+    else if (effect.includes('confus')   && Math.random() < 0.1) { target.statusEffect = 'confusion'; messages.push(`😵 **${formatPokeName(target.pokemon.name)}** became confused!`); }
+
+    return messages;
+}
+
+function buildBattleEmbed(battle, turnLog = [], imageAttachment = null) {
+    const p1     = battle.player1;
+    const p2     = battle.player2;
+    const isBot  = battle.type === 'pve';
+    const p1Stat = p1.statusEffect ? ` ${getStatusEmoji(p1.statusEffect)} ${p1.statusEffect.toUpperCase()}` : '';
+    const p2Stat = p2.statusEffect ? ` ${getStatusEmoji(p2.statusEffect)} ${p2.statusEffect.toUpperCase()}` : '';
+
+    const embed = new EmbedBuilder()
+        .setColor(0xFF6900)
+        .setTitle(`⚔️ Pokémon Battle!${battle.weather ? '  ' + (WEATHER_INFO[battle.weather]?.label || '') : ''}`)
+        .addFields(
+            {
+                name:  `${isBot ? '🤖 BOT' : `<@${p2.userId}>`} — ${p2.shiny ? '✨ ' : ''}${formatPokeName(p2.pokemon.name)} Lv.${p2.pokemon.level}`,
+                value: `HP: \`${p2.currentHp}/${p2.maxHp}\`${p2Stat}`,
+                inline: false,
+            },
+            {
+                name:  `<@${p1.userId}> — ${p1.shiny ? '✨ ' : ''}${formatPokeName(p1.pokemon.name)} Lv.${p1.pokemon.level}`,
+                value: `HP: \`${p1.currentHp}/${p1.maxHp}\`${p1Stat}`,
+                inline: false,
+            },
+        );
+
+    if (turnLog.length) {
+        embed.addFields({
+            name:  `📋 Turn ${battle.turnNumber}`,
+            value: turnLog.join('\n').slice(0, 1024),
+            inline: false,
+        });
+    }
+
+    if (battle.phase === 'selecting' && !battle.switchPending) {
+        embed.addFields({
+            name:  '🎮 Select Your Move',
+            value: battle.player1.pokemon.moves.map((m, i) => {
+                const pp    = battle.player1.pokemon.pp?.[m];
+                const ppStr = pp !== undefined ? ` *(${pp} PP)*` : '';
+                return `${['1️⃣','2️⃣','3️⃣','4️⃣'][i]} \`${formatPokeName(m)}\`${ppStr}`;
+            }).join('\n'),
+            inline: false,
+        });
+    }
+
+    if (battle.switchPending) {
+        const ud        = getUserPokemon(battle.switchPending);
+        const available = ud.party
+            .map((idx, slot) => ({ idx, slot, pkm: ud.collection[idx] }))
+            .filter(e => e.pkm && e.pkm.uid !== battle.player1.pokemon.uid && (e.pkm.currentBattleHp ?? e.pkm.stats.hp) > 0);
+        const switchLines = available.map((e, i) =>
+            `${['1️⃣','2️⃣','3️⃣','4️⃣','5️⃣'][i]} ${formatPokeName(e.pkm.name)} Lv.${e.pkm.level}`
+        );
+        embed.addFields({
+            name:  '🔄 Choose Your Next Pokémon',
+            value: switchLines.join('\n') || 'No Pokémon available.',
+            inline: false,
+        });
+    }
+
+    if (p2.pokemon.sprite) embed.setImage(p2.pokemon.sprite);
+    if (p1.pokemon.sprite) embed.setThumbnail(p1.pokemon.sprite);
+    if (imageAttachment)   embed.setImage(`attachment://${imageAttachment.name}`);
+    embed.setFooter({ text: 'SOLDIER² Pokémon Battle' }).setTimestamp();
+    return embed;
+}
+
+async function getBotMove(botFighter) {
+    return botFighter.pokemon.moves[Math.floor(Math.random() * botFighter.pokemon.moves.length)];
+}
+
+function generateBattleId() {
+    return `battle_${Date.now()}_${Math.floor(Math.random() * 9999)}`;
+}
+
+// ============================================================
+//  WEATHER & ABILITY SYSTEM
+// ============================================================
+const WEATHER_MOVES = {
+    'sunny-day':  'sun',
+    'rain-dance': 'rain',
+    'sandstorm':  'sandstorm',
+    'hail':       'hail',
+    'snowscape':  'snow',
+};
+
+const WEATHER_INFO = {
+    sun:       { label: '☀️ Harsh Sunlight', color: '#FF8C00', bgTop: '#FF6B00', bgBot: '#FFD700' },
+    rain:      { label: '🌧️ Heavy Rain',     color: '#4488FF', bgTop: '#1a3a6e', bgBot: '#0a1f4e' },
+    sandstorm: { label: '🌪️ Sandstorm',      color: '#C8A050', bgTop: '#6B4C1E', bgBot: '#3D2B0A' },
+    hail:      { label: '❄️ Hail',           color: '#88CCFF', bgTop: '#1a2a4e', bgBot: '#0a1530' },
+    snow:      { label: '❄️ Snow',           color: '#AADDFF', bgTop: '#1e2e5e', bgBot: '#0f1a3a' },
+};
+
+const ABILITY_EFFECTS = {
+    'swift-swim':    { trigger: 'weather', weather: 'rain',      stat: 'speed', mult: 2 },
+    'chlorophyll':   { trigger: 'weather', weather: 'sun',       stat: 'speed', mult: 2 },
+    'sand-rush':     { trigger: 'weather', weather: 'sandstorm', stat: 'speed', mult: 2 },
+    'slush-rush':    { trigger: 'weather', weather: 'hail',      stat: 'speed', mult: 2 },
+    'blaze':         { trigger: 'low-hp',  type: 'fire',  mult: 1.5 },
+    'torrent':       { trigger: 'low-hp',  type: 'water', mult: 1.5 },
+    'overgrow':      { trigger: 'low-hp',  type: 'grass', mult: 1.5 },
+    'swarm':         { trigger: 'low-hp',  type: 'bug',   mult: 1.5 },
+    'sand-veil':     { trigger: 'weather', weather: 'sandstorm', immune: true },
+    'ice-body':      { trigger: 'weather', weather: 'hail',      heal: true },
+    'rain-dish':     { trigger: 'weather', weather: 'rain',      heal: true },
+    'dry-skin':      { trigger: 'weather', weather: 'rain',      heal: true },
+    'solar-power':   { trigger: 'weather', weather: 'sun',       spatkBoost: 1.5 },
+    'levitate':      { trigger: 'immune',  type: 'ground' },
+    'flash-fire':    { trigger: 'immune',  type: 'fire',     boostOnHit: true },
+    'volt-absorb':   { trigger: 'immune',  type: 'electric', healOnHit: true },
+    'water-absorb':  { trigger: 'immune',  type: 'water',    healOnHit: true },
+    'wonder-guard':  { trigger: 'superonly' },
+    'intimidate':    { trigger: 'entry',   stat: 'attack', mult: 0.75 },
+    'immunity':      { trigger: 'status-immune', statuses: ['poison'] },
+    'insomnia':      { trigger: 'status-immune', statuses: ['sleep'] },
+    'vital-spirit':  { trigger: 'status-immune', statuses: ['sleep'] },
+    'own-tempo':     { trigger: 'status-immune', statuses: ['confusion'] },
+    'oblivious':     { trigger: 'status-immune', statuses: ['confusion'] },
+    'magma-armor':   { trigger: 'status-immune', statuses: ['freeze'] },
+    'water-veil':    { trigger: 'status-immune', statuses: ['burn'] },
+    'static':        { trigger: 'contact', status: 'paralysis', chance: 0.3 },
+    'flame-body':    { trigger: 'contact', status: 'burn',      chance: 0.3 },
+    'poison-point':  { trigger: 'contact', status: 'poison',    chance: 0.3 },
+    'rough-skin':    { trigger: 'contact', recoil: 0.0625 },
+    'iron-barbs':    { trigger: 'contact', recoil: 0.0625 },
+    'speed-boost':   { trigger: 'end-of-turn', stat: 'speed', increment: 10 },
+    'shed-skin':     { trigger: 'end-of-turn', clearStatus: true, chance: 0.33 },
+};
+
+function applyAbilityOnEntry(fighter, opponent, turnLog) {
+    const ability = fighter.pokemon.ability;
+    if (!ability) return;
+    const eff = ABILITY_EFFECTS[ability];
+    if (!eff || eff.trigger !== 'entry') return;
+    if (eff.stat === 'attack') {
+        opponent.atkMod = (opponent.atkMod || 1) * eff.mult;
+        turnLog.push(`💪 **${formatPokeName(opponent.pokemon.name)}**'s Attack was lowered by **${formatPokeName(ability)}**!`);
+    }
+}
+
+function checkAbilityImmunity(defenderFighter, moveType) {
+    const ability = defenderFighter.pokemon.ability;
+    if (!ability) return false;
+    const eff = ABILITY_EFFECTS[ability];
+    if (!eff) return false;
+    if (eff.trigger === 'immune' && eff.type === moveType) return true;
+    return false;
+}
+
+function applyWeatherEndOfTurn(battle, turnLog) {
+    if (!battle.weather || battle.weatherTurns <= 0) {
+        if (battle.weather) {
+            turnLog.push(`☁️ The weather cleared up.`);
+            battle.weather      = null;
+            battle.weatherTurns = 0;
+        }
+        return;
+    }
+    battle.weatherTurns--;
+
+    const w = battle.weather;
+    for (const side of ['player1', 'player2']) {
+        const fighter = battle[side];
+        const ability  = fighter.pokemon.ability;
+        const eff      = ABILITY_EFFECTS[ability] || {};
+
+        if (w === 'sandstorm') {
+            const types = fighter.pokemon.types;
+            if (!types.some(t => ['rock','steel','ground'].includes(t)) && eff.trigger !== 'weather' && !eff.immune) {
+                const dmg = Math.max(1, Math.floor(fighter.maxHp / 16));
+                fighter.currentHp = Math.max(0, fighter.currentHp - dmg);
+                turnLog.push(`🌪️ **${formatPokeName(fighter.pokemon.name)}** is buffeted by the sandstorm! (-${dmg} HP)`);
+            }
+        }
+        if (w === 'hail' || w === 'snow') {
+            const types = fighter.pokemon.types;
+            if (!types.includes('ice') && eff.trigger !== 'weather') {
+                const dmg = Math.max(1, Math.floor(fighter.maxHp / 16));
+                fighter.currentHp = Math.max(0, fighter.currentHp - dmg);
+                turnLog.push(`❄️ **${formatPokeName(fighter.pokemon.name)}** is buffeted by hail! (-${dmg} HP)`);
+            }
+        }
+        if (
+            (w === 'rain' && (ability === 'rain-dish' || ability === 'dry-skin')) ||
+            (w === 'hail' && ability === 'ice-body')
+        ) {
+            const heal = Math.max(1, Math.floor(fighter.maxHp / 16));
+            fighter.currentHp = Math.min(fighter.maxHp, fighter.currentHp + heal);
+            turnLog.push(`💧 **${formatPokeName(fighter.pokemon.name)}** restored HP from the weather! (+${heal} HP)`);
+        }
+    }
+}
+
+function getWeatherMoveMult(weather, moveType) {
+    if (!weather) return 1;
+    if (weather === 'sun'  && moveType === 'fire')  return 1.5;
+    if (weather === 'sun'  && moveType === 'water') return 0.5;
+    if (weather === 'rain' && moveType === 'water') return 1.5;
+    if (weather === 'rain' && moveType === 'fire')  return 0.5;
+    return 1;
+}
+
+const battleMoveTimers = {};
+
+function clearMoveTimeout(battleId) {
+    if (battleMoveTimers[battleId]) {
+        clearTimeout(battleMoveTimers[battleId]);
+        delete battleMoveTimers[battleId];
+    }
+}
+
+function setMoveTimeout(battleId, channel) {
+    clearMoveTimeout(battleId);
+    battleMoveTimers[battleId] = setTimeout(async () => {
+        const battle = botData.activeBattles?.[battleId];
+        if (!battle || battle.phase !== 'selecting') return;
+
+        const timedOut = !battle.p1Move ? battle.player1.userId : battle.player2.userId;
+
+        await channel.send({ embeds: [
+            new EmbedBuilder()
+                .setColor(0xE74C3C)
+                .setTitle('⏰ Battle Timed Out')
+                .setDescription(`<@${timedOut}> took too long to pick a move! Battle ended.`)
+                .setTimestamp()
+                .setFooter({ text: 'SOLDIER² Pokémon Battle' })
+        ]}).catch(() => {});
+
+        if (battle.type === 'pvp') {
+            const winner = timedOut === battle.player1.userId ? battle.player2 : battle.player1;
+            if (winner.userId !== 'BOT') {
+                const wu = getUserPokemon(winner.userId);
+                wu.battleStats.wins++;
+            }
+            const lu = getUserPokemon(timedOut);
+            lu.battleStats.losses++;
+            markDirty(); scheduleSave();
+        }
+
+        delete botData.activeBattles[battleId];
+        markDirty(); scheduleSave();
+    }, BATTLE_MOVE_TIMEOUT);
+}
+
+// ============================================================
+//  EXECUTE TURN — CORRECTED
+// ============================================================
+async function executeTurn(battleId, channel) {
+    const battle = botData.activeBattles[battleId];
+    if (!battle) return;
+
+    clearMoveTimeout(battleId);
+    battle.phase  = 'executing';
+    const turnLog = [];
+
+    const p1Speed = battle.player1.pokemon.stats.speed;
+    const p2Speed = battle.player2.pokemon.stats.speed;
+    const order   = p1Speed >= p2Speed ? ['p1', 'p2'] : ['p2', 'p1'];
+
+    for (const who of order) {
+        const attacker = who === 'p1' ? battle.player1 : battle.player2;
+        const defender = who === 'p1' ? battle.player2 : battle.player1;
+        const moveName = who === 'p1' ? battle.p1Move  : battle.p2Move;
+
+        if (attacker.currentHp <= 0) continue;
+        if (moveName === '__item__' || moveName === '__switch__') continue;
+        if (defender.currentHp <= 0) break;
+
+        const statusResult = applyEndOfTurnStatus(attacker);
+        turnLog.push(...statusResult.messages);
+        if (statusResult.skipMove) continue;
+
+        const moveData = await fetchMove(moveName);
+        if (!moveData) continue;
+
+        // ── Weather move check ──
+        if (WEATHER_MOVES[moveData.name]) {
+            const newWeather = WEATHER_MOVES[moveData.name];
+            battle.weather      = newWeather;
+            battle.weatherTurns = 5;
+            const wLabel = WEATHER_INFO[newWeather]?.label || newWeather;
+            turnLog.push(`**${formatPokeName(attacker.pokemon.name)}** used **${formatPokeName(moveData.name)}**!`);
+            turnLog.push(`🌤️ ${wLabel} started!`);
+            continue;
+        }
+
+        // ── Ability immunity check ──
+        if (checkAbilityImmunity(defender, moveData.type)) {
+            turnLog.push(`**${formatPokeName(attacker.pokemon.name)}** used **${formatPokeName(moveData.name)}**!`);
+            turnLog.push(`🛡️ **${formatPokeName(defender.pokemon.name)}**'s **${formatPokeName(defender.pokemon.ability)}** made it immune!`);
+            const eff = ABILITY_EFFECTS[defender.pokemon.ability];
+            if (eff?.boostOnHit) defender.atkBoost = (defender.atkBoost || 1) * 1.5;
+            if (eff?.healOnHit) {
+                const heal = Math.max(1, Math.floor(defender.maxHp / 4));
+                defender.currentHp = Math.min(defender.maxHp, defender.currentHp + heal);
+                turnLog.push(`💚 **${formatPokeName(defender.pokemon.name)}** restored **${heal} HP**!`);
+            }
+            continue;
+        }
+
+        // ── PP check ──
+        const ppOk = await usePP(attacker.pokemon, moveName);
+        if (!ppOk) {
+            turnLog.push(`**${formatPokeName(attacker.pokemon.name)}** has no PP left and used **Struggle**!`);
+            const struggleDmg = Math.max(1, Math.floor(defender.maxHp / 4));
+            const recoilDmg   = Math.max(1, Math.floor(attacker.maxHp / 4));
+            defender.currentHp = Math.max(0, defender.currentHp - struggleDmg);
+            defender.pokemon.currentBattleHp = defender.currentHp;
+            attacker.currentHp = Math.max(0, attacker.currentHp - recoilDmg);
+            attacker.pokemon.currentBattleHp = attacker.currentHp;
+            turnLog.push(`💥 **${formatPokeName(defender.pokemon.name)}** took **${struggleDmg}** damage!`);
+            turnLog.push(`💢 **${formatPokeName(attacker.pokemon.name)}** took **${recoilDmg}** recoil damage!`);
+            continue;
+        }
+
+        turnLog.push(`**${formatPokeName(attacker.pokemon.name)}** used **${formatPokeName(moveData.name)}**!`);
+
+        // ── Weather damage multiplier ──
+        const weatherMult = getWeatherMoveMult(battle.weather, moveData.type);
+        const moveDataWithWeather = weatherMult !== 1
+            ? { ...moveData, power: Math.floor((moveData.power || 0) * weatherMult) }
+            : moveData;
+
+        // ── Ability attack boosts (Blaze/Torrent/Overgrow) ──
+        const abilityEff = ABILITY_EFFECTS[attacker.pokemon.ability];
+        let abilityMult  = 1;
+        if (abilityEff?.trigger === 'low-hp' && abilityEff.type === moveData.type) {
+            if (attacker.currentHp <= attacker.maxHp / 3) abilityMult = abilityEff.mult;
+        }
+        if (abilityEff?.trigger === 'weather' && abilityEff.weather === battle.weather && abilityEff.spatkBoost) {
+            abilityMult = abilityEff.spatkBoost;
+        }
+        const finalMoveData = abilityMult !== 1
+            ? { ...moveDataWithWeather, power: Math.floor((moveDataWithWeather.power || 0) * abilityMult) }
+            : moveDataWithWeather;
+
+        const result = calculateDamage(attacker, defender, finalMoveData);
+
+        if (result.failed) {
+            turnLog.push(attacker.statusEffect === 'paralysis'
+                ? `⚡ **${formatPokeName(attacker.pokemon.name)}** is paralyzed! It can't move!`
+                : `**${formatPokeName(attacker.pokemon.name)}** couldn't move!`
+            );
+            continue;
+        }
+        if (result.missed)       { turnLog.push(`💨 **${formatPokeName(attacker.pokemon.name)}'s** attack missed!`); continue; }
+        if (result.damage === 0) { turnLog.push(`The move had no effect...`); continue; }
+        if (result.isCrit)         turnLog.push(`⚡ A critical hit!`);
+
+        const effectText = getEffectivenessText(result.effectiveness);
+        if (effectText) turnLog.push(effectText);
+
+        defender.currentHp = Math.max(0, defender.currentHp - result.damage);
+        defender.pokemon.currentBattleHp = defender.currentHp;
+        turnLog.push(`💥 **${formatPokeName(defender.pokemon.name)}** took **${result.damage}** damage!`);
+        turnLog.push(...applyMoveEffect(moveData, defender));
+
+        if (defender.currentHp <= 0) {
+            turnLog.push(`💀 **${formatPokeName(defender.pokemon.name)}** fainted!`);
+            break;
+        }
+    }
+
+    // ── Weather end of turn ──
+    applyWeatherEndOfTurn(battle, turnLog);
+
+    battle.turnNumber++;
+
+    const p1Fainted = battle.player1.currentHp <= 0;
+    const p2Fainted = battle.player2.currentHp <= 0;
+
+    if (p1Fainted || p2Fainted) {
+        const faintedFighter = p1Fainted ? battle.player1 : battle.player2;
+
+        if (faintedFighter.userId !== 'BOT') {
+            const ud        = getUserPokemon(faintedFighter.userId);
+            const available = ud.party
+                .map(idx => ud.collection[idx])
+                .filter(p => p && p.uid !== faintedFighter.pokemon.uid && (p.currentBattleHp ?? p.stats.hp) > 0);
+
+            if (available.length > 0) {
+                battle.switchPending = faintedFighter.userId;
+                battle.phase         = 'switching';
+                turnLog.push('');
+                turnLog.push(`🔄 <@${faintedFighter.userId}> must choose their next Pokémon!`);
+
+                const battleMsg = await channel.messages.fetch(battle.battleMsgId).catch(() => null);
+                if (battleMsg) {
+                    await battleMsg.edit({ embeds: [buildBattleEmbed(battle, turnLog)] }).catch(() => {});
+                    await battleMsg.reactions.removeAll().catch(() => {});
+                    for (let i = 0; i < Math.min(available.length, 5); i++) {
+                        await battleMsg.react(['1️⃣','2️⃣','3️⃣','4️⃣','5️⃣'][i]).catch(() => {});
+                    }
+                }
+                markDirty(); scheduleSave();
+                return;
+            }
+        }
+        await endBattle(battleId, channel, turnLog, p1Fainted ? 'p2' : 'p1');
+        return;
+    }
+
+    battle.phase  = 'selecting';
+    battle.p1Move = null;
+    battle.p2Move = null;
+
+    const battleMsg = await channel.messages.fetch(battle.battleMsgId).catch(() => null);
+    if (battleMsg) {
+        const imgBuf  = await generateBattleImage(battle).catch(() => null);
+        const imgFile = imgBuf ? new AttachmentBuilder(imgBuf, { name: `battle_${battle.turnNumber}.png` }) : null;
+        await battleMsg.edit({ embeds: [buildBattleEmbed(battle, turnLog, imgFile)], files: imgFile ? [imgFile] : [] }).catch(() => {});
+        await battleMsg.reactions.removeAll().catch(() => {});
+        for (const emoji of ['1️⃣','2️⃣','3️⃣','4️⃣','🎒','🔄']) await battleMsg.react(emoji).catch(() => {});
+    }
+
+    if (battle.type === 'pve') {
+        battle.p2Move = await getBotMove(battle.player2);
+        markDirty(); scheduleSave();
+    }
+
+    markDirty(); scheduleSave();
+    setMoveTimeout(battleId, channel);
+}
+
+async function endBattle(battleId, channel, turnLog, winnerSide) {
+    const battle = botData.activeBattles[battleId];
+    if (!battle) return;
+
+    const winner = winnerSide === 'p1' ? battle.player1 : battle.player2;
+    const loser  = winnerSide === 'p1' ? battle.player2 : battle.player1;
+
+    turnLog.push('');
+    turnLog.push(winner.userId === 'BOT'
+        ? `🤖 The bot wins! Better luck next time <@${loser.userId}>!`
+        : `🏆 <@${winner.userId}> wins the battle!`
+    );
+
+    if (winner.userId !== 'BOT') {
+        const ud  = getUserPokemon(winner.userId);
+        const idx = ud.party.find(i => ud.collection[i]?.uid === winner.pokemon.uid) ?? ud.party[0];
+        if (idx !== undefined && ud.collection[idx]) {
+            const gainedXp     = 50 + battle.turnNumber * 5;
+            ud.collection[idx].xp += gainedXp;
+            const levelsGained = checkLevelUp(ud.collection[idx]);
+            turnLog.push(`⭐ **${formatPokeName(ud.collection[idx].name)}** gained **${gainedXp} XP**!`);
+            for (const lvl of levelsGained) {
+                turnLog.push(`🎉 **${formatPokeName(ud.collection[idx].name)}** grew to **Level ${lvl}**!`);
+            }
+        }
+        ud.battleStats.wins = (ud.battleStats?.wins || 0) + 1;
+        markDirty(); scheduleSave();
+        for (const idx of ud.party) {
+            if (ud.collection[idx]) await restoreAllPP(ud.collection[idx]);
+        }
+    }
+
+    if (loser.userId !== 'BOT') {
+        const lu = getUserPokemon(loser.userId);
+        lu.battleStats.losses = (lu.battleStats?.losses || 0) + 1;
+        markDirty(); scheduleSave();
+        for (const idx of lu.party) {
+            if (lu.collection[idx]) await restoreAllPP(lu.collection[idx]);
+        }
+    }
+
+    battle.phase = 'ended';
+    const imgBuf     = await generateBattleImage(battle).catch(() => null);
+    const imgFile    = imgBuf ? new AttachmentBuilder(imgBuf, { name: `battle_${battle.turnNumber}.png` }) : null;
+    const finalEmbed = buildBattleEmbed(battle, turnLog, imgFile);
+    finalEmbed.setColor(0xFFD700).setTitle('🏆 Battle Over!');
+
+    const battleMsg = await channel.messages.fetch(battle.battleMsgId).catch(() => null);
+    if (battleMsg) await battleMsg.edit({ embeds: [finalEmbed], files: imgFile ? [imgFile] : [] }).catch(() => {});
+
+    clearMoveTimeout(battleId);
+    delete botData.activeBattles[battleId];
+    markDirty(); scheduleSave();
+            }
 
 // ☆ END: HELPER FUNCTIONS & LOGIC ENGINES ☆ \\
 
@@ -1301,6 +2924,7 @@ if (botData.giveaways) {
     }
 }
     scheduleBirthdayCheck();
+    resumeAllSpawns();
     resumeAllQotd();
     setInterval(async () => {
         const result = await forceSaveNow();
